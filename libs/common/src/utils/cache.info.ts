@@ -10,9 +10,4 @@ export class CacheInfo {
       ttl: Constants.oneMonth(),
     };
   }
-
-  static Examples: CacheInfo = {
-    key: "examples",
-    ttl: Constants.oneHour(),
-  };
 }

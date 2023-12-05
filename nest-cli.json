@@ -1,77 +1,47 @@
 {
   "$schema": "https://json.schemastore.org/nest-cli",
   "collection": "@nestjs/schematics",
-  "sourceRoot": "apps/api/src",
+  "sourceRoot": "apps/mvx-event-processor/src",
   "compilerOptions": {
     "webpack": false,
     "plugins": [
       "@nestjs/swagger"
     ],
-    "tsConfigPath": "apps/api/tsconfig.app.json"
+    "tsConfigPath": "apps/mvx-event-processor/tsconfig.app.json"
   },
   "monorepo": true,
-  "root": "apps/api",
+  "root": "apps/mvx-event-processor",
   "projects": {
-    "api": {
+    "axelar-event-processor": {
       "type": "application",
-      "root": "apps/api",
+      "root": "apps/axelar-event-processor",
       "entryFile": "main",
-      "sourceRoot": "apps/api/src",
+      "sourceRoot": "apps/axelar-event-processor/src",
       "compilerOptions": {
-        "tsConfigPath": "apps/api/tsconfig.app.json",
+        "tsConfigPath": "apps/axelar-event-processor/tsconfig.app.json",
         "assets": [
           {
             "include": "../config/config.yaml",
-            "outDir": "./dist/apps/api/config"
+            "outDir": "./dist/apps/axelar-event-processor/config"
           },
           {
-            "include": "../docs/swagger.md",
-            "outDir": "./dist/apps/api/docs"
+            "include": "../config/relayer.proto",
+            "outDir": "./dist/apps/axelar-event-processor/config"
           }
         ]
       }
     },
-    "transactions-processor": {
+    "mvx-event-processor": {
       "type": "application",
-      "root": "apps/transactions-processor",
+      "root": "apps/mvx-event-processor",
       "entryFile": "main",
-      "sourceRoot": "apps/transactions-processor/src",
+      "sourceRoot": "apps/mvx-event-processor/src",
       "compilerOptions": {
-        "tsConfigPath": "apps/transactions-processor/tsconfig.app.json",
+        "tsConfigPath": "apps/mvx-event-processor/tsconfig.app.json",
         "assets": [
           {
             "include": "../config/config.yaml",
-            "outDir": "./dist/apps/transactions-processor/config"
-          }
-        ]
-      }
-    },
-    "queue-worker": {
-      "type": "application",
-      "root": "apps/queue-worker",
-      "entryFile": "main",
-      "sourceRoot": "apps/queue-worker/src",
-      "compilerOptions": {
-        "tsConfigPath": "apps/queue-worker/tsconfig.app.json",
-        "assets": [
-          {
-            "include": "../config/config.yaml",
-            "outDir": "./dist/apps/queue-worker/config"
-          }
-        ]
-      }
-    },
-    "cache-warmer": {
-      "type": "application",
-      "root": "apps/cache-warmer",
-      "entryFile": "main",
-      "sourceRoot": "apps/cache-warmer/src",
-      "compilerOptions": {
-        "tsConfigPath": "apps/cache-warmer/tsconfig.app.json",
-        "assets": [
-          {
-            "include": "../config/config.yaml",
-            "outDir": "./dist/apps/cache-warmer/config"
+            "outDir": "./dist/apps/mvx-event-processor/config"
           }
         ]
       }

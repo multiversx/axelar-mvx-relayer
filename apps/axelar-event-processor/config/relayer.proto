@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package axelar;
+
+service RelayerService {
+  rpc GetPayload (MessageById) returns (Payload) {}
+}
+
+message MessageById {
+  int32 id = 1;
+}
+
+message Payload {
+  int32 id = 1;
+  string name = 2;
+}

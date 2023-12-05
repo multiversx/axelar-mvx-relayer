@@ -72,32 +72,32 @@ $ npm run start:mainnet
 
 ```bash
 # development watch mode on devnet
-$ npm run start:transactions-processor:devnet:watch
+$ npm run start:axelar-event-processor:devnet:watch
 
 # development debug mode on devnet
-$ npm run start:transactions-processor:devnet:debug
+$ npm run start:axelar-event-processor:devnet:debug
 
 # development mode on devnet
-$ npm run start:transactions-processor:devnet
+$ npm run start:axelar-event-processor:devnet
 
 # production mode
-$ npm run start:transactions-processor:mainnet
+$ npm run start:axelar-event-processor:mainnet
 ```
 
 ## Running the queue-worker
 
 ```bash
 # development watch mode on devnet
-$ npm run start:queue-worker:devnet:watch
+$ npm run start:mvx-event-processor:devnet:watch
 
 # development debug mode on devnet
-$ npm run start:queue-worker:devnet:debug
+$ npm run start:mvx-event-processor:devnet:debug
 
 # development mode on devnet
-$ npm run start:queue-worker:devnet
+$ npm run start:mvx-event-processor:devnet
 
 # production mode
-$ npm run start:queue-worker:mainnet
+$ npm run start:mvx-event-processor:mainnet
 ```
 
 Requests can be made to http://localhost:3001 for the api. The app will reload when you'll make edits (if opened in watch mode). You will also see any lint errors in the console.​
