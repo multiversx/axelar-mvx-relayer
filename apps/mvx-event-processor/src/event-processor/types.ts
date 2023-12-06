@@ -11,4 +11,5 @@ export interface NotifierEvent {
   identifier: string;
   data: string;
   topics: string[];
+  order: number;
 }

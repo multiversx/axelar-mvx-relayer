@@ -1,4 +1,0 @@
-urls:
-  api: 'https://testnet-api.multiversx.com'
-  redis: '127.0.0.1'
-  axelarApi: 'localhost:5000'

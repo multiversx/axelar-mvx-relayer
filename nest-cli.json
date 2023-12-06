@@ -21,12 +21,8 @@
         "tsConfigPath": "apps/axelar-event-processor/tsconfig.app.json",
         "assets": [
           {
-            "include": "../config/config.yaml",
-            "outDir": "./dist/apps/axelar-event-processor/config"
-          },
-          {
-            "include": "../config/relayer.proto",
-            "outDir": "./dist/apps/axelar-event-processor/config"
+            "include": "../axelar/relayer.proto",
+            "outDir": "./dist/apps/axelar-event-processor/axelar"
           }
         ]
       }
@@ -37,13 +33,7 @@
       "entryFile": "main",
       "sourceRoot": "apps/mvx-event-processor/src",
       "compilerOptions": {
-        "tsConfigPath": "apps/mvx-event-processor/tsconfig.app.json",
-        "assets": [
-          {
-            "include": "../config/config.yaml",
-            "outDir": "./dist/apps/mvx-event-processor/config"
-          }
-        ]
+        "tsConfigPath": "apps/mvx-event-processor/tsconfig.app.json"
       }
     },
     "common": {

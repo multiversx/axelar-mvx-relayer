@@ -2,18 +2,24 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ApiConfigService } from '@mvx-monorepo/common';
 import { NotifierBlockEvent, NotifierEvent } from './types';
 import { RabbitSubscribe } from '@golevelup/nestjs-rabbitmq';
-import configuration from '../../config/configuration';
+import { EVENTS_NOTIFIER_QUEUE } from '../../../../config/configuration';
+import { EventIdentifiers, Events } from '@mvx-monorepo/common/utils/event.enum';
+import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
+import { ContractCallProcessor } from '../processors/contract-call.processor';
 
 @Injectable()
 export class EventProcessorService {
   private readonly logger: Logger;
 
-  constructor(private readonly apiConfigService: ApiConfigService) {
+  constructor(
+    private readonly apiConfigService: ApiConfigService,
+    private readonly contractCallProcessor: ContractCallProcessor,
+  ) {
     this.logger = new Logger(EventProcessorService.name);
   }
 
   @RabbitSubscribe({
-    queue: configuration().eventsNotifier.queue,
+    queue: EVENTS_NOTIFIER_QUEUE,
     createQueueIfNotExists: false,
   })
   async consumeEvents(blockEvent: NotifierBlockEvent) {
@@ -33,18 +39,22 @@ export class EventProcessorService {
     }
   }
 
-  // TODO: Implement logic
-  private handleEvent(event: NotifierEvent) {
-    this.logger.log('Received event from MultiversX Gateway contract:');
+  private async handleEvent(event: NotifierEvent) {
+    this.logger.log('Received event from MultiversX:');
     this.logger.log(JSON.stringify(event));
 
-    if (event.address !== this.apiConfigService.getEventsNotifierGatewayAddress()) {
+    if (event.address !== this.apiConfigService.getContractGateway()) {
       return;
     }
 
-    if (event.identifier === 'callContract') {
+    if (
+      event.identifier === EventIdentifiers.CALL_CONTRACT &&
+      BinaryUtils.base64Decode(event.topics[0]) === Events.CONTRACT_CALL_EVENT
+    ) {
       this.logger.log('Received callContract event from MultiversX Gateway contract:');
       this.logger.log(JSON.stringify(event));
+
+      await this.contractCallProcessor.handleEvent(event);
     }
   }
 }

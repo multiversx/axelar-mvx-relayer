@@ -1,0 +1,262 @@
+{
+    "buildInfo": {
+        "rustc": {
+            "version": "1.71.0-nightly",
+            "commitHash": "a2b1646c597329d0a25efa3889b66650f65de1de",
+            "commitDate": "2023-05-25",
+            "channel": "Nightly",
+            "short": "rustc 1.71.0-nightly (a2b1646c5 2023-05-25)"
+        },
+        "contractCrate": {
+            "name": "gateway",
+            "version": "0.0.0"
+        },
+        "framework": {
+            "name": "multiversx-sc",
+            "version": "0.43.5"
+        }
+    },
+    "name": "Gateway",
+    "constructor": {
+        "inputs": [
+            {
+                "name": "auth_module",
+                "type": "Address"
+            },
+            {
+                "name": "chain_id",
+                "type": "bytes"
+            }
+        ],
+        "outputs": []
+    },
+    "endpoints": [
+        {
+            "name": "callContract",
+            "mutability": "mutable",
+            "inputs": [
+                {
+                    "name": "destination_chain",
+                    "type": "bytes"
+                },
+                {
+                    "name": "destination_contract_address",
+                    "type": "bytes"
+                },
+                {
+                    "name": "payload",
+                    "type": "bytes"
+                }
+            ],
+            "outputs": []
+        },
+        {
+            "name": "validateContractCall",
+            "mutability": "mutable",
+            "inputs": [
+                {
+                    "name": "command_id",
+                    "type": "array32<u8>"
+                },
+                {
+                    "name": "source_chain",
+                    "type": "bytes"
+                },
+                {
+                    "name": "source_address",
+                    "type": "bytes"
+                },
+                {
+                    "name": "payload_hash",
+                    "type": "array32<u8>"
+                }
+            ],
+            "outputs": [
+                {
+                    "type": "bool"
+                }
+            ]
+        },
+        {
+            "name": "execute",
+            "mutability": "mutable",
+            "inputs": [
+                {
+                    "name": "input",
+                    "type": "ExecuteInput"
+                }
+            ],
+            "outputs": []
+        },
+        {
+            "name": "isCommandExecuted",
+            "mutability": "readonly",
+            "inputs": [
+                {
+                    "name": "command_id",
+                    "type": "array32<u8>"
+                }
+            ],
+            "outputs": [
+                {
+                    "type": "bool"
+                }
+            ]
+        },
+        {
+            "name": "isContractCallApproved",
+            "mutability": "readonly",
+            "inputs": [
+                {
+                    "name": "command_id",
+                    "type": "array32<u8>"
+                },
+                {
+                    "name": "source_chain",
+                    "type": "bytes"
+                },
+                {
+                    "name": "source_address",
+                    "type": "bytes"
+                },
+                {
+                    "name": "contract_address",
+                    "type": "Address"
+                },
+                {
+                    "name": "payload_hash",
+                    "type": "array32<u8>"
+                }
+            ],
+            "outputs": [
+                {
+                    "type": "bool"
+                }
+            ]
+        },
+        {
+            "name": "chain_id",
+            "mutability": "readonly",
+            "inputs": [],
+            "outputs": [
+                {
+                    "type": "bytes"
+                }
+            ]
+        },
+        {
+            "name": "authModule",
+            "mutability": "readonly",
+            "inputs": [],
+            "outputs": [
+                {
+                    "type": "Address"
+                }
+            ]
+        }
+    ],
+    "events": [
+        {
+            "identifier": "contract_call_event",
+            "inputs": [
+                {
+                    "name": "sender",
+                    "type": "Address",
+                    "indexed": true
+                },
+                {
+                    "name": "destination_chain",
+                    "type": "bytes",
+                    "indexed": true
+                },
+                {
+                    "name": "destination_contract_address",
+                    "type": "bytes",
+                    "indexed": true
+                },
+                {
+                    "name": "data",
+                    "type": "ContractCallData"
+                }
+            ]
+        },
+        {
+            "identifier": "executed_event",
+            "inputs": [
+                {
+                    "name": "command_id",
+                    "type": "array32<u8>",
+                    "indexed": true
+                }
+            ]
+        },
+        {
+            "identifier": "contract_call_approved_event",
+            "inputs": [
+                {
+                    "name": "command_id",
+                    "type": "array32<u8>",
+                    "indexed": true
+                },
+                {
+                    "name": "source_chain",
+                    "type": "bytes",
+                    "indexed": true
+                },
+                {
+                    "name": "source_address",
+                    "type": "bytes",
+                    "indexed": true
+                },
+                {
+                    "name": "contract_address",
+                    "type": "Address",
+                    "indexed": true
+                },
+                {
+                    "name": "payload_hash",
+                    "type": "array32<u8>",
+                    "indexed": true
+                }
+            ]
+        },
+        {
+            "identifier": "operatorship_transferred_event",
+            "inputs": [
+                {
+                    "name": "params",
+                    "type": "bytes"
+                }
+            ]
+        }
+    ],
+    "hasCallback": false,
+    "types": {
+        "ContractCallData": {
+            "type": "struct",
+            "fields": [
+                {
+                    "name": "hash",
+                    "type": "array32<u8>"
+                },
+                {
+                    "name": "payload",
+                    "type": "bytes"
+                }
+            ]
+        },
+        "ExecuteInput": {
+            "type": "struct",
+            "fields": [
+                {
+                    "name": "data",
+                    "type": "bytes"
+                },
+                {
+                    "name": "proof",
+                    "type": "bytes"
+                }
+            ]
+        }
+    }
+}

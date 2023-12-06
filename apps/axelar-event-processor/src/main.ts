@@ -2,7 +2,6 @@ import 'module-alias/register';
 import { NestFactory } from '@nestjs/core';
 import { TransactionProcessorModule } from './processor';
 import { ApiConfigService, PubSubListenerModule } from '@mvx-monorepo/common';
-import configuration from '../config/configuration';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { join } from 'path';
@@ -12,12 +11,12 @@ async function bootstrap() {
   const apiConfigService = transactionProcessorApp.get<ApiConfigService>(ApiConfigService);
 
   const pubSubApp = await NestFactory.createMicroservice<MicroserviceOptions>(
-    PubSubListenerModule.forRoot(configuration),
+    PubSubListenerModule.forRoot(),
     {
       transport: Transport.GRPC,
       options: {
-        package: 'axelar',
-        protoPath: join(__dirname, '../config/relayer.proto'),
+        package: 'axelar.relayer.v1beta1',
+        protoPath: join(__dirname, '../axelar/relayer.proto'),
         url: apiConfigService.getAxelarApiUrl(),
       },
     },

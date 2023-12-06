@@ -1,7 +1,0 @@
-urls:
-  api: 'https://devnet-api.multiversx.com'
-  redis: '127.0.0.1'
-  eventsNotifier: ''
-eventsNotifier:
-  queue: ''
-  gatewayAddress: ''
