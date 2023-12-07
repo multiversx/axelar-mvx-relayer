@@ -5,6 +5,7 @@ import { ApiNetworkProvider, ProxyNetworkProvider } from '@multiversx/sdk-networ
 import { ResultsParser } from '@multiversx/sdk-core/out';
 import { ContractLoader } from '@mvx-monorepo/common/contracts/contract.loader';
 import { join } from 'path';
+import { GasServiceContract } from '@mvx-monorepo/common/contracts/gas-service.contract';
 
 @Module({
   imports: [],
@@ -53,7 +54,19 @@ import { join } from 'path';
       },
       inject: [ApiConfigService, ResultsParser],
     },
+    {
+      provide: GasServiceContract,
+      useFactory: async (apiConfigService: ApiConfigService, resultsParser: ResultsParser) => {
+        const contractLoader = new ContractLoader(join(__dirname, '../assets/gas-service.abi.json'));
+
+        const smartContract = await contractLoader.getContract(apiConfigService.getContractGasService());
+        const abi = await contractLoader.getAbiRegistry(apiConfigService.getContractGasService());
+
+        return new GasServiceContract(smartContract, abi, resultsParser);
+      },
+      inject: [ApiConfigService, ResultsParser],
+    },
   ],
-  exports: [GatewayContract],
+  exports: [GatewayContract, GasServiceContract],
 })
 export class ContractsModule {}

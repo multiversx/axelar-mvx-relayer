@@ -5,16 +5,21 @@ import { RabbitSubscribe } from '@golevelup/nestjs-rabbitmq';
 import { EVENTS_NOTIFIER_QUEUE } from '../../../../config/configuration';
 import { EventIdentifiers, Events } from '@mvx-monorepo/common/utils/event.enum';
 import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
-import { ContractCallProcessor } from '../processors/contract-call.processor';
+import { ContractCallProcessor, GasServiceProcessor } from '../processors';
 
 @Injectable()
 export class EventProcessorService {
+  private readonly contractGateway: string;
+  private readonly contractGasService: string;
   private readonly logger: Logger;
 
   constructor(
-    private readonly apiConfigService: ApiConfigService,
     private readonly contractCallProcessor: ContractCallProcessor,
+    private readonly gasServiceProcessor: GasServiceProcessor,
+    apiConfigService: ApiConfigService,
   ) {
+    this.contractGateway = apiConfigService.getContractGateway();
+    this.contractGasService = apiConfigService.getContractGasService();
     this.logger = new Logger(EventProcessorService.name);
   }
 
@@ -43,7 +48,13 @@ export class EventProcessorService {
     this.logger.log('Received event from MultiversX:');
     this.logger.log(JSON.stringify(event));
 
-    if (event.address !== this.apiConfigService.getContractGateway()) {
+    if (event.address === this.contractGasService) {
+      await this.gasServiceProcessor.handleEvent(event);
+
+      return;
+    }
+
+    if (event.address !== this.contractGateway) {
       return;
     }
 

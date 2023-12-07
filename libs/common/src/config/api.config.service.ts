@@ -58,12 +58,21 @@ export class ApiConfigService {
   }
 
   getContractGateway(): string {
-    const eventsNotifierGatewayAddress = this.configService.get<string>('CONTRACT_GATEWAY');
-    if (!eventsNotifierGatewayAddress) {
-      throw new Error('No Events Notifier Gateway Address present');
+    const contractGateway = this.configService.get<string>('CONTRACT_GATEWAY');
+    if (!contractGateway) {
+      throw new Error('No Contract Gateway present');
     }
 
-    return eventsNotifierGatewayAddress;
+    return contractGateway;
+  }
+
+  getContractGasService(): string {
+    const contractGasService = this.configService.get<string>('CONTRACT_GAS_SERVICE');
+    if (!contractGasService) {
+      throw new Error('No Contract Gas Service present');
+    }
+
+    return contractGasService;
   }
 
   getAxelarApiUrl(): string {

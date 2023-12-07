@@ -6,9 +6,10 @@ import { ContractCallEventRepository } from '@mvx-monorepo/common/database/repos
 import { ApiConfigService } from '@mvx-monorepo/common';
 import { ContractCallEventStatus } from '@prisma/client';
 import { GrpcService } from '@mvx-monorepo/common/grpc/grpc.service';
+import { ProcessorInterface } from './entities/processor.interface';
 
 @Injectable()
-export class ContractCallProcessor {
+export class ContractCallProcessor implements ProcessorInterface {
   private sourceChain: string;
 
   constructor(
@@ -32,7 +33,7 @@ export class ContractCallProcessor {
       sourceChain: this.sourceChain,
       destinationAddress: event.destination_contract_address,
       destinationChain: event.destination_chain,
-      payloadHash: event.data.hash,
+      payloadHash: event.data.payload_hash,
       payload: event.data.payload,
     });
 

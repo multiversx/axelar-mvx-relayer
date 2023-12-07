@@ -5,7 +5,7 @@ export interface ContractCallEvent {
   destination_chain: string,
   destination_contract_address: string,
   data: {
-    hash: string,
+    payload_hash: string,
     payload: Buffer,
   }
 }

@@ -1,0 +1,748 @@
+{
+    "buildInfo": {
+        "rustc": {
+            "version": "1.71.0-nightly",
+            "commitHash": "a2b1646c597329d0a25efa3889b66650f65de1de",
+            "commitDate": "2023-05-25",
+            "channel": "Nightly",
+            "short": "rustc 1.71.0-nightly (a2b1646c5 2023-05-25)"
+        },
+        "contractCrate": {
+            "name": "gas-service",
+            "version": "0.0.0"
+        },
+        "framework": {
+            "name": "multiversx-sc",
+            "version": "0.43.5"
+        }
+    },
+    "name": "GasService",
+    "constructor": {
+        "inputs": [
+            {
+                "name": "gas_collector",
+                "type": "Address"
+            }
+        ],
+        "outputs": []
+    },
+    "endpoints": [
+        {
+            "name": "payGasForContractCall",
+            "mutability": "mutable",
+            "payableInTokens": [
+                "*"
+            ],
+            "inputs": [
+                {
+                    "name": "destination_chain",
+                    "type": "bytes"
+                },
+                {
+                    "name": "destination_address",
+                    "type": "bytes"
+                },
+                {
+                    "name": "payload",
+                    "type": "bytes"
+                },
+                {
+                    "name": "refund_address",
+                    "type": "Address"
+                }
+            ],
+            "outputs": []
+        },
+        {
+            "name": "payGasForContractCallWithToken",
+            "mutability": "mutable",
+            "payableInTokens": [
+                "*"
+            ],
+            "inputs": [
+                {
+                    "name": "destination_chain",
+                    "type": "bytes"
+                },
+                {
+                    "name": "destination_address",
+                    "type": "bytes"
+                },
+                {
+                    "name": "payload",
+                    "type": "bytes"
+                },
+                {
+                    "name": "symbol",
+                    "type": "bytes"
+                },
+                {
+                    "name": "amount",
+                    "type": "BigUint"
+                },
+                {
+                    "name": "refund_address",
+                    "type": "Address"
+                }
+            ],
+            "outputs": []
+        },
+        {
+            "name": "payNativeGasForContractCall",
+            "mutability": "mutable",
+            "payableInTokens": [
+                "EGLD"
+            ],
+            "inputs": [
+                {
+                    "name": "destination_chain",
+                    "type": "bytes"
+                },
+                {
+                    "name": "destination_address",
+                    "type": "bytes"
+                },
+                {
+                    "name": "payload",
+                    "type": "bytes"
+                },
+                {
+                    "name": "refund_address",
+                    "type": "Address"
+                }
+            ],
+            "outputs": []
+        },
+        {
+            "name": "payNativeGasForContractCallWithToken",
+            "mutability": "mutable",
+            "payableInTokens": [
+                "EGLD"
+            ],
+            "inputs": [
+                {
+                    "name": "destination_chain",
+                    "type": "bytes"
+                },
+                {
+                    "name": "destination_address",
+                    "type": "bytes"
+                },
+                {
+                    "name": "payload",
+                    "type": "bytes"
+                },
+                {
+                    "name": "symbol",
+                    "type": "bytes"
+                },
+                {
+                    "name": "amount",
+                    "type": "BigUint"
+                },
+                {
+                    "name": "refund_address",
+                    "type": "Address"
+                }
+            ],
+            "outputs": []
+        },
+        {
+            "name": "payGasForExpressCallWithToken",
+            "mutability": "mutable",
+            "payableInTokens": [
+                "*"
+            ],
+            "inputs": [
+                {
+                    "name": "destination_chain",
+                    "type": "bytes"
+                },
+                {
+                    "name": "destination_address",
+                    "type": "bytes"
+                },
+                {
+                    "name": "payload",
+                    "type": "bytes"
+                },
+                {
+                    "name": "symbol",
+                    "type": "bytes"
+                },
+                {
+                    "name": "amount",
+                    "type": "BigUint"
+                },
+                {
+                    "name": "refund_address",
+                    "type": "Address"
+                }
+            ],
+            "outputs": []
+        },
+        {
+            "name": "payNativeGasForExpressCallWithToken",
+            "mutability": "mutable",
+            "payableInTokens": [
+                "EGLD"
+            ],
+            "inputs": [
+                {
+                    "name": "destination_chain",
+                    "type": "bytes"
+                },
+                {
+                    "name": "destination_address",
+                    "type": "bytes"
+                },
+                {
+                    "name": "payload",
+                    "type": "bytes"
+                },
+                {
+                    "name": "symbol",
+                    "type": "bytes"
+                },
+                {
+                    "name": "amount",
+                    "type": "BigUint"
+                },
+                {
+                    "name": "refund_address",
+                    "type": "Address"
+                }
+            ],
+            "outputs": []
+        },
+        {
+            "name": "addGas",
+            "mutability": "mutable",
+            "payableInTokens": [
+                "*"
+            ],
+            "inputs": [
+                {
+                    "name": "tx_hash",
+                    "type": "bytes"
+                },
+                {
+                    "name": "log_index",
+                    "type": "BigUint"
+                },
+                {
+                    "name": "refund_address",
+                    "type": "Address"
+                }
+            ],
+            "outputs": []
+        },
+        {
+            "name": "addNativeGas",
+            "mutability": "mutable",
+            "payableInTokens": [
+                "EGLD"
+            ],
+            "inputs": [
+                {
+                    "name": "tx_hash",
+                    "type": "bytes"
+                },
+                {
+                    "name": "log_index",
+                    "type": "BigUint"
+                },
+                {
+                    "name": "refund_address",
+                    "type": "Address"
+                }
+            ],
+            "outputs": []
+        },
+        {
+            "name": "addExpressGas",
+            "mutability": "mutable",
+            "payableInTokens": [
+                "*"
+            ],
+            "inputs": [
+                {
+                    "name": "tx_hash",
+                    "type": "bytes"
+                },
+                {
+                    "name": "log_index",
+                    "type": "BigUint"
+                },
+                {
+                    "name": "refund_address",
+                    "type": "Address"
+                }
+            ],
+            "outputs": []
+        },
+        {
+            "name": "addNativeExpressGas",
+            "mutability": "mutable",
+            "payableInTokens": [
+                "EGLD"
+            ],
+            "inputs": [
+                {
+                    "name": "tx_hash",
+                    "type": "bytes"
+                },
+                {
+                    "name": "log_index",
+                    "type": "BigUint"
+                },
+                {
+                    "name": "refund_address",
+                    "type": "Address"
+                }
+            ],
+            "outputs": []
+        },
+        {
+            "name": "collectFees",
+            "mutability": "mutable",
+            "inputs": [
+                {
+                    "name": "receiver",
+                    "type": "Address"
+                },
+                {
+                    "name": "tokens",
+                    "type": "counted-variadic<EgldOrEsdtTokenIdentifier>",
+                    "multi_arg": true
+                },
+                {
+                    "name": "amounts",
+                    "type": "counted-variadic<BigUint>",
+                    "multi_arg": true
+                }
+            ],
+            "outputs": []
+        },
+        {
+            "name": "refund",
+            "mutability": "mutable",
+            "inputs": [
+                {
+                    "name": "tx_hash",
+                    "type": "bytes"
+                },
+                {
+                    "name": "log_index",
+                    "type": "BigUint"
+                },
+                {
+                    "name": "receiver",
+                    "type": "Address"
+                },
+                {
+                    "name": "token",
+                    "type": "EgldOrEsdtTokenIdentifier"
+                },
+                {
+                    "name": "amount",
+                    "type": "BigUint"
+                }
+            ],
+            "outputs": []
+        },
+        {
+            "name": "gas_collector",
+            "mutability": "readonly",
+            "inputs": [],
+            "outputs": [
+                {
+                    "type": "Address"
+                }
+            ]
+        }
+    ],
+    "events": [
+        {
+            "identifier": "gas_paid_for_contract_call_event",
+            "inputs": [
+                {
+                    "name": "sender",
+                    "type": "Address",
+                    "indexed": true
+                },
+                {
+                    "name": "destination_chain",
+                    "type": "bytes",
+                    "indexed": true
+                },
+                {
+                    "name": "destination_contract_address",
+                    "type": "bytes",
+                    "indexed": true
+                },
+                {
+                    "name": "data",
+                    "type": "GasPaidForContractCallData"
+                }
+            ]
+        },
+        {
+            "identifier": "gas_paid_for_contract_call_with_token_event",
+            "inputs": [
+                {
+                    "name": "sender",
+                    "type": "Address",
+                    "indexed": true
+                },
+                {
+                    "name": "destination_chain",
+                    "type": "bytes",
+                    "indexed": true
+                },
+                {
+                    "name": "destination_contract_address",
+                    "type": "bytes",
+                    "indexed": true
+                },
+                {
+                    "name": "data",
+                    "type": "GasPaidForContractCallWithTokenData"
+                }
+            ]
+        },
+        {
+            "identifier": "native_gas_paid_for_contract_call_event",
+            "inputs": [
+                {
+                    "name": "sender",
+                    "type": "Address",
+                    "indexed": true
+                },
+                {
+                    "name": "destination_chain",
+                    "type": "bytes",
+                    "indexed": true
+                },
+                {
+                    "name": "destination_contract_address",
+                    "type": "bytes",
+                    "indexed": true
+                },
+                {
+                    "name": "data",
+                    "type": "NativeGasPaidForContractCallData"
+                }
+            ]
+        },
+        {
+            "identifier": "native_gas_paid_for_contract_call_with_token_event",
+            "inputs": [
+                {
+                    "name": "sender",
+                    "type": "Address",
+                    "indexed": true
+                },
+                {
+                    "name": "destination_chain",
+                    "type": "bytes",
+                    "indexed": true
+                },
+                {
+                    "name": "destination_contract_address",
+                    "type": "bytes",
+                    "indexed": true
+                },
+                {
+                    "name": "data",
+                    "type": "NativeGasPaidForContractCallWithTokenData"
+                }
+            ]
+        },
+        {
+            "identifier": "gas_paid_for_express_call_with_token_event",
+            "inputs": [
+                {
+                    "name": "sender",
+                    "type": "Address",
+                    "indexed": true
+                },
+                {
+                    "name": "destination_chain",
+                    "type": "bytes",
+                    "indexed": true
+                },
+                {
+                    "name": "destination_contract_address",
+                    "type": "bytes",
+                    "indexed": true
+                },
+                {
+                    "name": "data",
+                    "type": "GasPaidForContractCallWithTokenData"
+                }
+            ]
+        },
+        {
+            "identifier": "native_gas_paid_for_express_call_with_token_event",
+            "inputs": [
+                {
+                    "name": "sender",
+                    "type": "Address",
+                    "indexed": true
+                },
+                {
+                    "name": "destination_chain",
+                    "type": "bytes",
+                    "indexed": true
+                },
+                {
+                    "name": "destination_contract_address",
+                    "type": "bytes",
+                    "indexed": true
+                },
+                {
+                    "name": "data",
+                    "type": "NativeGasPaidForContractCallWithTokenData"
+                }
+            ]
+        },
+        {
+            "identifier": "gas_added_event",
+            "inputs": [
+                {
+                    "name": "tx_hash",
+                    "type": "bytes",
+                    "indexed": true
+                },
+                {
+                    "name": "log_index",
+                    "type": "BigUint",
+                    "indexed": true
+                },
+                {
+                    "name": "data",
+                    "type": "AddGasData"
+                }
+            ]
+        },
+        {
+            "identifier": "native_gas_added_event",
+            "inputs": [
+                {
+                    "name": "tx_hash",
+                    "type": "bytes",
+                    "indexed": true
+                },
+                {
+                    "name": "log_index",
+                    "type": "BigUint",
+                    "indexed": true
+                },
+                {
+                    "name": "data",
+                    "type": "AddNativeGasData"
+                }
+            ]
+        },
+        {
+            "identifier": "express_gas_added_event",
+            "inputs": [
+                {
+                    "name": "tx_hash",
+                    "type": "bytes",
+                    "indexed": true
+                },
+                {
+                    "name": "log_index",
+                    "type": "BigUint",
+                    "indexed": true
+                },
+                {
+                    "name": "data",
+                    "type": "AddGasData"
+                }
+            ]
+        },
+        {
+            "identifier": "native_express_gas_added_event",
+            "inputs": [
+                {
+                    "name": "tx_hash",
+                    "type": "bytes",
+                    "indexed": true
+                },
+                {
+                    "name": "log_index",
+                    "type": "BigUint",
+                    "indexed": true
+                },
+                {
+                    "name": "data",
+                    "type": "AddNativeGasData"
+                }
+            ]
+        },
+        {
+            "identifier": "refunded_event",
+            "inputs": [
+                {
+                    "name": "tx_hash",
+                    "type": "bytes",
+                    "indexed": true
+                },
+                {
+                    "name": "log_index",
+                    "type": "BigUint",
+                    "indexed": true
+                },
+                {
+                    "name": "data",
+                    "type": "RefundedData"
+                }
+            ]
+        }
+    ],
+    "hasCallback": false,
+    "types": {
+        "AddGasData": {
+            "type": "struct",
+            "fields": [
+                {
+                    "name": "gas_token",
+                    "type": "TokenIdentifier"
+                },
+                {
+                    "name": "gas_fee_amount",
+                    "type": "BigUint"
+                },
+                {
+                    "name": "refund_address",
+                    "type": "Address"
+                }
+            ]
+        },
+        "AddNativeGasData": {
+            "type": "struct",
+            "fields": [
+                {
+                    "name": "value",
+                    "type": "BigUint"
+                },
+                {
+                    "name": "refund_address",
+                    "type": "Address"
+                }
+            ]
+        },
+        "GasPaidForContractCallData": {
+            "type": "struct",
+            "fields": [
+                {
+                    "name": "hash",
+                    "type": "array32<u8>"
+                },
+                {
+                    "name": "gas_token",
+                    "type": "TokenIdentifier"
+                },
+                {
+                    "name": "gas_fee_amount",
+                    "type": "BigUint"
+                },
+                {
+                    "name": "refund_address",
+                    "type": "Address"
+                }
+            ]
+        },
+        "GasPaidForContractCallWithTokenData": {
+            "type": "struct",
+            "fields": [
+                {
+                    "name": "hash",
+                    "type": "array32<u8>"
+                },
+                {
+                    "name": "symbol",
+                    "type": "bytes"
+                },
+                {
+                    "name": "amount",
+                    "type": "BigUint"
+                },
+                {
+                    "name": "gas_token",
+                    "type": "TokenIdentifier"
+                },
+                {
+                    "name": "gas_fee_amount",
+                    "type": "BigUint"
+                },
+                {
+                    "name": "refund_address",
+                    "type": "Address"
+                }
+            ]
+        },
+        "NativeGasPaidForContractCallData": {
+            "type": "struct",
+            "fields": [
+                {
+                    "name": "hash",
+                    "type": "array32<u8>"
+                },
+                {
+                    "name": "value",
+                    "type": "BigUint"
+                },
+                {
+                    "name": "refund_address",
+                    "type": "Address"
+                }
+            ]
+        },
+        "NativeGasPaidForContractCallWithTokenData": {
+            "type": "struct",
+            "fields": [
+                {
+                    "name": "hash",
+                    "type": "array32<u8>"
+                },
+                {
+                    "name": "symbol",
+                    "type": "bytes"
+                },
+                {
+                    "name": "amount",
+                    "type": "BigUint"
+                },
+                {
+                    "name": "value",
+                    "type": "BigUint"
+                },
+                {
+                    "name": "refund_address",
+                    "type": "Address"
+                }
+            ]
+        },
+        "RefundedData": {
+            "type": "struct",
+            "fields": [
+                {
+                    "name": "receiver",
+                    "type": "Address"
+                },
+                {
+                    "name": "token",
+                    "type": "EgldOrEsdtTokenIdentifier"
+                },
+                {
+                    "name": "amount",
+                    "type": "BigUint"
+                }
+            ]
+        }
+    }
+}

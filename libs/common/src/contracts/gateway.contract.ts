@@ -28,7 +28,7 @@ export class GatewayContract {
       destination_chain: outcome.destination_chain.toString(),
       destination_contract_address: outcome.destination_contract_address.toString(),
       data: {
-        hash: Buffer.from(outcome.data.hash.map((number: BigNumber) => number.toNumber())).toString('hex'),
+        payload_hash: Buffer.from(outcome.data.hash.map((number: BigNumber) => number.toNumber())).toString('hex'),
         payload: outcome.data.payload,
       },
     };
