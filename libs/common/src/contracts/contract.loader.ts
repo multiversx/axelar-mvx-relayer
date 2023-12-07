@@ -1,21 +1,25 @@
-import { AbiRegistry, Address, SmartContract } from '@multiversx/sdk-core';
-import { Logger } from '@nestjs/common';
+import { SmartContract, AbiRegistry, Address } from "@multiversx/sdk-core";
+import { Logger } from "@nestjs/common";
+import * as fs from "fs";
 
 export class ContractLoader {
   private readonly logger: Logger;
-  private readonly json: any;
+  private readonly abiPath: string;
   private abiRegistry: AbiRegistry | undefined = undefined;
   private contract: SmartContract | undefined = undefined;
 
-  constructor(json: any) {
-    this.json = json;
+  constructor(abiPath: string) {
+    this.abiPath = abiPath;
 
     this.logger = new Logger(ContractLoader.name);
   }
 
-  private load(contractAddress: string): SmartContract {
+  private async load(contractAddress: string): Promise<SmartContract> {
     try {
-      this.abiRegistry = AbiRegistry.create(this.json);
+      const jsonContent: string = await fs.promises.readFile(this.abiPath, { encoding: "utf8" });
+      const json = JSON.parse(jsonContent);
+
+      this.abiRegistry = AbiRegistry.create(json);
 
       return new SmartContract({
         address: new Address(contractAddress),
@@ -29,17 +33,17 @@ export class ContractLoader {
     }
   }
 
-  getContract(contractAddress: string): SmartContract {
+  async getContract(contractAddress: string): Promise<SmartContract> {
     if (!this.contract) {
-      this.contract = this.load(contractAddress);
+      this.contract = await this.load(contractAddress);
     }
 
     return this.contract;
   }
 
-  getAbiRegistry(contractAddress: string): AbiRegistry {
+  async getAbiRegistry(contractAddress: string): Promise<AbiRegistry> {
     if (!this.abiRegistry) {
-      this.load(contractAddress);
+      await this.load(contractAddress);
     }
 
     return this.abiRegistry as AbiRegistry;

@@ -7,7 +7,13 @@
     "plugins": [
       "@nestjs/swagger"
     ],
-    "tsConfigPath": "apps/mvx-event-processor/tsconfig.app.json"
+    "tsConfigPath": "apps/mvx-event-processor/tsconfig.app.json",
+    "assets": [
+      {
+        "include": "../libs/common/src/assets/*.proto",
+        "outDir": "dist"
+      }
+    ]
   },
   "monorepo": true,
   "root": "apps/mvx-event-processor",
@@ -42,7 +48,8 @@
       "entryFile": "index",
       "sourceRoot": "libs/common/src",
       "compilerOptions": {
-        "tsConfigPath": "libs/common/tsconfig.lib.json"
+        "tsConfigPath": "libs/common/tsconfig.lib.json",
+        "assets": ["assets/*.proto", "assets/*.abi.json"]
       }
     }
   }

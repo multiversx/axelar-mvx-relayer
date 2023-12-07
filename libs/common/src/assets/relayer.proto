@@ -19,7 +19,7 @@ message VerifyResponse{
 message Message{
   string id = 1; // the unique identifier with which the message can be looked up on the source chain
   string source_chain = 2;
-  string source_address= 3;
+  string source_address = 3;
   string destination_chain = 4;
   string destination_address = 5;
   bytes payload = 6;

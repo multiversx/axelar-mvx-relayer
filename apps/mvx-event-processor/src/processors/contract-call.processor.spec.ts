@@ -9,16 +9,19 @@ import { NotifierEvent } from '../event-processor/types';
 import { ContractsModule } from '@mvx-monorepo/common/contracts/contracts.module';
 import { Address } from '@multiversx/sdk-core/out';
 import { ContractCallEventStatus } from '@prisma/client';
+import { GrpcService } from '@mvx-monorepo/common/grpc/grpc.service';
 
 describe('ContractCallProcessor', () => {
   let contractCallEventRepository: DeepMocked<ContractCallEventRepository>;
   let apiConfigService: DeepMocked<ApiConfigService>;
+  let grpcService: DeepMocked<GrpcService>;
 
   let service: ContractCallProcessor;
 
   beforeEach(async () => {
     contractCallEventRepository = createMock();
     apiConfigService = createMock();
+    grpcService = createMock();
 
     apiConfigService.getSourceChainName.mockReturnValue('multiversx-test');
     apiConfigService.getContractGateway.mockReturnValue(
@@ -38,7 +41,11 @@ describe('ContractCallProcessor', () => {
           return apiConfigService;
         }
 
-        return undefined;
+        if (token === GrpcService) {
+          return grpcService;
+        }
+
+        return null;
       })
       .compile();
 
@@ -46,29 +53,29 @@ describe('ContractCallProcessor', () => {
   });
 
   describe('handleEvent', () => {
-    it('Should handle event', async () => {
-      const data = Buffer.concat([
-        Buffer.from('ebc84cbd75ba5516bf45e7024a9e12bc3c5c880f73e3a5beca7ebba52b2867a7', 'hex'),
-        Buffer.from('00000007', 'hex'), // length of payload as u32
-        Buffer.from('payload'),
-      ]);
-      const rawEvent: NotifierEvent = {
-        txHash: 'txHash',
-        address: 'mockGatewayAddress',
-        identifier: 'callContract',
-        data: data.toString('base64'),
-        topics: [
-          BinaryUtils.base64Encode(Events.CONTRACT_CALL_EVENT),
-          Buffer.from(
-            Address.fromBech32('erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7').hex(),
-            'hex',
-          ).toString('base64'),
-          BinaryUtils.base64Encode('ethereum'),
-          BinaryUtils.base64Encode('destinationAddress'),
-        ],
-        order: 1,
-      };
+    const data = Buffer.concat([
+      Buffer.from('ebc84cbd75ba5516bf45e7024a9e12bc3c5c880f73e3a5beca7ebba52b2867a7', 'hex'),
+      Buffer.from('00000007', 'hex'), // length of payload as u32
+      Buffer.from('payload'),
+    ]);
+    const rawEvent: NotifierEvent = {
+      txHash: 'txHash',
+      address: 'mockGatewayAddress',
+      identifier: 'callContract',
+      data: data.toString('base64'),
+      topics: [
+        BinaryUtils.base64Encode(Events.CONTRACT_CALL_EVENT),
+        Buffer.from(
+          Address.fromBech32('erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7').hex(),
+          'hex',
+        ).toString('base64'),
+        BinaryUtils.base64Encode('ethereum'),
+        BinaryUtils.base64Encode('destinationAddress'),
+      ],
+      order: 1,
+    };
 
+    it('Should handle event', async () => {
       await service.handleEvent(rawEvent);
 
       expect(contractCallEventRepository.create).toHaveBeenCalledTimes(1);
@@ -84,6 +91,16 @@ describe('ContractCallProcessor', () => {
         payloadHash: 'ebc84cbd75ba5516bf45e7024a9e12bc3c5c880f73e3a5beca7ebba52b2867a7',
         payload: Buffer.from('payload'),
       });
+      expect(grpcService.verify).toHaveBeenCalledTimes(1);
+    });
+
+    it('Should throw error can not save in database', async () => {
+      contractCallEventRepository.create.mockReturnValueOnce(Promise.resolve(null));
+
+      await expect(service.handleEvent(rawEvent)).rejects.toThrow();
+
+      expect(contractCallEventRepository.create).toHaveBeenCalledTimes(1);
+      expect(grpcService.verify).not.toHaveBeenCalled();
     });
   });
 });

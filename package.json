@@ -10,12 +10,12 @@
     "build": "nest build",
     "build:all": "nest build mvx-event-processor && nest build axelar-event-processor && nest build common",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest build mvx-event-processor & nest start",
-    "start:watch": "nest build mvx-event-processor & nest start --watch",
-    "start:debug": "nest build mvx-event-processor & nest start --watch --debug",
-    "start:axelar-event-processor": "nest build axelar-event-processor & nest start axelar-event-processor",
-    "start:axelar-event-processor:watch": "nest build axelar-event-processor & nest start axelar-event-processor --watch",
-    "start:axelar-event-processor:debug": "nest build axelar-event-processor & nest start axelar-event-processor --watch --debug",
+    "start": "nest build common && nest build mvx-event-processor & nest start",
+    "start:watch": "nest build common && nest build mvx-event-processor & nest start --watch",
+    "start:debug": "nest build common && nest build mvx-event-processor & nest start --watch --debug",
+    "start:axelar-event-processor": "nest build common && nest build axelar-event-processor & nest start axelar-event-processor",
+    "start:axelar-event-processor:watch": "nest build common && nest build axelar-event-processor & nest start axelar-event-processor --watch",
+    "start:axelar-event-processor:debug": "nest build common && nest build axelar-event-processor & nest start axelar-event-processor --watch --debug",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "lint:fix": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
@@ -24,7 +24,8 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./apps/mvx-event-processor/test/jest-e2e.json",
     "migrate": "prisma migrate dev",
-    "generate": "prisma generate"
+    "generate": "prisma generate",
+    "buf": "cd libs/common/src/assets && npx buf generate"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.9.12",
@@ -83,6 +84,7 @@
     "ts-jest": "29.0.5",
     "ts-loader": "9.4.2",
     "ts-node": "10.7.0",
+    "ts-proto": "^1.165.1",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.3.2"
   },

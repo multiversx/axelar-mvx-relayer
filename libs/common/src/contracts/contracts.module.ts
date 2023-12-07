@@ -4,7 +4,7 @@ import { ApiConfigService } from '@mvx-monorepo/common';
 import { ApiNetworkProvider, ProxyNetworkProvider } from '@multiversx/sdk-network-providers/out';
 import { ResultsParser } from '@multiversx/sdk-core/out';
 import { ContractLoader } from '@mvx-monorepo/common/contracts/contract.loader';
-import gatewayJson from '../../../../abis/gateway.abi.json';
+import { join } from 'path';
 
 @Module({
   imports: [],
@@ -43,11 +43,11 @@ import gatewayJson from '../../../../abis/gateway.abi.json';
     // },
     {
       provide: GatewayContract,
-      useFactory: (apiConfigService: ApiConfigService, resultsParser: ResultsParser) => {
-        const contractLoader = new ContractLoader(gatewayJson);
+      useFactory: async (apiConfigService: ApiConfigService, resultsParser: ResultsParser) => {
+        const contractLoader = new ContractLoader(join(__dirname, '../assets/gateway.abi.json'));
 
-        const smartContract = contractLoader.getContract(apiConfigService.getContractGateway());
-        const abi = contractLoader.getAbiRegistry(apiConfigService.getContractGateway());
+        const smartContract = await contractLoader.getContract(apiConfigService.getContractGateway());
+        const abi = await contractLoader.getAbiRegistry(apiConfigService.getContractGateway());
 
         return new GatewayContract(smartContract, abi, resultsParser);
       },
