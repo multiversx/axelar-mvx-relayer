@@ -1,6 +1,6 @@
-import { SmartContract, AbiRegistry, Address } from "@multiversx/sdk-core";
-import { Logger } from "@nestjs/common";
-import * as fs from "fs";
+import { AbiRegistry, Address, SmartContract } from '@multiversx/sdk-core';
+import { Logger } from '@nestjs/common';
+import * as fs from 'fs';
 
 export class ContractLoader {
   private readonly logger: Logger;
@@ -16,7 +16,7 @@ export class ContractLoader {
 
   private async load(contractAddress: string): Promise<SmartContract> {
     try {
-      const jsonContent: string = await fs.promises.readFile(this.abiPath, { encoding: "utf8" });
+      const jsonContent: string = await fs.promises.readFile(this.abiPath, { encoding: 'utf8' });
       const json = JSON.parse(jsonContent);
 
       this.abiRegistry = AbiRegistry.create(json);

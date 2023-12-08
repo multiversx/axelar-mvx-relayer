@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ProcessorInterface } from './entities/processor.interface';
 import { NotifierEvent } from '../event-processor/types';
 import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
@@ -8,14 +8,20 @@ import { TransactionEvent } from '@multiversx/sdk-network-providers/out';
 import { GasPaidStatus, Prisma } from '@prisma/client';
 import { ContractCallEventRepository } from '@mvx-monorepo/common/database/repository/contract-call-event.repository';
 import { GasPaidRepository } from '@mvx-monorepo/common/database/repository/gas-paid.repository';
+import { GasAddedEvent, GasPaidForContractCallEvent } from '@mvx-monorepo/common/contracts/entities/gas-service-events';
+import BigNumber from 'bignumber.js';
 
 @Injectable()
 export class GasServiceProcessor implements ProcessorInterface {
+  private logger: Logger;
+
   constructor(
     private readonly gasServiceContract: GasServiceContract,
     private readonly contractCallEventRepository: ContractCallEventRepository,
     private readonly gasPaidRepository: GasPaidRepository,
-  ) {}
+  ) {
+    this.logger = new Logger(GasServiceProcessor.name);
+  }
 
   async handleEvent(rawEvent: NotifierEvent) {
     const eventName = BinaryUtils.base64Decode(rawEvent.topics[0]);
@@ -25,19 +31,7 @@ export class GasServiceProcessor implements ProcessorInterface {
         TransactionEvent.fromHttpResponse(rawEvent),
       );
 
-      const gasPaid = {
-        txHash: rawEvent.txHash,
-        sourceAddress: event.sender.bech32(),
-        destinationAddress: event.destination_contract_address,
-        destinationChain: event.destination_chain,
-        payloadHash: event.data.payload_hash,
-        gasToken: event.data.gas_token,
-        gasValue: event.data.gas_fee_amount.toString(),
-        refundAddress: event.data.refund_address.bech32(),
-        status: GasPaidStatus.PENDING,
-      };
-
-      await this.handleGasPaidEvents(gasPaid);
+      await this.handleGasPaidEvents(event, rawEvent.txHash);
 
       return;
     }
@@ -47,19 +41,7 @@ export class GasServiceProcessor implements ProcessorInterface {
         TransactionEvent.fromHttpResponse(rawEvent),
       );
 
-      const gasPaid = {
-        txHash: rawEvent.txHash,
-        sourceAddress: event.sender.bech32(),
-        destinationAddress: event.destination_contract_address,
-        destinationChain: event.destination_chain,
-        payloadHash: event.data.payload_hash,
-        gasToken: null,
-        gasValue: event.data.value.toString(),
-        refundAddress: event.data.refund_address.bech32(),
-        status: GasPaidStatus.PENDING,
-      };
-
-      await this.handleGasPaidEvents(gasPaid);
+      await this.handleGasPaidEvents(event, rawEvent.txHash);
 
       return;
     }
@@ -67,14 +49,7 @@ export class GasServiceProcessor implements ProcessorInterface {
     if (eventName === Events.GAS_ADDED_EVENT) {
       const event = this.gasServiceContract.decodeGasAddedEvent(TransactionEvent.fromHttpResponse(rawEvent));
 
-      await this.handleGasAddedEvents(
-        event.tx_hash,
-        event.log_index,
-        event.data.gas_token,
-        event.data.gas_fee_amount.toString(),
-        event.data.refund_address.bech32(),
-        rawEvent.txHash,
-      );
+      await this.handleGasAddedEvents(event, rawEvent.txHash);
 
       return;
     }
@@ -82,14 +57,7 @@ export class GasServiceProcessor implements ProcessorInterface {
     if (eventName === Events.NATIVE_GAS_ADDED_EVENT) {
       const event = this.gasServiceContract.decodeNativeGasAddedEvent(TransactionEvent.fromHttpResponse(rawEvent));
 
-      await this.handleGasAddedEvents(
-        event.tx_hash,
-        event.log_index,
-        null,
-        event.data.value.toString(),
-        event.data.refund_address.bech32(),
-        rawEvent.txHash,
-      );
+      await this.handleGasAddedEvents(event, rawEvent.txHash);
 
       return;
     }
@@ -98,8 +66,8 @@ export class GasServiceProcessor implements ProcessorInterface {
       const event = this.gasServiceContract.decodeRefundedEvent(TransactionEvent.fromHttpResponse(rawEvent));
 
       await this.gasPaidRepository.updateRefundedValue(
-        event.tx_hash,
-        event.log_index,
+        event.txHash,
+        event.logIndex,
         event.data.token,
         event.data.receiver.bech32(),
         event.data.amount.toString(),
@@ -107,7 +75,19 @@ export class GasServiceProcessor implements ProcessorInterface {
     }
   }
 
-  async handleGasPaidEvents(gasPaid: Prisma.GasPaidCreateInput) {
+  async handleGasPaidEvents(event: GasPaidForContractCallEvent, txHash: string) {
+    const gasPaid: Prisma.GasPaidCreateInput = {
+      txHash: txHash,
+      sourceAddress: event.sender.bech32(),
+      destinationAddress: event.destinationAddress,
+      destinationChain: event.destinationChain,
+      payloadHash: event.data.payloadHash,
+      gasToken: event.data.gasToken,
+      gasValue: event.data.gasFeeAmount.toString(),
+      refundAddress: event.data.refundAddress.bech32(),
+      status: GasPaidStatus.PENDING,
+    };
+
     const contractCallEvent = await this.contractCallEventRepository.findWithoutGasPaid(gasPaid);
 
     if (contractCallEvent) {
@@ -117,32 +97,29 @@ export class GasServiceProcessor implements ProcessorInterface {
     await this.gasPaidRepository.create(gasPaid);
   }
 
-  async handleGasAddedEvents(
-    txHash: string,
-    logIndex: number,
-    gasToken: string | null,
-    gasValue: string,
-    refundAddress: string,
-    rawEventTxHash: string
-  ) {
-    const contractCallEvent = await this.contractCallEventRepository.findPending(txHash, logIndex);
+  async handleGasAddedEvents(event: GasAddedEvent, rawEventTxHash: string) {
+    const contractCallEvent = await this.contractCallEventRepository.findPending(event.txHash, event.logIndex);
 
     if (!contractCallEvent) {
+      this.logger.warn('Received a GasAddedEvent but could find existing contract call entry');
+
       return;
     }
 
-    const gasPaid = {
-      txHash: rawEventTxHash,
-      sourceAddress: contractCallEvent.sourceAddress,
-      destinationAddress: contractCallEvent.destinationAddress,
-      destinationChain: contractCallEvent.destinationChain,
-      payloadHash: contractCallEvent.payloadHash,
-      gasToken,
-      gasValue,
-      refundAddress,
-      status: GasPaidStatus.PENDING,
-    };
+    const gasPaid = contractCallEvent.gasPaidEntries.find(
+      (gasPaid) =>
+        gasPaid.gasToken === event.data.gasToken && gasPaid.refundAddress === event.data.refundAddress.bech32(),
+    );
 
-    await this.gasPaidRepository.create(gasPaid);
+    if (!gasPaid) {
+      this.logger.warn('Received a GasAddedEvent but could find existing gas paid entry');
+
+      return;
+    }
+
+    gasPaid.txHash = rawEventTxHash;
+    gasPaid.gasValue = new BigNumber(gasPaid.gasValue).plus(event.data.gasFeeAmount).toString();
+
+    await this.gasPaidRepository.update(gasPaid.id, gasPaid);
   }
 }

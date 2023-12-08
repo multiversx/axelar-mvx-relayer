@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@mvx-monorepo/common/database/prisma.service';
 import { ContractCallEvent, ContractCallEventStatus, Prisma } from '@prisma/client';
+import { ContractCallEventWithGasPaid } from '@mvx-monorepo/common/database/entities/contract-call-event';
 
 @Injectable()
 export class ContractCallEventRepository {
@@ -27,12 +28,15 @@ export class ContractCallEventRepository {
     });
   }
 
-  findPending(txHash: string, eventIndex: number): Promise<ContractCallEvent | null> {
+  findPending(txHash: string, eventIndex: number): Promise<ContractCallEventWithGasPaid | null> {
     return this.prisma.contractCallEvent.findUnique({
       where: {
         status: ContractCallEventStatus.PENDING,
         txHash,
         eventIndex,
+      },
+      include: {
+        gasPaidEntries: true,
       },
     });
   }

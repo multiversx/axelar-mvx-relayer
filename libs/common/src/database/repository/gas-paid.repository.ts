@@ -12,14 +12,23 @@ export class GasPaidRepository {
     });
   }
 
-  updateRefundedValue(
+  update(id: number, data: Prisma.GasPaidUpdateInput): Promise<GasPaid | null> {
+    return this.prisma.gasPaid.update({
+      where: {
+        id,
+      },
+      data,
+    });
+  }
+
+  async updateRefundedValue(
     txHash: string,
     eventIndex: number,
     gasToken: string | null,
     refundAddress: string,
     refundedValue: string,
   ) {
-    this.prisma.gasPaid.updateMany({
+    await this.prisma.gasPaid.updateMany({
       where: {
         status: {
           in: [ContractCallEventStatus.SUCCESS, ContractCallEventStatus.FAILED],

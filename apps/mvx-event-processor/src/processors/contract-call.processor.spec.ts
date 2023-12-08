@@ -6,57 +6,73 @@ import { Events } from '@mvx-monorepo/common/utils/event.enum';
 import { ContractCallEventRepository } from '@mvx-monorepo/common/database/repository/contract-call-event.repository';
 import { ContractCallProcessor } from './contract-call.processor';
 import { NotifierEvent } from '../event-processor/types';
-import { ContractsModule } from '@mvx-monorepo/common/contracts/contracts.module';
 import { Address } from '@multiversx/sdk-core/out';
 import { ContractCallEventStatus } from '@prisma/client';
 import { GrpcService } from '@mvx-monorepo/common/grpc/grpc.service';
+import { GatewayContract } from '@mvx-monorepo/common/contracts/gateway.contract';
+import { ContractCallEvent } from '@mvx-monorepo/common/contracts/entities/contract-call-event';
+import { TransactionEvent } from '@multiversx/sdk-network-providers/out';
 
 describe('ContractCallProcessor', () => {
+  let gatewayContract: DeepMocked<GatewayContract>;
   let contractCallEventRepository: DeepMocked<ContractCallEventRepository>;
-  let apiConfigService: DeepMocked<ApiConfigService>;
   let grpcService: DeepMocked<GrpcService>;
+  let apiConfigService: DeepMocked<ApiConfigService>;
 
   let service: ContractCallProcessor;
 
+  const event: ContractCallEvent = {
+    sender: Address.fromBech32('erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7'),
+    destination_chain: 'ethereum',
+    destination_contract_address: 'destinationAddress',
+    data: {
+      payload_hash: 'ebc84cbd75ba5516bf45e7024a9e12bc3c5c880f73e3a5beca7ebba52b2867a7',
+      payload: Buffer.from('payload'),
+    },
+  };
+
   beforeEach(async () => {
+    gatewayContract = createMock();
     contractCallEventRepository = createMock();
-    apiConfigService = createMock();
     grpcService = createMock();
+    apiConfigService = createMock();
 
     apiConfigService.getSourceChainName.mockReturnValue('multiversx-test');
-    apiConfigService.getContractGateway.mockReturnValue(
-      'erd1qqqqqqqqqqqqqpgqsvzyz88e8v8j6x3wquatxuztnxjwnw92kkls6rdtzx',
-    );
 
     const moduleRef = await Test.createTestingModule({
-      imports: [ContractsModule], // it uses real GatewayContract object loaded from abi
       providers: [ContractCallProcessor],
     })
       .useMocker((token) => {
-        if (token === ContractCallEventRepository) {
-          return contractCallEventRepository;
+        if (token === GatewayContract) {
+          return gatewayContract;
         }
 
-        if (token === ApiConfigService) {
-          return apiConfigService;
+        if (token === ContractCallEventRepository) {
+          return contractCallEventRepository;
         }
 
         if (token === GrpcService) {
           return grpcService;
         }
 
+        if (token === ApiConfigService) {
+          return apiConfigService;
+        }
+
         return null;
       })
       .compile();
+
+    gatewayContract.decodeContractCallEvent.mockReturnValue(event);
 
     service = moduleRef.get(ContractCallProcessor);
   });
 
   describe('handleEvent', () => {
     const data = Buffer.concat([
-      Buffer.from('ebc84cbd75ba5516bf45e7024a9e12bc3c5c880f73e3a5beca7ebba52b2867a7', 'hex'),
+      Buffer.from(event.data.payload_hash, 'hex'),
       Buffer.from('00000007', 'hex'), // length of payload as u32
-      Buffer.from('payload'),
+      event.data.payload,
     ]);
     const rawEvent: NotifierEvent = {
       txHash: 'txHash',
@@ -65,12 +81,9 @@ describe('ContractCallProcessor', () => {
       data: data.toString('base64'),
       topics: [
         BinaryUtils.base64Encode(Events.CONTRACT_CALL_EVENT),
-        Buffer.from(
-          Address.fromBech32('erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7').hex(),
-          'hex',
-        ).toString('base64'),
-        BinaryUtils.base64Encode('ethereum'),
-        BinaryUtils.base64Encode('destinationAddress'),
+        Buffer.from((event.sender as Address).hex(), 'hex').toString('base64'),
+        BinaryUtils.base64Encode(event.destination_chain),
+        BinaryUtils.base64Encode(event.destination_contract_address),
       ],
       order: 1,
     };
@@ -78,6 +91,8 @@ describe('ContractCallProcessor', () => {
     it('Should handle event', async () => {
       await service.handleEvent(rawEvent);
 
+      expect(gatewayContract.decodeContractCallEvent).toHaveBeenCalledTimes(1);
+      expect(gatewayContract.decodeContractCallEvent).toHaveBeenCalledWith(TransactionEvent.fromHttpResponse(rawEvent));
       expect(contractCallEventRepository.create).toHaveBeenCalledTimes(1);
       expect(contractCallEventRepository.create).toHaveBeenCalledWith({
         id: 'multiversx-test:txHash:1',
@@ -99,6 +114,8 @@ describe('ContractCallProcessor', () => {
 
       await expect(service.handleEvent(rawEvent)).rejects.toThrow();
 
+      expect(gatewayContract.decodeContractCallEvent).toHaveBeenCalledTimes(1);
+      expect(gatewayContract.decodeContractCallEvent).toHaveBeenCalledWith(TransactionEvent.fromHttpResponse(rawEvent));
       expect(contractCallEventRepository.create).toHaveBeenCalledTimes(1);
       expect(grpcService.verify).not.toHaveBeenCalled();
     });

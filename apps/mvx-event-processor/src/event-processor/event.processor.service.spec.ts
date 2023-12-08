@@ -1,37 +1,44 @@
 import { EventProcessorService } from './event.processor.service';
 import { ApiConfigService } from '@mvx-monorepo/common';
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
-import { ContractCallProcessor } from '../processors/contract-call.processor';
 import { Test } from '@nestjs/testing';
 import { NotifierBlockEvent } from './types';
 import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
 import { Events } from '@mvx-monorepo/common/utils/event.enum';
+import { ContractCallProcessor, GasServiceProcessor } from '../processors';
 
 describe('EventProcessorService', () => {
-  let apiConfigService: DeepMocked<ApiConfigService>;
   let contractCallProcessor: DeepMocked<ContractCallProcessor>;
+  let gasServiceProcessor: DeepMocked<GasServiceProcessor>;
+  let apiConfigService: DeepMocked<ApiConfigService>;
 
   let service: EventProcessorService;
 
   beforeEach(async () => {
-    apiConfigService = createMock();
     contractCallProcessor = createMock();
+    gasServiceProcessor = createMock();
+    apiConfigService = createMock();
 
     apiConfigService.getContractGateway.mockReturnValue('mockGatewayAddress');
+    apiConfigService.getContractGasService.mockReturnValue('mockGasServiceAddress');
 
     const moduleRef = await Test.createTestingModule({
       providers: [EventProcessorService],
     })
       .useMocker((token) => {
-        if (token === ApiConfigService) {
-          return apiConfigService;
-        }
-
         if (token === ContractCallProcessor) {
           return contractCallProcessor;
         }
 
-        return undefined;
+        if (token === GasServiceProcessor) {
+          return gasServiceProcessor;
+        }
+
+        if (token === ApiConfigService) {
+          return apiConfigService;
+        }
+
+        return null;
       })
       .compile();
 
@@ -39,7 +46,7 @@ describe('EventProcessorService', () => {
   });
 
   describe('consumeEvents', () => {
-    it('Should not consume event', async () => {
+    it('Should not consume events', async () => {
       const blockEvent: NotifierBlockEvent = {
         hash: 'test',
         shardId: 1,
@@ -74,11 +81,12 @@ describe('EventProcessorService', () => {
 
       await service.consumeEvents(blockEvent);
 
-      expect(apiConfigService.getContractGateway).toHaveBeenCalledTimes(3);
+      expect(apiConfigService.getContractGateway).toHaveBeenCalledTimes(1);
       expect(contractCallProcessor.handleEvent).not.toHaveBeenCalled();
+      expect(gasServiceProcessor.handleEvent).not.toHaveBeenCalled();
     });
 
-    it('Should consume event', async () => {
+    it('Should consume gateway event', async () => {
       const blockEvent: NotifierBlockEvent = {
         hash: 'test',
         shardId: 1,
@@ -99,6 +107,31 @@ describe('EventProcessorService', () => {
 
       expect(apiConfigService.getContractGateway).toHaveBeenCalledTimes(1);
       expect(contractCallProcessor.handleEvent).toHaveBeenCalledTimes(1);
+      expect(gasServiceProcessor.handleEvent).not.toHaveBeenCalled();
+    });
+
+    it('Should consume gas contract event', async () => {
+      const blockEvent: NotifierBlockEvent = {
+        hash: 'test',
+        shardId: 1,
+        timestamp: 123456,
+        events: [
+          {
+            txHash: 'test',
+            address: 'mockGasServiceAddress',
+            identifier: 'payGasForContractCall',
+            data: '',
+            topics: [BinaryUtils.base64Encode(Events.GAS_PAID_FOR_CONTRACT_CALL_EVENT)],
+            order: 0,
+          },
+        ],
+      };
+
+      await service.consumeEvents(blockEvent);
+
+      expect(apiConfigService.getContractGateway).toHaveBeenCalledTimes(1);
+      expect(gasServiceProcessor.handleEvent).toHaveBeenCalledTimes(1);
+      expect(contractCallProcessor.handleEvent).not.toHaveBeenCalled();
     });
 
     it('Should throw error', async () => {
