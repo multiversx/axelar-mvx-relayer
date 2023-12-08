@@ -8,6 +8,7 @@ import {
   GasPaidForContractCallEvent,
   RefundedEvent,
 } from '@mvx-monorepo/common/contracts/entities/gas-service-events';
+import { CONSTANTS } from '@mvx-monorepo/common/utils/constants.enum';
 
 @Injectable()
 export class GasServiceContract {
@@ -41,7 +42,7 @@ export class GasServiceContract {
   }
 
   decodeNativeGasPaidForContractCallEvent(event: TransactionEvent): GasPaidForContractCallEvent {
-    const eventDefinition = this.abi.getEvent(Events.GAS_PAID_FOR_CONTRACT_CALL_EVENT);
+    const eventDefinition = this.abi.getEvent(Events.NATIVE_GAS_PAID_FOR_CONTRACT_CALL_EVENT);
     const outcome = this.resultsParser.parseEvent(event, eventDefinition);
 
     return {
@@ -66,7 +67,7 @@ export class GasServiceContract {
       logIndex: outcome.log_index.toNumber(),
       data: {
         gasToken: outcome.data.gas_token.toString(),
-        gasFeeAmount: outcome.data.value,
+        gasFeeAmount: outcome.data.gas_fee_amount,
         refundAddress: outcome.data.refund_address,
       },
     };
@@ -91,14 +92,14 @@ export class GasServiceContract {
     const eventDefinition = this.abi.getEvent(Events.REFUNDED_EVENT);
     const outcome = this.resultsParser.parseEvent(event, eventDefinition);
 
-    const token = outcome.data.gas_token.toString();
+    const token = outcome.data.token.toString();
 
     return {
       txHash: outcome.tx_hash.toString('hex'),
       logIndex: outcome.log_index.toNumber(),
       data: {
         receiver: outcome.data.receiver,
-        token: token === 'EGLD' ? null : token, // TODO: Save 'EGLD' to a const
+        token: token === CONSTANTS.EGLD_IDENTIFIER ? null : token,
         amount: outcome.data.amount,
       },
     };

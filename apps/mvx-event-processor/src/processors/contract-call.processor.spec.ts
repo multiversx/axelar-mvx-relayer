@@ -2,7 +2,7 @@ import { ApiConfigService } from '@mvx-monorepo/common';
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { Test } from '@nestjs/testing';
 import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
-import { Events } from '@mvx-monorepo/common/utils/event.enum';
+import { EventIdentifiers, Events } from '@mvx-monorepo/common/utils/event.enum';
 import { ContractCallEventRepository } from '@mvx-monorepo/common/database/repository/contract-call-event.repository';
 import { ContractCallProcessor } from './contract-call.processor';
 import { NotifierEvent } from '../event-processor/types';
@@ -23,10 +23,10 @@ describe('ContractCallProcessor', () => {
 
   const event: ContractCallEvent = {
     sender: Address.fromBech32('erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7'),
-    destination_chain: 'ethereum',
-    destination_contract_address: 'destinationAddress',
+    destinationChain: 'ethereum',
+    destinationAddress: 'destinationAddress',
     data: {
-      payload_hash: 'ebc84cbd75ba5516bf45e7024a9e12bc3c5c880f73e3a5beca7ebba52b2867a7',
+      payloadHash: 'ebc84cbd75ba5516bf45e7024a9e12bc3c5c880f73e3a5beca7ebba52b2867a7',
       payload: Buffer.from('payload'),
     },
   };
@@ -70,7 +70,7 @@ describe('ContractCallProcessor', () => {
 
   describe('handleEvent', () => {
     const data = Buffer.concat([
-      Buffer.from(event.data.payload_hash, 'hex'),
+      Buffer.from(event.data.payloadHash, 'hex'),
       Buffer.from('00000007', 'hex'), // length of payload as u32
       event.data.payload,
     ]);
@@ -82,8 +82,8 @@ describe('ContractCallProcessor', () => {
       topics: [
         BinaryUtils.base64Encode(Events.CONTRACT_CALL_EVENT),
         Buffer.from((event.sender as Address).hex(), 'hex').toString('base64'),
-        BinaryUtils.base64Encode(event.destination_chain),
-        BinaryUtils.base64Encode(event.destination_contract_address),
+        BinaryUtils.base64Encode(event.destinationChain),
+        BinaryUtils.base64Encode(event.destinationAddress),
       ],
       order: 1,
     };
@@ -117,6 +117,40 @@ describe('ContractCallProcessor', () => {
       expect(gatewayContract.decodeContractCallEvent).toHaveBeenCalledTimes(1);
       expect(gatewayContract.decodeContractCallEvent).toHaveBeenCalledWith(TransactionEvent.fromHttpResponse(rawEvent));
       expect(contractCallEventRepository.create).toHaveBeenCalledTimes(1);
+      expect(grpcService.verify).not.toHaveBeenCalled();
+    });
+
+    it('Should not handle event wrong identifier', async () => {
+      const rawEvent: NotifierEvent = {
+        txHash: 'txHash',
+        address: 'mockGatewayAddress',
+        identifier: 'any',
+        data: data.toString('base64'),
+        topics: [BinaryUtils.base64Encode(Events.CONTRACT_CALL_EVENT)],
+        order: 1,
+      };
+
+      await service.handleEvent(rawEvent);
+
+      expect(gatewayContract.decodeContractCallEvent).not.toHaveBeenCalled();
+      expect(contractCallEventRepository.create).not.toHaveBeenCalled();
+      expect(grpcService.verify).not.toHaveBeenCalled();
+    });
+
+    it('Should not handle event wrong event', async () => {
+      const rawEvent: NotifierEvent = {
+        txHash: 'txHash',
+        address: 'mockGatewayAddress',
+        identifier: EventIdentifiers.CALL_CONTRACT,
+        data: data.toString('base64'),
+        topics: [BinaryUtils.base64Encode('any')],
+        order: 1,
+      };
+
+      await service.handleEvent(rawEvent);
+
+      expect(gatewayContract.decodeContractCallEvent).not.toHaveBeenCalled();
+      expect(contractCallEventRepository.create).not.toHaveBeenCalled();
       expect(grpcService.verify).not.toHaveBeenCalled();
     });
   });

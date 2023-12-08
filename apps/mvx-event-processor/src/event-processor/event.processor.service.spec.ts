@@ -3,8 +3,6 @@ import { ApiConfigService } from '@mvx-monorepo/common';
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { Test } from '@nestjs/testing';
 import { NotifierBlockEvent } from './types';
-import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
-import { Events } from '@mvx-monorepo/common/utils/event.enum';
 import { ContractCallProcessor, GasServiceProcessor } from '../processors';
 
 describe('EventProcessorService', () => {
@@ -55,25 +53,17 @@ describe('EventProcessorService', () => {
           {
             txHash: 'test',
             address: 'someAddress',
-            identifier: 'someIdentifier',
+            identifier: 'callContract',
             data: '',
             topics: [],
             order: 0,
           },
           {
             txHash: 'test',
-            address: 'mockGatewayAddress',
-            identifier: 'someIdentifier',
+            address: 'someOtherAddress',
+            identifier: 'any',
             data: '',
-            topics: [BinaryUtils.base64Encode(Events.CONTRACT_CALL_EVENT)],
-            order: 0,
-          },
-          {
-            txHash: 'test',
-            address: 'mockGatewayAddress',
-            identifier: 'callContract',
-            data: '',
-            topics: [''],
+            topics: [],
             order: 0,
           },
         ],
@@ -95,9 +85,9 @@ describe('EventProcessorService', () => {
           {
             txHash: 'test',
             address: 'mockGatewayAddress',
-            identifier: 'callContract',
+            identifier: 'any',
             data: '',
-            topics: [BinaryUtils.base64Encode(Events.CONTRACT_CALL_EVENT)],
+            topics: [],
             order: 0,
           },
         ],
@@ -119,9 +109,9 @@ describe('EventProcessorService', () => {
           {
             txHash: 'test',
             address: 'mockGasServiceAddress',
-            identifier: 'payGasForContractCall',
+            identifier: 'any',
             data: '',
-            topics: [BinaryUtils.base64Encode(Events.GAS_PAID_FOR_CONTRACT_CALL_EVENT)],
+            topics: [],
             order: 0,
           },
         ],
@@ -131,29 +121,6 @@ describe('EventProcessorService', () => {
 
       expect(apiConfigService.getContractGateway).toHaveBeenCalledTimes(1);
       expect(gasServiceProcessor.handleEvent).toHaveBeenCalledTimes(1);
-      expect(contractCallProcessor.handleEvent).not.toHaveBeenCalled();
-    });
-
-    it('Should throw error', async () => {
-      const blockEvent: NotifierBlockEvent = {
-        hash: 'test',
-        shardId: 1,
-        timestamp: 123456,
-        events: [
-          {
-            txHash: 'test',
-            address: 'mockGatewayAddress',
-            identifier: 'callContract',
-            data: '',
-            topics: [],
-            order: 0,
-          },
-        ],
-      };
-
-      await expect(service.consumeEvents(blockEvent)).rejects.toThrow();
-
-      expect(apiConfigService.getContractGateway).toHaveBeenCalledTimes(1);
       expect(contractCallProcessor.handleEvent).not.toHaveBeenCalled();
     });
   });

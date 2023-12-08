@@ -7,6 +7,8 @@ import { ApiConfigService } from '@mvx-monorepo/common';
 import { ContractCallEventStatus } from '@prisma/client';
 import { GrpcService } from '@mvx-monorepo/common/grpc/grpc.service';
 import { ProcessorInterface } from './entities/processor.interface';
+import { EventIdentifiers, Events } from '@mvx-monorepo/common/utils/event.enum';
+import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
 
 @Injectable()
 export class ContractCallProcessor implements ProcessorInterface {
@@ -22,6 +24,13 @@ export class ContractCallProcessor implements ProcessorInterface {
   }
 
   async handleEvent(rawEvent: NotifierEvent) {
+    if (
+      rawEvent.identifier !== EventIdentifiers.CALL_CONTRACT ||
+      BinaryUtils.base64Decode(rawEvent.topics[0]) !== Events.CONTRACT_CALL_EVENT
+    ) {
+      return;
+    }
+
     const event = this.gatewayContract.decodeContractCallEvent(TransactionEvent.fromHttpResponse(rawEvent));
 
     const contractCallEvent = await this.contractCallEventRepository.create({
@@ -31,9 +40,9 @@ export class ContractCallProcessor implements ProcessorInterface {
       status: ContractCallEventStatus.PENDING,
       sourceAddress: event.sender.bech32(),
       sourceChain: this.sourceChain,
-      destinationAddress: event.destination_contract_address,
-      destinationChain: event.destination_chain,
-      payloadHash: event.data.payload_hash,
+      destinationAddress: event.destinationAddress,
+      destinationChain: event.destinationChain,
+      payloadHash: event.data.payloadHash,
       payload: event.data.payload,
     });
 
@@ -43,5 +52,10 @@ export class ContractCallProcessor implements ProcessorInterface {
 
     // TODO: Should this be batched instead and have this in a separate cronjob?
     await this.grpcService.verify(contractCallEvent);
+    // TODO: We should mark here the message as successfull after sending to grpc
+    // Maybe this sending should be async in a cron?
+    // For now the ContractCallEvent in db will remain as PENDING if it was not successfully sent to the Relayer API
+    // Verify endpoint. After it was sent, it can be marked as APPROVED
+    // GasPaid will remain as PENDING status for now
   }
 }

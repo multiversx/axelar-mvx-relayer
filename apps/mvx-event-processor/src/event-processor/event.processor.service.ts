@@ -3,8 +3,6 @@ import { ApiConfigService } from '@mvx-monorepo/common';
 import { NotifierBlockEvent, NotifierEvent } from './types';
 import { RabbitSubscribe } from '@golevelup/nestjs-rabbitmq';
 import { EVENTS_NOTIFIER_QUEUE } from '../../../../config/configuration';
-import { EventIdentifiers, Events } from '@mvx-monorepo/common/utils/event.enum';
-import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
 import { ContractCallProcessor, GasServiceProcessor } from '../processors';
 
 @Injectable()
@@ -45,27 +43,22 @@ export class EventProcessorService {
   }
 
   private async handleEvent(event: NotifierEvent) {
-    this.logger.log('Received event from MultiversX:');
-    this.logger.log(JSON.stringify(event));
-
     if (event.address === this.contractGasService) {
+      this.logger.debug('Received Gas Service event from MultiversX:');
+      this.logger.debug(JSON.stringify(event));
+
       await this.gasServiceProcessor.handleEvent(event);
 
       return;
     }
 
-    if (event.address !== this.contractGateway) {
-      return;
-    }
-
-    if (
-      event.identifier === EventIdentifiers.CALL_CONTRACT &&
-      BinaryUtils.base64Decode(event.topics[0]) === Events.CONTRACT_CALL_EVENT
-    ) {
-      this.logger.log('Received callContract event from MultiversX Gateway contract:');
-      this.logger.log(JSON.stringify(event));
+    if (event.address === this.contractGateway) {
+      this.logger.debug('Received Gateway event from MultiversX:');
+      this.logger.debug(JSON.stringify(event));
 
       await this.contractCallProcessor.handleEvent(event);
+
+      return;
     }
   }
 }
