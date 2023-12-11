@@ -37,4 +37,12 @@ export class GrpcService implements OnModuleInit {
     const result = this.relayerService.verify(replaySubject);
     await firstValueFrom(result);
   }
+
+  async getPayload(payloadHash: string): Promise<Buffer> {
+    const result = await this.relayerService.getPayload({
+      hash: Buffer.from(payloadHash, 'hex'),
+    });
+
+    return Buffer.from(result.payload);
+  }
 }

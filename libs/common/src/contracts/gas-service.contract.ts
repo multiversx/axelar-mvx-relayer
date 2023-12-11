@@ -2,13 +2,13 @@ import { AbiRegistry, ResultsParser, SmartContract } from '@multiversx/sdk-core/
 import { Injectable, Logger } from '@nestjs/common';
 import { Events } from '../utils/event.enum';
 import { TransactionEvent } from '@multiversx/sdk-network-providers/out';
-import BigNumber from 'bignumber.js';
 import {
   GasAddedEvent,
   GasPaidForContractCallEvent,
   RefundedEvent,
 } from '@mvx-monorepo/common/contracts/entities/gas-service-events';
 import { CONSTANTS } from '@mvx-monorepo/common/utils/constants.enum';
+import { DecodingUtils } from '@mvx-monorepo/common/utils/decoding.utils';
 
 @Injectable()
 export class GasServiceContract {
@@ -33,7 +33,7 @@ export class GasServiceContract {
       destinationChain: outcome.destination_chain.toString(),
       destinationAddress: outcome.destination_contract_address.toString(),
       data: {
-        payloadHash: Buffer.from(outcome.data.hash.map((number: BigNumber) => number.toNumber())).toString('hex'),
+        payloadHash: DecodingUtils.decodeKeccak256Hash(outcome.data.hash),
         gasToken: outcome.data.gas_token.toString(),
         gasFeeAmount: outcome.data.gas_fee_amount,
         refundAddress: outcome.data.refund_address,
@@ -50,7 +50,7 @@ export class GasServiceContract {
       destinationChain: outcome.destination_chain.toString(),
       destinationAddress: outcome.destination_contract_address.toString(),
       data: {
-        payloadHash: Buffer.from(outcome.data.hash.map((number: BigNumber) => number.toNumber())).toString('hex'),
+        payloadHash: DecodingUtils.decodeKeccak256Hash(outcome.data.hash),
         gasToken: null,
         gasFeeAmount: outcome.data.value,
         refundAddress: outcome.data.refund_address,
