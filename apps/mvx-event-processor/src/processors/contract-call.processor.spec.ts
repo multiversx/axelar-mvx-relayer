@@ -85,7 +85,6 @@ describe('ContractCallProcessor', () => {
         BinaryUtils.base64Encode(event.destinationChain),
         BinaryUtils.base64Encode(event.destinationAddress),
       ],
-      order: 1,
     };
 
     it('Should handle event', async () => {
@@ -95,9 +94,9 @@ describe('ContractCallProcessor', () => {
       expect(gatewayContract.decodeContractCallEvent).toHaveBeenCalledWith(TransactionEvent.fromHttpResponse(rawEvent));
       expect(contractCallEventRepository.create).toHaveBeenCalledTimes(1);
       expect(contractCallEventRepository.create).toHaveBeenCalledWith({
-        id: 'multiversx-test:txHash:1',
+        id: 'multiversx-test:txHash:999999',
         txHash: 'txHash',
-        eventIndex: 1,
+        eventIndex: 999999,
         status: ContractCallEventStatus.PENDING,
         sourceAddress: 'erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7',
         sourceChain: 'multiversx-test',
@@ -127,7 +126,6 @@ describe('ContractCallProcessor', () => {
         identifier: 'any',
         data: data.toString('base64'),
         topics: [BinaryUtils.base64Encode(Events.CONTRACT_CALL_EVENT)],
-        order: 1,
       };
 
       await service.handleEvent(rawEvent);
@@ -144,7 +142,6 @@ describe('ContractCallProcessor', () => {
         identifier: EventIdentifiers.CALL_CONTRACT,
         data: data.toString('base64'),
         topics: [BinaryUtils.base64Encode('any')],
-        order: 1,
       };
 
       await service.handleEvent(rawEvent);

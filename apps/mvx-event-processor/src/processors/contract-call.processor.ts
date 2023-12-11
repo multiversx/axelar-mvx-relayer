@@ -10,6 +10,10 @@ import { ProcessorInterface } from './entities/processor.interface';
 import { EventIdentifiers, Events } from '@mvx-monorepo/common/utils/event.enum';
 import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
 
+// order/logIndex is unsupported since we can't easily get it in the relayer
+// so we use a sufficiently large u32 value here instead
+const UNSUPPORTED_LOG_INDEX: number = 999_999;
+
 @Injectable()
 export class ContractCallProcessor implements ProcessorInterface {
   private sourceChain: string;
@@ -34,9 +38,9 @@ export class ContractCallProcessor implements ProcessorInterface {
     const event = this.gatewayContract.decodeContractCallEvent(TransactionEvent.fromHttpResponse(rawEvent));
 
     const contractCallEvent = await this.contractCallEventRepository.create({
-      id: `${this.sourceChain}:${rawEvent.txHash}:${rawEvent.order}`,
+      id: `${this.sourceChain}:${rawEvent.txHash}:${UNSUPPORTED_LOG_INDEX}`,
       txHash: rawEvent.txHash,
-      eventIndex: rawEvent.order,
+      eventIndex: UNSUPPORTED_LOG_INDEX,
       status: ContractCallEventStatus.PENDING,
       sourceAddress: event.sender.bech32(),
       sourceChain: this.sourceChain,

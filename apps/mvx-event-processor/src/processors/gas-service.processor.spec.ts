@@ -59,7 +59,6 @@ describe('GasServiceProcessor', () => {
       identifier: 'callContract',
       data: '',
       topics: [BinaryUtils.base64Encode(Events.CONTRACT_CALL_EVENT)],
-      order: 1,
     };
 
     await service.handleEvent(rawEvent);
@@ -78,7 +77,6 @@ describe('GasServiceProcessor', () => {
       identifier: 'any',
       data: '',
       topics: [BinaryUtils.base64Encode(eventName)],
-      order: 1,
     };
 
     const event: GasPaidForContractCallEvent = {
@@ -169,7 +167,6 @@ describe('GasServiceProcessor', () => {
       identifier: 'any',
       data: '',
       topics: [BinaryUtils.base64Encode(eventName)],
-      order: 1,
     };
 
     const event: GasAddedEvent = {
@@ -327,7 +324,6 @@ describe('GasServiceProcessor', () => {
       identifier: 'any',
       data: '',
       topics: [BinaryUtils.base64Encode(Events.REFUNDED_EVENT)],
-      order: 1,
     };
 
     const event: RefundedEvent = {

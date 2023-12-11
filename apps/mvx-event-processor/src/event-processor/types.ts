@@ -11,5 +11,4 @@ export interface NotifierEvent {
   identifier: string;
   data: string;
   topics: string[];
-  order: number; // TODO: This field doesn't seem to come from the notifier, and is quite needed currently...
 }

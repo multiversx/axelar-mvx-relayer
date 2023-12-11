@@ -56,7 +56,6 @@ describe('EventProcessorService', () => {
             identifier: 'callContract',
             data: '',
             topics: [],
-            order: 0,
           },
           {
             txHash: 'test',
@@ -64,7 +63,6 @@ describe('EventProcessorService', () => {
             identifier: 'any',
             data: '',
             topics: [],
-            order: 0,
           },
         ],
       };
@@ -88,7 +86,6 @@ describe('EventProcessorService', () => {
             identifier: 'any',
             data: '',
             topics: [],
-            order: 0,
           },
         ],
       };
@@ -112,7 +109,6 @@ describe('EventProcessorService', () => {
             identifier: 'any',
             data: '',
             topics: [],
-            order: 0,
           },
         ],
       };

@@ -64,7 +64,6 @@ describe('GatewayContract', () => {
         BinaryUtils.base64Encode('ethereum'),
         BinaryUtils.base64Encode('destinationAddress'),
       ],
-      order: 1,
     };
     const event = TransactionEvent.fromHttpResponse(rawEvent);
 
