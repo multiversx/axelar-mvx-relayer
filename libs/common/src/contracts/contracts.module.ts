@@ -6,6 +6,8 @@ import { ResultsParser } from '@multiversx/sdk-core/out';
 import { ContractLoader } from '@mvx-monorepo/common/contracts/contract.loader';
 import { join } from 'path';
 import { GasServiceContract } from '@mvx-monorepo/common/contracts/gas-service.contract';
+import { ProviderKeys } from '@mvx-monorepo/common/utils/provider.enum';
+import { Mnemonic, UserSigner } from '@multiversx/sdk-wallet/out';
 
 @Module({
   imports: [],
@@ -63,6 +65,15 @@ import { GasServiceContract } from '@mvx-monorepo/common/contracts/gas-service.c
         const abi = await contractLoader.getAbiRegistry(apiConfigService.getContractGasService());
 
         return new GasServiceContract(smartContract, abi, resultsParser);
+      },
+      inject: [ApiConfigService, ResultsParser],
+    },
+    {
+      provide: ProviderKeys.WALLET_SIGNER,
+      useFactory: (apiConfigService: ApiConfigService) => {
+        const mnemonic = Mnemonic.fromString(apiConfigService.getWalletMnemonic()).deriveKey(0);
+
+        return new UserSigner(mnemonic);
       },
       inject: [ApiConfigService, ResultsParser],
     },

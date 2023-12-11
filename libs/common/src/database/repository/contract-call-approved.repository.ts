@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@mvx-monorepo/common/database/prisma.service';
-import { ContractCallApproved, Prisma } from '@prisma/client';
+import { ContractCallApproved, ContractCallApprovedStatus, Prisma } from '@prisma/client';
 
 @Injectable()
 export class ContractCallApprovedRepository {
@@ -9,6 +9,20 @@ export class ContractCallApprovedRepository {
   create(data: Prisma.ContractCallApprovedCreateInput): Promise<ContractCallApproved | null> {
     return this.prisma.contractCallApproved.create({
       data,
+    });
+  }
+
+  findPendingNoRetries(page: number = 0, take: number = 10): Promise<ContractCallApproved[] | null> {
+    return this.prisma.contractCallApproved.findMany({
+      where: {
+        status: ContractCallApprovedStatus.PENDING,
+        retry: 0,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      skip: page * take,
+      take,
     });
   }
 }

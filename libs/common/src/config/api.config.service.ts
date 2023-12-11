@@ -93,6 +93,15 @@ export class ApiConfigService {
     return sourceChainName;
   }
 
+  getWalletMnemonic(): string {
+    const walletMnemonic = this.configService.get<string>('WALLET_MNEMONIC');
+    if (!walletMnemonic) {
+      throw new Error('No Wallet Mnemonic present');
+    }
+
+    return walletMnemonic;
+  }
+
   getPoolLimit(): number {
     return this.configService.get<number>('CACHING_POOL_LIMIT') ?? 100;
   }
