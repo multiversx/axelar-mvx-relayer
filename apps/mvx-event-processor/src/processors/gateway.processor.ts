@@ -43,6 +43,12 @@ export class GatewayProcessor implements ProcessorInterface {
 
       return;
     }
+
+    if (rawEvent.identifier === EventIdentifiers.VALIDATE_CONTRACT_CALL && eventName === Events.CONTRACT_CALL_EXECUTED_EVENT) {
+      await this.handleContractCallExecutedEvent(rawEvent);
+
+      return;
+    }
   }
 
   private async handleContractCallEvent(rawEvent: NotifierEvent) {
@@ -94,5 +100,19 @@ export class GatewayProcessor implements ProcessorInterface {
     if (!contractCallApproved) {
       throw new Error(`Couldn't save contract call approved to database for hash ${rawEvent.txHash}`);
     }
+  }
+
+  private async handleContractCallExecutedEvent(rawEvent: NotifierEvent) {
+    const commandId = this.gatewayContract.decodeContractCallExecutedEvent(TransactionEvent.fromHttpResponse(rawEvent));
+
+    const contractCallApproved = await this.contractCallApprovedRepository.findByCommandId(commandId);
+
+    if (!contractCallApproved) {
+      return;
+    }
+
+    contractCallApproved.status = ContractCallApprovedStatus.SUCCESS;
+
+    await this.contractCallApprovedRepository.updateManyStatusRetryExecuteTxHash([contractCallApproved]);
   }
 }

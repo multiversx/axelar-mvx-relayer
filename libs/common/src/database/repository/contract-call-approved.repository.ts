@@ -55,6 +55,14 @@ export class ContractCallApprovedRepository {
     });
   }
 
+  findByCommandId(commandId: string): Promise<ContractCallApproved | null> {
+    return this.prisma.contractCallApproved.findUnique({
+      where: {
+        commandId: commandId,
+      },
+    });
+  }
+
   async updateManyStatusRetryExecuteTxHash(entries: ContractCallApproved[]) {
     await this.prisma.$transaction(
       entries.map((data) => {
