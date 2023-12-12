@@ -78,6 +78,6 @@ import { Mnemonic, UserSigner } from '@multiversx/sdk-wallet/out';
       inject: [ApiConfigService, ResultsParser],
     },
   ],
-  exports: [GatewayContract, GasServiceContract],
+  exports: [GatewayContract, GasServiceContract, ProviderKeys.WALLET_SIGNER, ProxyNetworkProvider, ApiNetworkProvider],
 })
 export class ContractsModule {}

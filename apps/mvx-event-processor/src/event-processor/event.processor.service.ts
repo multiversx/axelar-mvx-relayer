@@ -43,6 +43,9 @@ export class EventProcessorService {
   }
 
   private async handleEvent(event: NotifierEvent) {
+    this.logger.debug('Received event from MultiversX:');
+    this.logger.debug(JSON.stringify(event));
+
     if (event.address === this.contractGasService) {
       this.logger.debug('Received Gas Service event from MultiversX:');
       this.logger.debug(JSON.stringify(event));
