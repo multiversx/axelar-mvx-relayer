@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { GatewayContract } from './gateway.contract';
-import { ApiConfigService } from '@mvx-monorepo/common';
+import { ApiConfigService, DynamicModuleUtils } from '@mvx-monorepo/common';
 import { ApiNetworkProvider, ProxyNetworkProvider } from '@multiversx/sdk-network-providers/out';
 import { ResultsParser } from '@multiversx/sdk-core/out';
 import { ContractLoader } from '@mvx-monorepo/common/contracts/contract.loader';
@@ -8,9 +8,10 @@ import { join } from 'path';
 import { GasServiceContract } from '@mvx-monorepo/common/contracts/gas-service.contract';
 import { ProviderKeys } from '@mvx-monorepo/common/utils/provider.enum';
 import { Mnemonic, UserSigner } from '@multiversx/sdk-wallet/out';
+import { TransactionsHelper } from '@mvx-monorepo/common/contracts/transactions.helper';
 
 @Module({
-  imports: [],
+  imports: [DynamicModuleUtils.getCachingModule()],
   providers: [
     {
       provide: ProxyNetworkProvider,
@@ -77,7 +78,15 @@ import { Mnemonic, UserSigner } from '@multiversx/sdk-wallet/out';
       },
       inject: [ApiConfigService, ResultsParser],
     },
+    TransactionsHelper,
   ],
-  exports: [GatewayContract, GasServiceContract, ProviderKeys.WALLET_SIGNER, ProxyNetworkProvider, ApiNetworkProvider],
+  exports: [
+    GatewayContract,
+    GasServiceContract,
+    ProviderKeys.WALLET_SIGNER,
+    ProxyNetworkProvider,
+    ApiNetworkProvider,
+    TransactionsHelper,
+  ],
 })
 export class ContractsModule {}
