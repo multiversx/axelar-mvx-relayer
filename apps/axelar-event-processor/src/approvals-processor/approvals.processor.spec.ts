@@ -65,7 +65,7 @@ describe('ApprovalsProcessorService', () => {
       .compile();
 
     apiConfigService.getSourceChainName.mockReturnValueOnce('multiversx-test');
-    transactionsHelper.getChainId.mockReturnValue(Promise.resolve('test'));
+    apiConfigService.getChainId.mockReturnValue('test');
     redisCacheService.get.mockImplementation(() => {
       return Promise.resolve(undefined);
     });
@@ -83,7 +83,6 @@ describe('ApprovalsProcessorService', () => {
       // Calling again won't do anything since subscription is already active
       await service.handleNewApprovalsRaw();
 
-      expect(transactionsHelper.getChainId).toHaveBeenCalledTimes(1);
       expect(redisCacheService.get).toHaveBeenCalledTimes(1);
       expect(grpcService.subscribeToApprovals).toHaveBeenCalledTimes(1);
       expect(grpcService.subscribeToApprovals).toHaveBeenCalledWith('multiversx-test', undefined);
@@ -194,7 +193,6 @@ describe('ApprovalsProcessorService', () => {
       // Will re-initialize the subscription with same block height
       await service.handleNewApprovalsRaw();
 
-      expect(transactionsHelper.getChainId).toHaveBeenCalledTimes(2);
       expect(redisCacheService.get).toHaveBeenCalledTimes(2);
       expect(grpcService.subscribeToApprovals).toHaveBeenCalledTimes(2);
       expect(grpcService.subscribeToApprovals).toHaveBeenCalledWith('multiversx-test', 1);
@@ -213,7 +211,6 @@ describe('ApprovalsProcessorService', () => {
 
       await service.handleNewApprovalsRaw();
 
-      expect(transactionsHelper.getChainId).toHaveBeenCalledTimes(2);
       expect(redisCacheService.get).toHaveBeenCalledTimes(2);
       expect(grpcService.subscribeToApprovals).toHaveBeenCalledTimes(2);
 
@@ -224,7 +221,6 @@ describe('ApprovalsProcessorService', () => {
 
       await service.handleNewApprovalsRaw();
 
-      expect(transactionsHelper.getChainId).toHaveBeenCalledTimes(3);
       expect(redisCacheService.get).toHaveBeenCalledTimes(3);
       expect(grpcService.subscribeToApprovals).toHaveBeenCalledTimes(3);
     });

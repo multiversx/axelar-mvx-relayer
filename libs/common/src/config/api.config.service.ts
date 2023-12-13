@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EVENTS_NOTIFIER_QUEUE } from '../../../../config/configuration';
+import { CONSTANTS } from '@mvx-monorepo/common/utils/constants.enum';
 
 @Injectable()
 export class ApiConfigService {
@@ -84,13 +85,17 @@ export class ApiConfigService {
     return axelarApiUrl;
   }
 
-  getSourceChainName(): string {
-    const sourceChainName = this.configService.get<string>('SOURCE_CHAIN_NAME');
-    if (!sourceChainName) {
-      throw new Error('No Axelar API url present');
+  getChainId(): string {
+    const chainId = this.configService.get<string>('CHAIN_ID');
+    if (!chainId) {
+      throw new Error('No Chain Id present');
     }
 
-    return sourceChainName;
+    return chainId;
+  }
+
+  getSourceChainName(): string {
+    return CONSTANTS.SOURCE_CHAIN_NAME_SUFFIX + this.getChainId();
   }
 
   getWalletMnemonic(): string {

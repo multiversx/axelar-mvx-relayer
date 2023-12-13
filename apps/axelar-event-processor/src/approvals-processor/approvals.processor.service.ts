@@ -18,8 +18,8 @@ const MAX_NUMBER_OF_RETRIES = 3;
 export class ApprovalsProcessorService {
   private readonly logger: Logger;
   private readonly sourceChain: string;
+  private readonly chainId: string;
 
-  private chainId: string = '';
   private approvalsSubscription: Subscription | null = null;
 
   constructor(
@@ -32,6 +32,7 @@ export class ApprovalsProcessorService {
   ) {
     this.logger = new Logger(ApprovalsProcessorService.name);
     this.sourceChain = apiConfigService.getSourceChainName();
+    this.chainId = apiConfigService.getChainId();
   }
 
   @Cron('*/30 * * * * *')
@@ -52,8 +53,6 @@ export class ApprovalsProcessorService {
     }
 
     this.logger.log('Starting GRPC approvals stream subscription');
-
-    this.chainId = await this.transactionsHelper.getChainId();
 
     const lastProcessedHeight =
       (await this.redisCacheService.get<number>(CacheInfo.StartProcessHeight().key)) || undefined;
@@ -81,8 +80,6 @@ export class ApprovalsProcessorService {
   }
 
   async handlePendingTransactionsRaw() {
-    this.chainId = await this.transactionsHelper.getChainId();
-
     const keys = await this.redisCacheService.scan(CacheInfo.PendingTransaction('*').key);
     for (const key of keys) {
       const cachedValue = await this.redisCacheService.get<PendingTransaction>(key);
