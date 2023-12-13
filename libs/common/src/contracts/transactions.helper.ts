@@ -1,7 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ProxyNetworkProvider } from '@multiversx/sdk-network-providers/out';
-import { GetOrSetCache } from '@mvx-monorepo/common/decorators/get.or.set.cache';
-import { CacheInfo } from '@mvx-monorepo/common';
 import { Transaction } from '@multiversx/sdk-core/out';
 import { UserAddress } from '@multiversx/sdk-wallet/out/userAddress';
 
@@ -11,13 +9,6 @@ export class TransactionsHelper {
 
   constructor(private readonly proxy: ProxyNetworkProvider) {
     this.logger = new Logger(TransactionsHelper.name);
-  }
-
-  @GetOrSetCache(CacheInfo.ChainId)
-  async getChainId(): Promise<string> {
-    const result = await this.proxy.getNetworkConfig();
-
-    return result.ChainID;
   }
 
   async getAccountNonce(address: UserAddress): Promise<number> {

@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
-import { AccountOnNetwork, NetworkConfig, ProxyNetworkProvider } from '@multiversx/sdk-network-providers/out';
+import { AccountOnNetwork, ProxyNetworkProvider } from '@multiversx/sdk-network-providers/out';
 import {
   CallContractApprovedProcessorModule,
   CallContractApprovedProcessorService,
@@ -48,9 +48,6 @@ describe('CallContractApprovedProcessorService', () => {
     service = await moduleRef.get(CallContractApprovedProcessorService);
 
     // Mock general calls
-    const networkConfig = new NetworkConfig();
-    networkConfig.ChainID = 'test';
-    proxy.getNetworkConfig.mockReturnValueOnce(Promise.resolve(networkConfig));
     proxy.getAccount.mockReturnValueOnce(
       Promise.resolve(
         new AccountOnNetwork({
@@ -133,7 +130,6 @@ describe('CallContractApprovedProcessorService', () => {
 
     await service.processPendingContractCallApproved();
 
-    expect(proxy.getNetworkConfig).toHaveBeenCalledTimes(1);
     expect(proxy.getAccount).toHaveBeenCalledTimes(1);
     expect(proxy.doPostGeneric).toHaveBeenCalledTimes(2);
     expect(proxy.sendTransactions).toHaveBeenCalledTimes(1);
@@ -199,7 +195,6 @@ describe('CallContractApprovedProcessorService', () => {
 
     await service.processPendingContractCallApproved();
 
-    expect(proxy.getNetworkConfig).toHaveBeenCalledTimes(1);
     expect(proxy.getAccount).toHaveBeenCalledTimes(1);
     expect(proxy.doPostGeneric).toHaveBeenCalledTimes(1);
     expect(proxy.sendTransactions).toHaveBeenCalledTimes(1);

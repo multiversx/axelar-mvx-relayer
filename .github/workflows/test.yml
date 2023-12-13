@@ -42,5 +42,3 @@ jobs:
       - run: npm install -g dotenv-cli
       - run: npm run test:migrate
       - run: npm run test:e2e
-#        env:
-#          REDIS_URL: localhost
