@@ -7,7 +7,7 @@ import { CallContractApprovedProcessorService } from './call-contract-approved.p
 @Module({
   imports: [
     ScheduleModule.forRoot(),
-    DynamicModuleUtils.getCachingModule(),
+    DynamicModuleUtils.getCacheModule(),
     DatabaseModule,
     ContractsModule,
   ],

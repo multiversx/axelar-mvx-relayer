@@ -1,17 +1,18 @@
 import { Module } from '@nestjs/common';
 import { GatewayContract } from './gateway.contract';
-import { ApiConfigService, DynamicModuleUtils } from '@mvx-monorepo/common';
 import { ApiNetworkProvider, ProxyNetworkProvider } from '@multiversx/sdk-network-providers/out';
-import { ResultsParser } from '@multiversx/sdk-core/out';
+import { ResultsParser, TransactionWatcher } from '@multiversx/sdk-core/out';
 import { ContractLoader } from '@mvx-monorepo/common/contracts/contract.loader';
 import { join } from 'path';
 import { GasServiceContract } from '@mvx-monorepo/common/contracts/gas-service.contract';
 import { ProviderKeys } from '@mvx-monorepo/common/utils/provider.enum';
 import { Mnemonic, UserSigner } from '@multiversx/sdk-wallet/out';
 import { TransactionsHelper } from '@mvx-monorepo/common/contracts/transactions.helper';
+import { ApiConfigService } from '@mvx-monorepo/common/config';
+import { DynamicModuleUtils } from '@mvx-monorepo/common/utils';
 
 @Module({
-  imports: [DynamicModuleUtils.getCachingModule()],
+  imports: [DynamicModuleUtils.getCacheModule()],
   providers: [
     {
       provide: ProxyNetworkProvider,
@@ -34,6 +35,11 @@ import { TransactionsHelper } from '@mvx-monorepo/common/contracts/transactions.
     {
       provide: ResultsParser,
       useValue: new ResultsParser(),
+    },
+    {
+      provide: TransactionWatcher,
+      useFactory: (api: ApiNetworkProvider) => new TransactionWatcher(api), // use api here not proxy since it returns proper transaction status
+      inject: [ApiNetworkProvider],
     },
     // {
     //   provide: ContractQueryRunner,

@@ -17,6 +17,5 @@ import { ProcessorsModule } from '../processors';
     ProcessorsModule,
   ],
   providers: [EventProcessorService],
-  exports: [EventProcessorService],
 })
 export class EventProcessorModule {}
