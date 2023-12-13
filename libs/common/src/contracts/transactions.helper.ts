@@ -41,7 +41,8 @@ export class TransactionsHelper {
 
       return hash;
     } catch (e) {
-      this.logger.error(`Can not send transactions to proxy... ${e}`);
+      this.logger.error(`Can not send transaction to proxy...`);
+      this.logger.error(e);
 
       throw e;
     }
@@ -57,7 +58,8 @@ export class TransactionsHelper {
 
       return true;
     } catch (e) {
-      this.logger.error(`Can not send transactions to proxy... ${e}`);
+      this.logger.error(`Can not send transactions to proxy...`);
+      this.logger.error(e);
 
       return false;
     }
@@ -69,6 +71,9 @@ export class TransactionsHelper {
 
       return !result.status.isFailed() && !result.status.isInvalid();
     } catch (e) {
+      this.logger.error(`Can not await transaction completed`);
+      this.logger.error(e);
+
       return false;
     }
   }

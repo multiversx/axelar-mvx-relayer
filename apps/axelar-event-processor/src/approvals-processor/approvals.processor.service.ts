@@ -2,7 +2,7 @@ import { Locker } from '@multiversx/sdk-nestjs-common';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { GrpcService } from '@mvx-monorepo/common/grpc/grpc.service';
-import { CacheService, RedisCacheService } from '@multiversx/sdk-nestjs-cache';
+import { RedisCacheService } from '@multiversx/sdk-nestjs-cache';
 import { ApiConfigService, CacheInfo } from '@mvx-monorepo/common';
 import { Subscription } from 'rxjs';
 import { SubscribeToApprovalsResponse } from '@mvx-monorepo/common/grpc/entities/relayer';
@@ -24,7 +24,6 @@ export class ApprovalsProcessorService {
 
   constructor(
     private readonly grpcService: GrpcService,
-    private readonly cacheService: CacheService,
     private readonly redisCacheService: RedisCacheService,
     @Inject(ProviderKeys.WALLET_SIGNER) private readonly walletSigner: UserSigner,
     private readonly transactionsHelper: TransactionsHelper,
@@ -37,88 +36,95 @@ export class ApprovalsProcessorService {
 
   @Cron('*/30 * * * * *')
   async handleNewApprovals() {
-    await Locker.lock('handleNewApprovals', async () => {
-      if (this.approvalsSubscription && !this.approvalsSubscription.closed) {
-        this.logger.log('GRPC approvals stream subscription is already running');
-
-        return;
-      }
-
-      this.logger.log('Starting GRPC approvals stream subscription');
-
-      this.chainId = await this.transactionsHelper.getChainId();
-
-      const lastProcessedHeight =
-        (await this.cacheService.get<number>(CacheInfo.StartProcessHeight().key)) || undefined;
-
-      const observable = this.grpcService.subscribeToApprovals(this.sourceChain, lastProcessedHeight);
-
-      const onComplete = () => {
-        this.logger.warn('Approvals stream subscription ended');
-
-        this.approvalsSubscription = null;
-      };
-      const onError = (e: any) => {
-        this.logger.error(`Approvals stream subscription ended with error...`);
-        this.logger.error(e);
-
-        this.approvalsSubscription = null;
-      };
-
-      // TODO: Test if this works as expected
-      this.approvalsSubscription = observable.subscribe({
-        next: this.processMessage,
-        complete: onComplete,
-        error: onError,
-      });
-    });
+    await Locker.lock('handleNewApprovals', this.handleNewApprovalsRaw.bind(this));
   }
 
   @Cron('*/6 * * * * *')
   async handlePendingTransactions() {
-    await Locker.lock('pendingTransactions', async () => {
-      const keys = await this.redisCacheService.scan(CacheInfo.PendingTransaction('*').key);
-      for (const txHash of keys) {
-        const cachedValue = await this.cacheService.getRemote<PendingTransaction>(txHash);
+    await Locker.lock('pendingTransactions', this.handlePendingTransactionsRaw.bind(this));
+  }
 
-        await this.cacheService.deleteRemote(txHash);
+  async handleNewApprovalsRaw() {
+    if (this.approvalsSubscription && !this.approvalsSubscription.closed) {
+      this.logger.log('GRPC approvals stream subscription is already running');
 
-        if (cachedValue === undefined) {
-          continue;
-        }
+      return;
+    }
 
-        const { executeData, retry } = cachedValue;
+    this.logger.log('Starting GRPC approvals stream subscription');
 
-        const success = await this.transactionsHelper.awaitComplete(txHash);
+    this.chainId = await this.transactionsHelper.getChainId();
 
-        // Nothing to do on success
-        if (success) {
-          continue;
-        }
+    const lastProcessedHeight =
+      (await this.redisCacheService.get<number>(CacheInfo.StartProcessHeight().key)) || undefined;
 
-        if (retry === MAX_NUMBER_OF_RETRIES) {
-          this.logger.error(`Could not execute Gateway execute transaction with hash ${txHash} after ${retry} retries`);
+    const observable = this.grpcService.subscribeToApprovals(this.sourceChain, lastProcessedHeight);
 
-          continue;
-        }
+    const onComplete = () => {
+      this.logger.warn('Approvals stream subscription ended');
 
-        try {
-          await this.executeTransaction(executeData, retry);
-        } catch (e) {
-          this.logger.error('Error while trying to retry Axelar Approvals response transaction...');
-          this.logger.error(e);
+      this.approvalsSubscription = null;
+    };
+    const onError = (e: any) => {
+      this.logger.error(`Approvals stream subscription ended with error...`);
+      this.logger.error(e);
 
-          // Set value back in cache to be retried again (with same retry number)
-          await this.cacheService.setRemote<PendingTransaction>(CacheInfo.PendingTransaction(txHash).key, {
-            executeData: executeData,
-            retry: retry,
-          });
-        }
-      }
+      this.approvalsSubscription = null;
+    };
+
+    // TODO: Test if this works as expected
+    this.approvalsSubscription = observable.subscribe({
+      next: this.processMessage.bind(this),
+      complete: onComplete,
+      error: onError,
     });
   }
 
-  async processMessage(response: SubscribeToApprovalsResponse) {
+  async handlePendingTransactionsRaw() {
+    this.chainId = await this.transactionsHelper.getChainId();
+
+    const keys = await this.redisCacheService.scan(CacheInfo.PendingTransaction('*').key);
+    for (const key of keys) {
+      const cachedValue = await this.redisCacheService.get<PendingTransaction>(key);
+
+      await this.redisCacheService.delete(key);
+
+      if (cachedValue === undefined) {
+        continue;
+      }
+
+      const { txHash, executeData, retry } = cachedValue;
+
+      const success = await this.transactionsHelper.awaitComplete(txHash);
+
+      // Nothing to do on success
+      if (success) {
+        continue;
+      }
+
+      if (retry === MAX_NUMBER_OF_RETRIES) {
+        this.logger.error(`Could not execute Gateway execute transaction with hash ${txHash} after ${retry} retries`);
+
+        continue;
+      }
+
+      try {
+        await this.executeTransaction(executeData, retry);
+      } catch (e) {
+        this.logger.error('Error while trying to retry Axelar Approvals response transaction...');
+        this.logger.error(e);
+
+        // Set value back in cache to be retried again (with same retry number)
+        await this.redisCacheService.set<PendingTransaction>(CacheInfo.PendingTransaction(txHash).key, {
+          txHash,
+          executeData: executeData,
+          retry: retry,
+        }, CacheInfo.PendingTransaction(txHash).ttl);
+      }
+    }
+  }
+
+  private async processMessage(response: SubscribeToApprovalsResponse) {
     this.logger.debug('Received Axelar Approvals response:');
     this.logger.debug(JSON.stringify(response));
 
@@ -129,20 +135,20 @@ export class ApprovalsProcessorService {
       this.logger.error(e);
 
       // Set start process height to current block height
-      await this.cacheService.set(
+      await this.redisCacheService.set(
         CacheInfo.StartProcessHeight().key,
         response.blockHeight,
         CacheInfo.StartProcessHeight().ttl,
       );
 
       // Unsubscribe so processing stops at this event and is retried
-      (this.approvalsSubscription as Subscription).unsubscribe();
+      this.approvalsSubscription?.unsubscribe();
 
       return;
     }
 
     // Set start process height to next block height.
-    await this.cacheService.set(
+    await this.redisCacheService.set(
       CacheInfo.StartProcessHeight().key,
       response.blockHeight + 1,
       CacheInfo.StartProcessHeight().ttl,
@@ -172,9 +178,10 @@ export class ApprovalsProcessorService {
 
     const txHash = await this.transactionsHelper.sendTransaction(transaction);
 
-    await this.cacheService.setRemote<PendingTransaction>(CacheInfo.PendingTransaction(txHash).key, {
+    await this.redisCacheService.set<PendingTransaction>(CacheInfo.PendingTransaction(txHash).key, {
+      txHash,
       executeData: executeData,
       retry: retry + 1,
-    });
+    }, CacheInfo.PendingTransaction(txHash).ttl);
   }
 }

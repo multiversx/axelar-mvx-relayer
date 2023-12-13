@@ -9,7 +9,6 @@ import { ScheduleModule } from '@nestjs/schedule';
   imports: [
     ScheduleModule.forRoot(),
     ApiConfigModule,
-    DynamicModuleUtils.getCacheModule(),
     DynamicModuleUtils.getRedisCacheModule(),
     GrpcModule,
     ContractsModule,
