@@ -15,6 +15,7 @@ import {
 } from '@multiversx/sdk-core/out';
 import { ContractCallApproved, ContractCallApprovedStatus } from '@prisma/client';
 import { TransactionsHelper } from '@mvx-monorepo/common/contracts/transactions.helper';
+import { ApiConfigService } from '@mvx-monorepo/common';
 
 // Support a max of 3 retries (mainly because some Interchain Token Service endpoints need to be called 3 times)
 const MAX_NUMBER_OF_RETRIES: number = 3;
@@ -23,12 +24,16 @@ const MAX_NUMBER_OF_RETRIES: number = 3;
 export class CallContractApprovedProcessorService {
   private readonly logger: Logger;
 
+  private readonly chainId: string;
+
   constructor(
     private readonly contractCallApprovedRepository: ContractCallApprovedRepository,
     @Inject(ProviderKeys.WALLET_SIGNER) private readonly walletSigner: UserSigner,
     private readonly transactionsHelper: TransactionsHelper,
+    apiConfigService: ApiConfigService,
   ) {
     this.logger = new Logger(CallContractApprovedProcessorService.name);
+    this.chainId = apiConfigService.getChainId();
   }
 
   @Cron('*/30 * * * * *')
@@ -37,7 +42,6 @@ export class CallContractApprovedProcessorService {
       this.logger.debug('Running processPendingContractCallApproved cron');
 
       let accountNonce = null;
-      const chainId = await this.transactionsHelper.getChainId();
 
       let page = 0;
       let entries;
@@ -64,7 +68,7 @@ export class CallContractApprovedProcessorService {
             `Trying to execute ContractCallApproved transaction with commandId ${contractCallApproved.commandId}`,
           );
 
-          const transaction = await this.buildExecuteTransaction(contractCallApproved, accountNonce, chainId);
+          const transaction = await this.buildExecuteTransaction(contractCallApproved, accountNonce);
 
           accountNonce++;
 
@@ -89,7 +93,6 @@ export class CallContractApprovedProcessorService {
   private async buildExecuteTransaction(
     contractCallApproved: ContractCallApproved,
     accountNonce: number,
-    chainId: string,
   ): Promise<Transaction> {
     const contract = new SmartContract({ address: new Address(contractCallApproved.contractAddress) });
 
@@ -106,7 +109,7 @@ export class CallContractApprovedProcessorService {
       .withSender(this.walletSigner.getAddress())
       .withNonce(accountNonce)
       // .withValue() // TODO: Handle ITS transactions where EGLD value needs to be sent for deploying ESDT token
-      .withChainID(chainId)
+      .withChainID(this.chainId)
       .buildTransaction();
 
     const gas = await this.transactionsHelper.getTransactionGas(transaction, contractCallApproved.retry);
