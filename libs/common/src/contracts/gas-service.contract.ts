@@ -20,19 +20,11 @@ export class GasServiceContract {
     private readonly resultsParser: ResultsParser,
   ) {}
 
-  collectFees(
-    sender: IAddress,
-    tokens: string[],
-    amounts: BigNumber[],
-    accountNonce: number,
-    chainId: string,
-  ): Transaction {
+  collectFees(sender: IAddress, tokens: string[], amounts: BigNumber[]): Transaction {
     return this.smartContract.methods
-      .collectFees([sender, tokens, amounts])
-      .withSender(sender)
-      .withNonce(accountNonce)
+      .collectFees([sender.bech32(), tokens, amounts])
       .withGasLimit(GasInfo.CollectFeesBase.value + GasInfo.CollectFeesExtra.value * tokens.length)
-      .withChainID(chainId)
+      .withSender(sender)
       .buildTransaction();
   }
 
@@ -115,5 +107,9 @@ export class GasServiceContract {
         amount: outcome.data.amount,
       },
     };
+  }
+
+  getContractAddress(): IAddress {
+    return this.smartContract.getAddress();
   }
 }

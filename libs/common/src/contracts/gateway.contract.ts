@@ -19,17 +19,10 @@ export class GatewayContract {
     this.logger = new Logger(GatewayContract.name);
   }
 
-  buildExecuteTransaction(
-    executeData: Uint8Array,
-    accountNonce: number,
-    chainId: string,
-    walletAddress: IAddress,
-  ): Transaction {
+  buildExecuteTransaction(executeData: Uint8Array, sender: IAddress): Transaction {
     return this.smartContract.methodsExplicit
       .execute([new BytesValue(Buffer.from(executeData))])
-      .withSender(walletAddress)
-      .withNonce(accountNonce)
-      .withChainID(chainId)
+      .withSender(sender)
       .buildTransaction();
   }
 

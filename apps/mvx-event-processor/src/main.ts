@@ -1,13 +1,8 @@
 import { NestFactory } from '@nestjs/core';
-import { EventProcessorModule } from './event-processor';
-import { CallContractApprovedProcessorModule } from './call-contract-approved-processor';
-import { GasCheckerModule } from './gas-checker/gas-checker.module';
+import { MvxEventProcessorModule } from './mvx-event-processor.module';
 
 async function bootstrap() {
-  // TODO: Probably these should be refactor under the same module
-  await NestFactory.createApplicationContext(EventProcessorModule);
-  await NestFactory.createApplicationContext(CallContractApprovedProcessorModule);
-  await NestFactory.createApplicationContext(GasCheckerModule);
+  await NestFactory.createApplicationContext(MvxEventProcessorModule);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-floating-promises

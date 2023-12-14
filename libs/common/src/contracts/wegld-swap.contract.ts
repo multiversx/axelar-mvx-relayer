@@ -12,14 +12,12 @@ export class WegldSwapContract {
     private readonly proxy: ProxyNetworkProvider,
   ) {}
 
-  unwrapEgld(token: string, amount: BigNumber, sender: IAddress, accountNonce: number, chainId: string): Transaction {
+  unwrapEgld(token: string, amount: BigNumber, sender: IAddress): Transaction {
     return this.smartContract.methodsExplicit
       .unwrapEgld()
-      .withSender(sender)
-      .withNonce(accountNonce)
       .withSingleESDTTransfer(TokenTransfer.fungibleFromBigInteger(token, amount))
       .withGasLimit(GasInfo.UnwrapEgld.value)
-      .withChainID(chainId)
+      .withSender(sender)
       .buildTransaction();
   }
 
