@@ -1,5 +1,5 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
-import { PROVIDER_KEYS } from '@mvx-monorepo/common/utils/provider.enum';
+import { ProviderKeys } from '@mvx-monorepo/common/utils/provider.enum';
 import { ClientGrpc } from '@nestjs/microservices';
 import { ContractCallEvent } from '@prisma/client';
 import { Relayer, VerifyRequest } from '@mvx-monorepo/common/grpc/entities/relayer';
@@ -12,7 +12,7 @@ export class GrpcService implements OnModuleInit {
   // @ts-ignore
   private relayerService: Relayer;
 
-  constructor(@Inject(PROVIDER_KEYS.AXELAR_GRPC_CLIENT) private readonly client: ClientGrpc) {}
+  constructor(@Inject(ProviderKeys.AXELAR_GRPC_CLIENT) private readonly client: ClientGrpc) {}
 
   onModuleInit() {
     this.relayerService = this.client.getService<Relayer>(RELAYER_SERVICE);
@@ -36,5 +36,13 @@ export class GrpcService implements OnModuleInit {
     // TODO: Check if this works correctly
     const result = this.relayerService.verify(replaySubject);
     await firstValueFrom(result);
+  }
+
+  async getPayload(payloadHash: string): Promise<Buffer> {
+    const result = await this.relayerService.getPayload({
+      hash: Buffer.from(payloadHash, 'hex'),
+    });
+
+    return Buffer.from(result.payload);
   }
 }

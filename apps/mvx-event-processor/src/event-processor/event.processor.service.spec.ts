@@ -3,10 +3,10 @@ import { ApiConfigService } from '@mvx-monorepo/common';
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { Test } from '@nestjs/testing';
 import { NotifierBlockEvent } from './types';
-import { ContractCallProcessor, GasServiceProcessor } from '../processors';
+import { GatewayProcessor, GasServiceProcessor } from '../processors';
 
 describe('EventProcessorService', () => {
-  let contractCallProcessor: DeepMocked<ContractCallProcessor>;
+  let contractCallProcessor: DeepMocked<GatewayProcessor>;
   let gasServiceProcessor: DeepMocked<GasServiceProcessor>;
   let apiConfigService: DeepMocked<ApiConfigService>;
 
@@ -24,7 +24,7 @@ describe('EventProcessorService', () => {
       providers: [EventProcessorService],
     })
       .useMocker((token) => {
-        if (token === ContractCallProcessor) {
+        if (token === GatewayProcessor) {
           return contractCallProcessor;
         }
 

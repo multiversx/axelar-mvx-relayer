@@ -13,7 +13,7 @@
         },
         "framework": {
             "name": "multiversx-sc",
-            "version": "0.43.5"
+            "version": "0.43.4"
         }
     },
     "name": "Gateway",
@@ -215,6 +215,16 @@
                 },
                 {
                     "name": "payload_hash",
+                    "type": "array32<u8>",
+                    "indexed": true
+                }
+            ]
+        },
+        {
+            "identifier": "contract_call_executed_event",
+            "inputs": [
+                {
+                    "name": "command_id",
                     "type": "array32<u8>",
                     "indexed": true
                 }

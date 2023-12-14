@@ -10,4 +10,11 @@ export class CacheInfo {
       ttl: Constants.oneMonth(),
     };
   }
+
+  static ChainId(): CacheInfo {
+    return {
+      key: `chainId`,
+      ttl: Constants.oneWeek(),
+    };
+  }
 }
