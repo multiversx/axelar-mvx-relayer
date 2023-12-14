@@ -11,13 +11,13 @@ import { EventIdentifiers, Events } from '@mvx-monorepo/common/utils/event.enum'
 import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
 import { ContractCallApprovedRepository } from '@mvx-monorepo/common/database/repository/contract-call-approved.repository';
 
-// order/logIndex is unsupported since we can't easily get it in the relayer
+// order/logIndex is unsupported since we can't easily get it in the relayer,
 // so we use a sufficiently large u32 value here instead
 const UNSUPPORTED_LOG_INDEX: number = 999_999;
 
 @Injectable()
 export class GatewayProcessor implements ProcessorInterface {
-  private sourceChain: string;
+  private readonly sourceChain: string;
 
   constructor(
     private readonly gatewayContract: GatewayContract,

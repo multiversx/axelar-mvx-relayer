@@ -68,7 +68,7 @@ export class CallContractApprovedProcessorService {
             `Trying to execute ContractCallApproved transaction with commandId ${contractCallApproved.commandId}`,
           );
 
-          const transaction = await this.buildExecuteTransaction(contractCallApproved, accountNonce);
+          const transaction = await this.buildAndSignExecuteTransaction(contractCallApproved, accountNonce);
 
           accountNonce++;
 
@@ -90,7 +90,7 @@ export class CallContractApprovedProcessorService {
     });
   }
 
-  private async buildExecuteTransaction(
+  private async buildAndSignExecuteTransaction(
     contractCallApproved: ContractCallApproved,
     accountNonce: number,
   ): Promise<Transaction> {

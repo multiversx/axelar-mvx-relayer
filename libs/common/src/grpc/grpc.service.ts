@@ -2,8 +2,8 @@ import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { ProviderKeys } from '@mvx-monorepo/common/utils/provider.enum';
 import { ClientGrpc } from '@nestjs/microservices';
 import { ContractCallEvent } from '@prisma/client';
-import { Relayer, VerifyRequest } from '@mvx-monorepo/common/grpc/entities/relayer';
-import { firstValueFrom, ReplaySubject } from 'rxjs';
+import { Relayer, SubscribeToApprovalsResponse, VerifyRequest } from '@mvx-monorepo/common/grpc/entities/relayer';
+import { firstValueFrom, Observable, ReplaySubject } from 'rxjs';
 
 const RELAYER_SERVICE = 'Relayer';
 
@@ -44,5 +44,15 @@ export class GrpcService implements OnModuleInit {
     });
 
     return Buffer.from(result.payload);
+  }
+
+  subscribeToApprovals(
+    chain: string,
+    startHeight?: number | undefined,
+  ): Observable<SubscribeToApprovalsResponse> {
+    return this.relayerService.subscribeToApprovals({
+      chain,
+      startHeight,
+    });
   }
 }
