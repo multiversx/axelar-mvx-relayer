@@ -9,3 +9,54 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+model ContractCallEvent {
+  id                 String                  @id @db.VarChar(255) // should be formatted as [source_chain]:[unique identifier], i.e. Ethereum:0x74ac0205b1f8f51023942856145182f0e6fdd41ccb2c8058bf2d89fc67564d56:0
+  txHash             String                  @unique @db.VarChar(64)
+  eventIndex         Int                     @db.SmallInt
+  status             ContractCallEventStatus
+  sourceAddress      String                  @db.VarChar(62)
+  sourceChain        String                  @db.VarChar(255)
+  destinationAddress String                  @db.VarChar(255)
+  destinationChain   String                  @db.VarChar(255)
+  payloadHash        String                  @db.VarChar(64)
+  payload            Bytes
+  executeTxHash      String?                 @db.VarChar(64)
+  createdAt          DateTime                @default(now()) @db.Timestamp(6)
+  updatedAt          DateTime                @default(now()) @updatedAt @db.Timestamp(6)
+  gasPaidEntries     GasPaid[]
+
+  @@index([txHash, eventIndex])
+  @@index([sourceAddress, payloadHash])
+}
+
+enum ContractCallEventStatus {
+  PENDING
+  APPROVED
+  SUCCESS
+  FAILED
+}
+
+model GasPaid {
+  id                  Int                @id @default(autoincrement())
+  txHash              String             @unique @db.VarChar(64)
+  sourceAddress       String             @db.VarChar(62)
+  destinationAddress  String             @db.VarChar(255)
+  destinationChain    String             @db.VarChar(255)
+  payloadHash         String             @db.VarChar(64)
+  gasToken            String?            @db.VarChar(17)
+  gasValue            String             @db.VarChar(255)
+  refundAddress       String             @db.VarChar(62)
+  refundedValue       String?            @db.VarChar(255)
+  status              GasPaidStatus
+  ContractCallEvent   ContractCallEvent? @relation(fields: [contractCallEventId], references: [id])
+  contractCallEventId String?            @db.VarChar(255)
+
+  @@index([refundAddress, gasToken])
+}
+
+enum GasPaidStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}

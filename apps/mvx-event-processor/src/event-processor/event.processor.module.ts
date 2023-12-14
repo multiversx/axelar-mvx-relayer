@@ -2,11 +2,11 @@ import { RabbitModule, RabbitModuleOptions } from '@multiversx/sdk-nestjs-rabbit
 import { Module } from '@nestjs/common';
 import { EventProcessorService } from './event.processor.service';
 import { ApiConfigModule, ApiConfigService } from '@mvx-monorepo/common';
-import configuration from '../../config/configuration';
+import { ProcessorsModule } from '../processors';
 
 @Module({
   imports: [
-    ApiConfigModule.forRoot(configuration),
+    ApiConfigModule,
     RabbitModule.forRootAsync({
       useFactory: (apiConfigService: ApiConfigService) =>
         new RabbitModuleOptions(apiConfigService.getEventsNotifierUrl(), [], {
@@ -14,6 +14,7 @@ import configuration from '../../config/configuration';
         }),
       inject: [ApiConfigService],
     }),
+    ProcessorsModule,
   ],
   providers: [EventProcessorService],
   exports: [EventProcessorService],

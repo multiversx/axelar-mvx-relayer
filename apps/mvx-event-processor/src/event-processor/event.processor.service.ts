@@ -2,18 +2,27 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ApiConfigService } from '@mvx-monorepo/common';
 import { NotifierBlockEvent, NotifierEvent } from './types';
 import { RabbitSubscribe } from '@golevelup/nestjs-rabbitmq';
-import configuration from '../../config/configuration';
+import { EVENTS_NOTIFIER_QUEUE } from '../../../../config/configuration';
+import { ContractCallProcessor, GasServiceProcessor } from '../processors';
 
 @Injectable()
 export class EventProcessorService {
+  private readonly contractGateway: string;
+  private readonly contractGasService: string;
   private readonly logger: Logger;
 
-  constructor(private readonly apiConfigService: ApiConfigService) {
+  constructor(
+    private readonly contractCallProcessor: ContractCallProcessor,
+    private readonly gasServiceProcessor: GasServiceProcessor,
+    apiConfigService: ApiConfigService,
+  ) {
+    this.contractGateway = apiConfigService.getContractGateway();
+    this.contractGasService = apiConfigService.getContractGasService();
     this.logger = new Logger(EventProcessorService.name);
   }
 
   @RabbitSubscribe({
-    queue: configuration().eventsNotifier.queue,
+    queue: EVENTS_NOTIFIER_QUEUE,
     createQueueIfNotExists: false,
   })
   async consumeEvents(blockEvent: NotifierBlockEvent) {
@@ -33,18 +42,23 @@ export class EventProcessorService {
     }
   }
 
-  // TODO: Implement logic
-  private handleEvent(event: NotifierEvent) {
-    this.logger.log('Received event from MultiversX Gateway contract:');
-    this.logger.log(JSON.stringify(event));
+  private async handleEvent(event: NotifierEvent) {
+    if (event.address === this.contractGasService) {
+      this.logger.debug('Received Gas Service event from MultiversX:');
+      this.logger.debug(JSON.stringify(event));
 
-    if (event.address !== this.apiConfigService.getEventsNotifierGatewayAddress()) {
+      await this.gasServiceProcessor.handleEvent(event);
+
       return;
     }
 
-    if (event.identifier === 'callContract') {
-      this.logger.log('Received callContract event from MultiversX Gateway contract:');
-      this.logger.log(JSON.stringify(event));
+    if (event.address === this.contractGateway) {
+      this.logger.debug('Received Gateway event from MultiversX:');
+      this.logger.debug(JSON.stringify(event));
+
+      await this.contractCallProcessor.handleEvent(event);
+
+      return;
     }
   }
 }

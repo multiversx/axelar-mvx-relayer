@@ -4,9 +4,9 @@ import { ClientOptions, ClientProxyFactory, Transport } from '@nestjs/microservi
 import { ApiConfigModule, ApiConfigService } from '../config';
 
 export class DynamicModuleUtils {
-  static getCachingModule(configuration: () => Record<string, any>): DynamicModule {
+  static getCachingModule(): DynamicModule {
     return CacheModule.forRootAsync({
-      imports: [ApiConfigModule.forRoot(configuration)],
+      imports: [ApiConfigModule],
       useFactory: (apiConfigService: ApiConfigService) =>
         new RedisCacheModuleOptions(
           {
