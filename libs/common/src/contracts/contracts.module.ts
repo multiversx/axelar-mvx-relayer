@@ -9,6 +9,7 @@ import { GasServiceContract } from '@mvx-monorepo/common/contracts/gas-service.c
 import { ProviderKeys } from '@mvx-monorepo/common/utils/provider.enum';
 import { Mnemonic, UserSigner } from '@multiversx/sdk-wallet/out';
 import { TransactionsHelper } from '@mvx-monorepo/common/contracts/transactions.helper';
+import { WegldSwapContract } from '@mvx-monorepo/common/contracts/wegld-swap.contract';
 
 @Module({
   imports: [DynamicModuleUtils.getCachingModule()],
@@ -70,6 +71,17 @@ import { TransactionsHelper } from '@mvx-monorepo/common/contracts/transactions.
       inject: [ApiConfigService, ResultsParser],
     },
     {
+      provide: WegldSwapContract,
+      useFactory: async (apiConfigService: ApiConfigService, resultsParser: ResultsParser, proxy: ProxyNetworkProvider) => {
+        const contractLoader = new ContractLoader(join(__dirname, '../assets/wegld-swap.abi.json'));
+
+        const smartContract = await contractLoader.getContract(apiConfigService.getContractWegldSwap());
+
+        return new WegldSwapContract(smartContract, resultsParser, proxy);
+      },
+      inject: [ApiConfigService, ResultsParser, ProxyNetworkProvider],
+    },
+    {
       provide: ProviderKeys.WALLET_SIGNER,
       useFactory: (apiConfigService: ApiConfigService) => {
         const mnemonic = Mnemonic.fromString(apiConfigService.getWalletMnemonic()).deriveKey(0);
@@ -83,6 +95,7 @@ import { TransactionsHelper } from '@mvx-monorepo/common/contracts/transactions.
   exports: [
     GatewayContract,
     GasServiceContract,
+    WegldSwapContract,
     ProviderKeys.WALLET_SIGNER,
     ProxyNetworkProvider,
     ApiNetworkProvider,

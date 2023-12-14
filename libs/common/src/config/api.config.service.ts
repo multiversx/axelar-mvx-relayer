@@ -76,6 +76,15 @@ export class ApiConfigService {
     return contractGasService;
   }
 
+  getContractWegldSwap(): string {
+    const contractWegldSwap = this.configService.get<string>('CONTRACT_WEGLD_SWAP');
+    if (!contractWegldSwap) {
+      throw new Error('No Contract Wegld Swap present');
+    }
+
+    return contractWegldSwap;
+  }
+
   getAxelarApiUrl(): string {
     const axelarApiUrl = this.configService.get<string>('AXELAR_API_URL');
     if (!axelarApiUrl) {
