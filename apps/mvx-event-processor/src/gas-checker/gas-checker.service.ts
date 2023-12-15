@@ -41,9 +41,7 @@ export class GasCheckerService {
   async checkGasServiceAndWalletRaw() {
     this.logger.debug('Running checkGasServiceAndWallet cron');
 
-    this.logger.log(
-      `Checking gas service fees with address ${this.gasServiceContract.getContractAddress().bech32()}`,
-    );
+    this.logger.log(`Checking gas service fees with address ${this.gasServiceContract.getContractAddress().bech32()}`);
 
     // First check gas service fees and collect them if necessary
     try {
@@ -122,6 +120,9 @@ export class GasCheckerService {
       }
 
       this.logger.log('Successfully converted wegld token to egld for wallet');
+
+      // Retrieve new EGLD balance
+      tokens.egldToken.balance = (await this.api.getAccount(this.walletSigner.getAddress())).balance;
     }
 
     if (tokens.egldToken.balance.lt(EGLD_LOW_ERROR_THRESHOLD)) {
@@ -133,14 +134,14 @@ export class GasCheckerService {
     address: IAddress,
   ): Promise<{ egldToken: FungibleTokenOfAccountOnNetwork; wegldToken: FungibleTokenOfAccountOnNetwork }> {
     const account = await this.api.getAccount(address);
-    const egldToken = {
+    const egldToken: FungibleTokenOfAccountOnNetwork = {
       identifier: CONSTANTS.EGLD_IDENTIFIER,
       balance: account.balance,
       rawResponse: {},
     };
 
     const wegldTokenId = await this.getWegldTokenId();
-    let wegldToken;
+    let wegldToken: FungibleTokenOfAccountOnNetwork;
     try {
       wegldToken = await this.api.getFungibleTokenOfAccount(address, wegldTokenId);
     } catch (e) {
