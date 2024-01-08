@@ -18,7 +18,6 @@ const MAX_NUMBER_OF_RETRIES = 3;
 export class ApprovalsProcessorService {
   private readonly logger: Logger;
   private readonly sourceChain: string;
-  private readonly chainId: string;
 
   private approvalsSubscription: Subscription | null = null;
 
@@ -32,7 +31,6 @@ export class ApprovalsProcessorService {
   ) {
     this.logger = new Logger(ApprovalsProcessorService.name);
     this.sourceChain = apiConfigService.getSourceChainName();
-    this.chainId = apiConfigService.getChainId();
   }
 
   @Cron('*/30 * * * * *')
@@ -112,11 +110,15 @@ export class ApprovalsProcessorService {
         this.logger.error(e);
 
         // Set value back in cache to be retried again (with same retry number)
-        await this.redisCacheService.set<PendingTransaction>(CacheInfo.PendingTransaction(txHash).key, {
-          txHash,
-          executeData: executeData,
-          retry: retry,
-        }, CacheInfo.PendingTransaction(txHash).ttl);
+        await this.redisCacheService.set<PendingTransaction>(
+          CacheInfo.PendingTransaction(txHash).key,
+          {
+            txHash,
+            executeData: executeData,
+            retry: retry,
+          },
+          CacheInfo.PendingTransaction(txHash).ttl,
+        );
       }
     }
   }
@@ -156,29 +158,21 @@ export class ApprovalsProcessorService {
     this.logger.debug(`Trying to execute Gateway execute transaction with executeData:`);
     this.logger.debug(executeData);
 
-    // TODO: Check if it is fine to use the same wallet as in the CallContractApprovedProcessor
-    // and that no issues happen because of nonce
-    const accountNonce = await this.transactionsHelper.getAccountNonce(this.walletSigner.getAddress());
-
-    const transaction = this.gatewayContract.buildExecuteTransaction(
-      executeData,
-      accountNonce,
-      this.chainId,
-      this.walletSigner.getAddress(),
-    );
+    const transaction = this.gatewayContract.buildExecuteTransaction(executeData, this.walletSigner.getAddress());
 
     const gas = await this.transactionsHelper.getTransactionGas(transaction, retry);
     transaction.setGasLimit(gas);
 
-    const signature = await this.walletSigner.sign(transaction.serializeForSigning());
-    transaction.applySignature(signature);
+    const txHash = await this.transactionsHelper.signAndSendTransaction(transaction, this.walletSigner);
 
-    const txHash = await this.transactionsHelper.sendTransaction(transaction);
-
-    await this.redisCacheService.set<PendingTransaction>(CacheInfo.PendingTransaction(txHash).key, {
-      txHash,
-      executeData: executeData,
-      retry: retry + 1,
-    }, CacheInfo.PendingTransaction(txHash).ttl);
+    await this.redisCacheService.set<PendingTransaction>(
+      CacheInfo.PendingTransaction(txHash).key,
+      {
+        txHash,
+        executeData: executeData,
+        retry: retry + 1,
+      },
+      CacheInfo.PendingTransaction(txHash).ttl,
+    );
   }
 }

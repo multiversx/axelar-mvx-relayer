@@ -24,4 +24,11 @@ export class CacheInfo {
       ttl: Constants.oneMinute() * 10,
     };
   }
+
+  static WegldTokenId(): CacheInfo {
+    return {
+      key: `wegldTokenId`,
+      ttl: Constants.oneWeek(),
+    };
+  }
 }

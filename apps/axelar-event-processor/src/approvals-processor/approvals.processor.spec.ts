@@ -88,16 +88,13 @@ describe('ApprovalsProcessorService', () => {
       expect(grpcService.subscribeToApprovals).toHaveBeenCalledWith('multiversx-test', undefined);
 
       const userAddress = UserAddress.fromBech32('erd1qqqqqqqqqqqqqpgqhe8t5jewej70zupmh44jurgn29psua5l2jps3ntjj3');
-      const accountNonce = 0;
       walletSigner.getAddress.mockReturnValueOnce(userAddress);
-      transactionsHelper.getAccountNonce.mockReturnValueOnce(Promise.resolve(accountNonce));
 
       const transaction: DeepMocked<Transaction> = createMock();
       gatewayContract.buildExecuteTransaction.mockReturnValueOnce(transaction);
 
       transactionsHelper.getTransactionGas.mockReturnValueOnce(Promise.resolve(100_000_000));
-      walletSigner.sign.mockReturnValueOnce(Promise.resolve(Buffer.from('signature')));
-      transactionsHelper.sendTransaction.mockReturnValueOnce(Promise.resolve('txHash'));
+      transactionsHelper.signAndSendTransaction.mockReturnValueOnce(Promise.resolve('txHash'));
 
       // Process a message
       const message: SubscribeToApprovalsResponse = {
@@ -115,23 +112,14 @@ describe('ApprovalsProcessorService', () => {
         setTimeout(resolve, 500);
       });
 
-      expect(transactionsHelper.getAccountNonce).toHaveBeenCalledTimes(1);
-      expect(transactionsHelper.getAccountNonce).toHaveBeenCalledWith(userAddress);
       expect(gatewayContract.buildExecuteTransaction).toHaveBeenCalledTimes(1);
-      expect(gatewayContract.buildExecuteTransaction).toHaveBeenCalledWith(
-        message.executeData,
-        accountNonce,
-        'test',
-        userAddress,
-      );
+      expect(gatewayContract.buildExecuteTransaction).toHaveBeenCalledWith(message.executeData, userAddress);
       expect(transactionsHelper.getTransactionGas).toHaveBeenCalledTimes(1);
       expect(transactionsHelper.getTransactionGas).toHaveBeenCalledWith(transaction, 0);
       expect(transaction.setGasLimit).toHaveBeenCalledTimes(1);
       expect(transaction.setGasLimit).toHaveBeenCalledWith(100_000_000);
-      expect(transaction.applySignature).toHaveBeenCalledTimes(1);
-      expect(transaction.applySignature).toHaveBeenCalledWith(Buffer.from('signature'));
-      expect(transactionsHelper.sendTransaction).toHaveBeenCalledTimes(1);
-      expect(transactionsHelper.sendTransaction).toHaveBeenCalledWith(transaction);
+      expect(transactionsHelper.signAndSendTransaction).toHaveBeenCalledTimes(1);
+      expect(transactionsHelper.signAndSendTransaction).toHaveBeenCalledWith(transaction, walletSigner);
 
       expect(redisCacheService.set).toHaveBeenCalledTimes(2);
       expect(redisCacheService.set).toHaveBeenCalledWith(
@@ -157,7 +145,9 @@ describe('ApprovalsProcessorService', () => {
 
       const userAddress = UserAddress.fromBech32('erd1qqqqqqqqqqqqqpgqhe8t5jewej70zupmh44jurgn29psua5l2jps3ntjj3');
       walletSigner.getAddress.mockReturnValueOnce(userAddress);
-      transactionsHelper.getAccountNonce.mockRejectedValueOnce(new Error('Network error'));
+      const transaction: DeepMocked<Transaction> = createMock();
+      gatewayContract.buildExecuteTransaction.mockReturnValueOnce(transaction);
+      transactionsHelper.getTransactionGas.mockRejectedValueOnce(new Error('Network error'));
 
       await service.handleNewApprovalsRaw();
       // Process a message
@@ -173,8 +163,8 @@ describe('ApprovalsProcessorService', () => {
         setTimeout(resolve, 500);
       });
 
-      expect(transactionsHelper.getAccountNonce).toHaveBeenCalledTimes(1);
-      expect(transactionsHelper.getAccountNonce).toHaveBeenCalledWith(userAddress);
+      expect(transactionsHelper.getTransactionGas).toHaveBeenCalledTimes(1);
+      expect(transactionsHelper.getTransactionGas).toHaveBeenCalledWith(transaction, 0);
 
       expect(redisCacheService.set).toHaveBeenCalledTimes(1);
       expect(redisCacheService.set).toHaveBeenCalledWith(
@@ -230,9 +220,7 @@ describe('ApprovalsProcessorService', () => {
     it('Should handle undefined', async () => {
       const key = CacheInfo.PendingTransaction('txHashUndefined').key;
 
-      redisCacheService.scan.mockReturnValueOnce(
-        Promise.resolve([key]),
-      );
+      redisCacheService.scan.mockReturnValueOnce(Promise.resolve([key]));
       redisCacheService.get.mockReturnValueOnce(Promise.resolve(undefined));
 
       await service.handlePendingTransactionsRaw();
@@ -267,7 +255,7 @@ describe('ApprovalsProcessorService', () => {
       expect(redisCacheService.delete).toHaveBeenCalledWith(key);
       expect(transactionsHelper.awaitComplete).toHaveBeenCalledTimes(1);
       expect(transactionsHelper.awaitComplete).toHaveBeenCalledWith('txHashComplete');
-      expect(transactionsHelper.getAccountNonce).not.toHaveBeenCalled();
+      expect(transactionsHelper.getTransactionGas).not.toHaveBeenCalled();
     });
 
     it('Should handle retry', async () => {
@@ -285,39 +273,30 @@ describe('ApprovalsProcessorService', () => {
       transactionsHelper.awaitComplete.mockReturnValueOnce(Promise.resolve(false));
 
       const userAddress = UserAddress.fromBech32('erd1qqqqqqqqqqqqqpgqhe8t5jewej70zupmh44jurgn29psua5l2jps3ntjj3');
-      const accountNonce = 0;
       walletSigner.getAddress.mockReturnValueOnce(userAddress);
-      transactionsHelper.getAccountNonce.mockReturnValueOnce(Promise.resolve(accountNonce));
 
       const transaction: DeepMocked<Transaction> = createMock();
       gatewayContract.buildExecuteTransaction.mockReturnValueOnce(transaction);
 
       transactionsHelper.getTransactionGas.mockReturnValueOnce(Promise.resolve(100_000_000));
-      walletSigner.sign.mockReturnValueOnce(Promise.resolve(Buffer.from('signature')));
-      transactionsHelper.sendTransaction.mockReturnValueOnce(Promise.resolve('txHash'));
+      transactionsHelper.signAndSendTransaction.mockReturnValueOnce(Promise.resolve('txHash'));
 
       await service.handlePendingTransactionsRaw();
 
       expect(transactionsHelper.awaitComplete).toHaveBeenCalledTimes(1);
       expect(transactionsHelper.awaitComplete).toHaveBeenCalledWith('txHashComplete');
 
-      expect(transactionsHelper.getAccountNonce).toHaveBeenCalledTimes(1);
-      expect(transactionsHelper.getAccountNonce).toHaveBeenCalledWith(userAddress);
       expect(gatewayContract.buildExecuteTransaction).toHaveBeenCalledTimes(1);
       expect(gatewayContract.buildExecuteTransaction).toHaveBeenCalledWith(
         executeData,
-        accountNonce,
-        'test',
         userAddress,
       );
       expect(transactionsHelper.getTransactionGas).toHaveBeenCalledTimes(1);
       expect(transactionsHelper.getTransactionGas).toHaveBeenCalledWith(transaction, 1);
       expect(transaction.setGasLimit).toHaveBeenCalledTimes(1);
       expect(transaction.setGasLimit).toHaveBeenCalledWith(100_000_000);
-      expect(transaction.applySignature).toHaveBeenCalledTimes(1);
-      expect(transaction.applySignature).toHaveBeenCalledWith(Buffer.from('signature'));
-      expect(transactionsHelper.sendTransaction).toHaveBeenCalledTimes(1);
-      expect(transactionsHelper.sendTransaction).toHaveBeenCalledWith(transaction);
+      expect(transactionsHelper.signAndSendTransaction).toHaveBeenCalledTimes(1);
+      expect(transactionsHelper.signAndSendTransaction).toHaveBeenCalledWith(transaction, walletSigner);
 
       expect(redisCacheService.set).toHaveBeenCalledTimes(1);
       expect(redisCacheService.set).toHaveBeenCalledWith(
@@ -349,7 +328,7 @@ describe('ApprovalsProcessorService', () => {
 
       expect(transactionsHelper.awaitComplete).toHaveBeenCalledTimes(1);
       expect(transactionsHelper.awaitComplete).toHaveBeenCalledWith('txHashComplete');
-      expect(transactionsHelper.getAccountNonce).not.toHaveBeenCalled();
+      expect(transactionsHelper.getTransactionGas).not.toHaveBeenCalled();
     });
 
     it('Should handle retry error', async () => {
@@ -368,15 +347,19 @@ describe('ApprovalsProcessorService', () => {
 
       const userAddress = UserAddress.fromBech32('erd1qqqqqqqqqqqqqpgqhe8t5jewej70zupmh44jurgn29psua5l2jps3ntjj3');
       walletSigner.getAddress.mockReturnValueOnce(userAddress);
-      transactionsHelper.getAccountNonce.mockRejectedValueOnce(new Error('Network error'));
+
+      const transaction: DeepMocked<Transaction> = createMock();
+      gatewayContract.buildExecuteTransaction.mockReturnValueOnce(transaction);
+
+      transactionsHelper.getTransactionGas.mockRejectedValueOnce(new Error('Network error'));
 
       await service.handlePendingTransactionsRaw();
 
       expect(transactionsHelper.awaitComplete).toHaveBeenCalledTimes(1);
       expect(transactionsHelper.awaitComplete).toHaveBeenCalledWith('txHashComplete');
 
-      expect(transactionsHelper.getAccountNonce).toHaveBeenCalledTimes(1);
-      expect(transactionsHelper.getAccountNonce).toHaveBeenCalledWith(userAddress);
+      expect(transactionsHelper.getTransactionGas).toHaveBeenCalledTimes(1);
+      expect(transactionsHelper.getTransactionGas).toHaveBeenCalledWith(transaction, 1);
       expect(redisCacheService.set).toHaveBeenCalledTimes(1);
       expect(redisCacheService.set).toHaveBeenCalledWith(
         CacheInfo.PendingTransaction('txHashComplete').key,

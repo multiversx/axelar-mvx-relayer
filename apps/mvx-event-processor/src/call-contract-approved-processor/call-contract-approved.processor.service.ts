@@ -84,6 +84,8 @@ export class CallContractApprovedProcessorService {
           // Page is not modified if database records are updated
           await this.contractCallApprovedRepository.updateManyStatusRetryExecuteTxHash(entries);
         } else {
+          accountNonce = null; // re-retrieve account nonce
+
           page++;
         }
       }
@@ -112,7 +114,10 @@ export class CallContractApprovedProcessorService {
       .withChainID(this.chainId)
       .buildTransaction();
 
-    const gas = await this.transactionsHelper.getTransactionGas(transaction, contractCallApproved.retry);
+    const gas = await this.transactionsHelper.getTransactionGas(
+      transaction,
+      contractCallApproved.retry,
+    );
     transaction.setGasLimit(gas);
 
     const signature = await this.walletSigner.sign(transaction.serializeForSigning());

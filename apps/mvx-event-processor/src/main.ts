@@ -1,10 +1,8 @@
 import { NestFactory } from '@nestjs/core';
-import { EventProcessorModule } from './event-processor';
-import { CallContractApprovedProcessorModule } from './call-contract-approved-processor';
+import { MvxEventProcessorModule } from './mvx-event-processor.module';
 
 async function bootstrap() {
-  await NestFactory.createApplicationContext(EventProcessorModule);
-  await NestFactory.createApplicationContext(CallContractApprovedProcessorModule);
+  await NestFactory.createApplicationContext(MvxEventProcessorModule);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-floating-promises
