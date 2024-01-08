@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EVENTS_NOTIFIER_QUEUE } from '../../../../config/configuration';
+import { CONSTANTS } from '@mvx-monorepo/common/utils/constants.enum';
 
 @Injectable()
 export class ApiConfigService {
@@ -75,6 +76,15 @@ export class ApiConfigService {
     return contractGasService;
   }
 
+  getContractWegldSwap(): string {
+    const contractWegldSwap = this.configService.get<string>('CONTRACT_WEGLD_SWAP');
+    if (!contractWegldSwap) {
+      throw new Error('No Contract Wegld Swap present');
+    }
+
+    return contractWegldSwap;
+  }
+
   getAxelarApiUrl(): string {
     const axelarApiUrl = this.configService.get<string>('AXELAR_API_URL');
     if (!axelarApiUrl) {
@@ -84,13 +94,26 @@ export class ApiConfigService {
     return axelarApiUrl;
   }
 
-  getSourceChainName(): string {
-    const sourceChainName = this.configService.get<string>('SOURCE_CHAIN_NAME');
-    if (!sourceChainName) {
-      throw new Error('No Axelar API url present');
+  getChainId(): string {
+    const chainId = this.configService.get<string>('CHAIN_ID');
+    if (!chainId) {
+      throw new Error('No Chain Id present');
     }
 
-    return sourceChainName;
+    return chainId;
+  }
+
+  getSourceChainName(): string {
+    return CONSTANTS.SOURCE_CHAIN_NAME_SUFFIX + this.getChainId();
+  }
+
+  getWalletMnemonic(): string {
+    const walletMnemonic = this.configService.get<string>('WALLET_MNEMONIC');
+    if (!walletMnemonic) {
+      throw new Error('No Wallet Mnemonic present');
+    }
+
+    return walletMnemonic;
   }
 
   getPoolLimit(): number {

@@ -3,7 +3,7 @@ import { ApiConfigService } from '@mvx-monorepo/common';
 import { NotifierBlockEvent, NotifierEvent } from './types';
 import { RabbitSubscribe } from '@golevelup/nestjs-rabbitmq';
 import { EVENTS_NOTIFIER_QUEUE } from '../../../../config/configuration';
-import { ContractCallProcessor, GasServiceProcessor } from '../processors';
+import { GatewayProcessor, GasServiceProcessor } from '../processors';
 
 @Injectable()
 export class EventProcessorService {
@@ -12,7 +12,7 @@ export class EventProcessorService {
   private readonly logger: Logger;
 
   constructor(
-    private readonly contractCallProcessor: ContractCallProcessor,
+    private readonly gatewayProcessor: GatewayProcessor,
     private readonly gasServiceProcessor: GasServiceProcessor,
     apiConfigService: ApiConfigService,
   ) {
@@ -56,7 +56,7 @@ export class EventProcessorService {
       this.logger.debug('Received Gateway event from MultiversX:');
       this.logger.debug(JSON.stringify(event));
 
-      await this.contractCallProcessor.handleEvent(event);
+      await this.gatewayProcessor.handleEvent(event);
 
       return;
     }

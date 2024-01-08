@@ -1,27 +1,31 @@
-import { AbiRegistry, ResultsParser, SmartContract } from '@multiversx/sdk-core/out';
-import { Injectable, Logger } from '@nestjs/common';
+import { AbiRegistry, IAddress, ResultsParser, SmartContract, Transaction } from '@multiversx/sdk-core/out';
+import { Injectable } from '@nestjs/common';
 import { Events } from '../utils/event.enum';
 import { TransactionEvent } from '@multiversx/sdk-network-providers/out';
-import BigNumber from 'bignumber.js';
 import {
   GasAddedEvent,
   GasPaidForContractCallEvent,
   RefundedEvent,
 } from '@mvx-monorepo/common/contracts/entities/gas-service-events';
 import { CONSTANTS } from '@mvx-monorepo/common/utils/constants.enum';
+import { DecodingUtils } from '@mvx-monorepo/common/utils/decoding.utils';
+import BigNumber from 'bignumber.js';
+import { GasInfo } from '@mvx-monorepo/common/utils/gas.info';
 
 @Injectable()
 export class GasServiceContract {
-  // @ts-ignore
-  private readonly logger: Logger;
-
   constructor(
-    // @ts-ignore
     private readonly smartContract: SmartContract,
     private readonly abi: AbiRegistry,
     private readonly resultsParser: ResultsParser,
-  ) {
-    this.logger = new Logger(GasServiceContract.name);
+  ) {}
+
+  collectFees(sender: IAddress, tokens: string[], amounts: BigNumber[]): Transaction {
+    return this.smartContract.methods
+      .collectFees([sender.bech32(), tokens, amounts])
+      .withGasLimit(GasInfo.CollectFeesBase.value + GasInfo.CollectFeesExtra.value * tokens.length)
+      .withSender(sender)
+      .buildTransaction();
   }
 
   decodeGasPaidForContractCallEvent(event: TransactionEvent): GasPaidForContractCallEvent {
@@ -33,7 +37,7 @@ export class GasServiceContract {
       destinationChain: outcome.destination_chain.toString(),
       destinationAddress: outcome.destination_contract_address.toString(),
       data: {
-        payloadHash: Buffer.from(outcome.data.hash.map((number: BigNumber) => number.toNumber())).toString('hex'),
+        payloadHash: DecodingUtils.decodeKeccak256Hash(outcome.data.hash),
         gasToken: outcome.data.gas_token.toString(),
         gasFeeAmount: outcome.data.gas_fee_amount,
         refundAddress: outcome.data.refund_address,
@@ -50,7 +54,7 @@ export class GasServiceContract {
       destinationChain: outcome.destination_chain.toString(),
       destinationAddress: outcome.destination_contract_address.toString(),
       data: {
-        payloadHash: Buffer.from(outcome.data.hash.map((number: BigNumber) => number.toNumber())).toString('hex'),
+        payloadHash: DecodingUtils.decodeKeccak256Hash(outcome.data.hash),
         gasToken: null,
         gasFeeAmount: outcome.data.value,
         refundAddress: outcome.data.refund_address,
@@ -103,5 +107,9 @@ export class GasServiceContract {
         amount: outcome.data.amount,
       },
     };
+  }
+
+  getContractAddress(): IAddress {
+    return this.smartContract.getAddress();
   }
 }
