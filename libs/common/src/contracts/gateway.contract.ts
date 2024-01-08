@@ -1,4 +1,4 @@
-import { AbiRegistry, ResultsParser, SmartContract } from '@multiversx/sdk-core/out';
+import { AbiRegistry, BytesValue, IAddress, ResultsParser, SmartContract, Transaction } from '@multiversx/sdk-core/out';
 import { Injectable, Logger } from '@nestjs/common';
 import { Events } from '../utils/event.enum';
 import { TransactionEvent } from '@multiversx/sdk-network-providers/out';
@@ -17,6 +17,13 @@ export class GatewayContract {
     private readonly resultsParser: ResultsParser,
   ) {
     this.logger = new Logger(GatewayContract.name);
+  }
+
+  buildExecuteTransaction(executeData: Uint8Array, sender: IAddress): Transaction {
+    return this.smartContract.methodsExplicit
+      .execute([new BytesValue(Buffer.from(executeData))])
+      .withSender(sender)
+      .buildTransaction();
   }
 
   decodeContractCallEvent(event: TransactionEvent): ContractCallEvent {
