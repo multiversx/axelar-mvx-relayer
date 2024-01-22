@@ -11,9 +11,9 @@ import { EventIdentifiers, Events } from '@mvx-monorepo/common/utils/event.enum'
 import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
 import { ContractCallApprovedRepository } from '@mvx-monorepo/common/database/repository/contract-call-approved.repository';
 
-// order/logIndex is unsupported since we can't easily get it in the relayer,
-// so we use a sufficiently large u32 value here instead
-const UNSUPPORTED_LOG_INDEX: number = 999_999;
+// order/logIndex is unsupported since we can't easily get it in the relayer, so we use 0 by default
+// this means that only one cross chain call is supported for now (the first appropriate call found in transaction logs)
+const UNSUPPORTED_LOG_INDEX: number = 0;
 
 @Injectable()
 export class GatewayProcessor implements ProcessorInterface {

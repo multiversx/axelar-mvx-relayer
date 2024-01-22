@@ -129,9 +129,9 @@ describe('ContractCallProcessor', () => {
       expect(gatewayContract.decodeContractCallEvent).toHaveBeenCalledWith(TransactionEvent.fromHttpResponse(rawEvent));
       expect(contractCallEventRepository.create).toHaveBeenCalledTimes(1);
       expect(contractCallEventRepository.create).toHaveBeenCalledWith({
-        id: 'multiversx-test:txHash:999999',
+        id: 'multiversx-test:txHash:0',
         txHash: 'txHash',
-        eventIndex: 999999,
+        eventIndex: 0,
         status: ContractCallEventStatus.PENDING,
         sourceAddress: 'erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7',
         sourceChain: 'multiversx-test',
