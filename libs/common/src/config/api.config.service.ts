@@ -76,6 +76,15 @@ export class ApiConfigService {
     return contractGasService;
   }
 
+  getContractIts(): string {
+    const contractIts = this.configService.get<string>('CONTRACT_ITS');
+    if (!contractIts) {
+      throw new Error('No Contract ITS present');
+    }
+
+    return contractIts;
+  }
+
   getContractWegldSwap(): string {
     const contractWegldSwap = this.configService.get<string>('CONTRACT_WEGLD_SWAP');
     if (!contractWegldSwap) {

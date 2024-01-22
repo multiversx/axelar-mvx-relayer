@@ -11,6 +11,7 @@ import { TransactionsHelper } from '@mvx-monorepo/common/contracts/transactions.
 import { WegldSwapContract } from '@mvx-monorepo/common/contracts/wegld-swap.contract';
 import { ApiConfigService } from '@mvx-monorepo/common/config';
 import { DynamicModuleUtils } from '@mvx-monorepo/common/utils';
+import { ItsContract } from '@mvx-monorepo/common/contracts/its.contract';
 
 @Module({
   imports: [DynamicModuleUtils.getCacheModule()],
@@ -73,6 +74,18 @@ import { DynamicModuleUtils } from '@mvx-monorepo/common/utils';
         const abi = await contractLoader.getAbiRegistry(apiConfigService.getContractGasService());
 
         return new GasServiceContract(smartContract, abi, resultsParser);
+      },
+      inject: [ApiConfigService, ResultsParser],
+    },
+    {
+      provide: ItsContract,
+      useFactory: async (apiConfigService: ApiConfigService, resultsParser: ResultsParser) => {
+        const contractLoader = new ContractLoader(join(__dirname, '../assets/interchain-token-service.abi.json'));
+
+        const smartContract = await contractLoader.getContract(apiConfigService.getContractIts());
+        const abi = await contractLoader.getAbiRegistry(apiConfigService.getContractIts());
+
+        return new ItsContract(smartContract, abi, resultsParser);
       },
       inject: [ApiConfigService, ResultsParser],
     },

@@ -1,11 +1,11 @@
 {
     "buildInfo": {
         "rustc": {
-            "version": "1.71.0-nightly",
-            "commitHash": "a2b1646c597329d0a25efa3889b66650f65de1de",
-            "commitDate": "2023-05-25",
+            "version": "1.76.0-nightly",
+            "commitHash": "d86d65bbc19b928387f68427fcc3a0da498d8a19",
+            "commitDate": "2023-12-10",
             "channel": "Nightly",
-            "short": "rustc 1.71.0-nightly (a2b1646c5 2023-05-25)"
+            "short": "rustc 1.76.0-nightly (d86d65bbc 2023-12-10)"
         },
         "contractCrate": {
             "name": "gateway",
@@ -13,7 +13,7 @@
         },
         "framework": {
             "name": "multiversx-sc",
-            "version": "0.43.4"
+            "version": "0.46.1"
         }
     },
     "name": "Gateway",
@@ -31,6 +31,12 @@
         "outputs": []
     },
     "endpoints": [
+        {
+            "name": "upgrade",
+            "mutability": "mutable",
+            "inputs": [],
+            "outputs": []
+        },
         {
             "name": "callContract",
             "mutability": "mutable",
@@ -240,6 +246,7 @@
             ]
         }
     ],
+    "esdtAttributes": [],
     "hasCallback": false,
     "types": {
         "ContractCallData": {

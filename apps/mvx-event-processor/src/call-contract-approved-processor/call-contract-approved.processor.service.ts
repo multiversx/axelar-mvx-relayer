@@ -16,6 +16,7 @@ import {
 import { ContractCallApproved, ContractCallApprovedStatus } from '@prisma/client';
 import { TransactionsHelper } from '@mvx-monorepo/common/contracts/transactions.helper';
 import { ApiConfigService } from '@mvx-monorepo/common';
+import { ItsContract } from '@mvx-monorepo/common/contracts/its.contract';
 
 // Support a max of 3 retries (mainly because some Interchain Token Service endpoints need to be called 3 times)
 const MAX_NUMBER_OF_RETRIES: number = 3;
@@ -25,15 +26,18 @@ export class CallContractApprovedProcessorService {
   private readonly logger: Logger;
 
   private readonly chainId: string;
+  private readonly contractItsAddress: string;
 
   constructor(
     private readonly contractCallApprovedRepository: ContractCallApprovedRepository,
     @Inject(ProviderKeys.WALLET_SIGNER) private readonly walletSigner: UserSigner,
     private readonly transactionsHelper: TransactionsHelper,
+    private readonly itsContract: ItsContract,
     apiConfigService: ApiConfigService,
   ) {
     this.logger = new Logger(CallContractApprovedProcessorService.name);
     this.chainId = apiConfigService.getChainId();
+    this.contractItsAddress = apiConfigService.getContractIts();
   }
 
   @Cron('*/30 * * * * *')
@@ -96,6 +100,12 @@ export class CallContractApprovedProcessorService {
     contractCallApproved: ContractCallApproved,
     accountNonce: number,
   ): Promise<Transaction> {
+    if (contractCallApproved.contractAddress === this.contractItsAddress) {
+      await this.
+
+      return;
+    }
+
     const contract = new SmartContract({ address: new Address(contractCallApproved.contractAddress) });
 
     const args = [
