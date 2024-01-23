@@ -79,15 +79,14 @@ import { ItsContract } from '@mvx-monorepo/common/contracts/its.contract';
     },
     {
       provide: ItsContract,
-      useFactory: async (apiConfigService: ApiConfigService, resultsParser: ResultsParser) => {
+      useFactory: async (apiConfigService: ApiConfigService) => {
         const contractLoader = new ContractLoader(join(__dirname, '../assets/interchain-token-service.abi.json'));
 
         const smartContract = await contractLoader.getContract(apiConfigService.getContractIts());
-        const abi = await contractLoader.getAbiRegistry(apiConfigService.getContractIts());
 
-        return new ItsContract(smartContract, abi, resultsParser);
+        return new ItsContract(smartContract);
       },
-      inject: [ApiConfigService, ResultsParser],
+      inject: [ApiConfigService],
     },
     {
       provide: WegldSwapContract,
@@ -118,6 +117,7 @@ import { ItsContract } from '@mvx-monorepo/common/contracts/its.contract';
   exports: [
     GatewayContract,
     GasServiceContract,
+    ItsContract,
     WegldSwapContract,
     ProviderKeys.WALLET_SIGNER,
     ProxyNetworkProvider,

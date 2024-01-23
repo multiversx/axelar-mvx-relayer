@@ -112,7 +112,8 @@ export class GatewayProcessor implements ProcessorInterface {
     }
 
     contractCallApproved.status = ContractCallApprovedStatus.SUCCESS;
+    contractCallApproved.successTimes = (contractCallApproved.successTimes || 0) + 1;
 
-    await this.contractCallApprovedRepository.updateManyStatusRetryExecuteTxHash([contractCallApproved]);
+    await this.contractCallApprovedRepository.updateManyPartial([contractCallApproved]);
   }
 }

@@ -18,7 +18,7 @@ import { TransactionsHelper } from '@mvx-monorepo/common/contracts/transactions.
 import { ApiConfigService } from '@mvx-monorepo/common';
 import { ItsContract } from '@mvx-monorepo/common/contracts/its.contract';
 
-// Support a max of 3 retries (mainly because some Interchain Token Service endpoints need to be called 3 times)
+// Support a max of 3 retries (mainly because some Interchain Token Service endpoints need to be called 2 times)
 const MAX_NUMBER_OF_RETRIES: number = 3;
 
 @Injectable()
@@ -86,9 +86,10 @@ export class CallContractApprovedProcessorService {
 
         if (result) {
           // Page is not modified if database records are updated
-          await this.contractCallApprovedRepository.updateManyStatusRetryExecuteTxHash(entries);
+          await this.contractCallApprovedRepository.updateManyPartial(entries);
         } else {
-          accountNonce = null; // re-retrieve account nonce
+          // re-retrieve account nonce in case sendTransactions failed because of nonce error
+          accountNonce = null;
 
           page++;
         }
@@ -100,39 +101,54 @@ export class CallContractApprovedProcessorService {
     contractCallApproved: ContractCallApproved,
     accountNonce: number,
   ): Promise<Transaction> {
-    if (contractCallApproved.contractAddress === this.contractItsAddress) {
-      await this.
-
-      return;
-    }
-
-    const contract = new SmartContract({ address: new Address(contractCallApproved.contractAddress) });
-
-    const args = [
-      new BytesValue(Buffer.from(contractCallApproved.commandId, 'hex')),
-      new StringValue(contractCallApproved.sourceChain),
-      new StringValue(contractCallApproved.sourceAddress),
-      new BytesValue(contractCallApproved.payload),
-    ];
-
-    const interaction = new Interaction(contract, new ContractFunction('execute'), args);
+    const interaction = await this.buildExecuteInteraction(contractCallApproved);
 
     const transaction = interaction
       .withSender(this.walletSigner.getAddress())
       .withNonce(accountNonce)
-      // .withValue() // TODO: Handle ITS transactions where EGLD value needs to be sent for deploying ESDT token
       .withChainID(this.chainId)
       .buildTransaction();
 
-    const gas = await this.transactionsHelper.getTransactionGas(
-      transaction,
-      contractCallApproved.retry,
-    );
+    const gas = await this.transactionsHelper.getTransactionGas(transaction, contractCallApproved.retry);
     transaction.setGasLimit(gas);
 
     const signature = await this.walletSigner.sign(transaction.serializeForSigning());
     transaction.applySignature(signature);
 
     return transaction;
+  }
+
+  private async buildExecuteInteraction(contractCallApproved: ContractCallApproved) {
+    const commandId = Buffer.from(contractCallApproved.commandId, 'hex');
+
+    if (contractCallApproved.contractAddress !== this.contractItsAddress) {
+      const contract = new SmartContract({ address: new Address(contractCallApproved.contractAddress) });
+
+      const args = [
+        new BytesValue(commandId),
+        new StringValue(contractCallApproved.sourceChain),
+        new StringValue(contractCallApproved.sourceAddress),
+        new BytesValue(contractCallApproved.payload),
+      ];
+
+      return new Interaction(contract, new ContractFunction('execute'), args);
+    }
+
+    // In case first transaction exists for ITS, wait for it to complete and mark it as successful if necessary
+    if (contractCallApproved.executeTxHash && !contractCallApproved.successTimes) {
+      const success = await this.transactionsHelper.awaitComplete(contractCallApproved.executeTxHash);
+
+      if (success) {
+        contractCallApproved.successTimes = 1;
+      }
+    }
+
+    return this.itsContract.execute(
+      commandId,
+      contractCallApproved.sourceChain,
+      contractCallApproved.sourceAddress,
+      contractCallApproved.payload,
+      contractCallApproved.successTimes || 0,
+    );
   }
 }

@@ -63,6 +63,10 @@ export class TransactionsHelper {
   }
 
   async sendTransactions(transactions: Transaction[]) {
+    if (!transactions.length) {
+      return true;
+    }
+
     try {
       await this.proxy.sendTransactions(transactions);
 

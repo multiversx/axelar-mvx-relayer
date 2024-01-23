@@ -74,6 +74,7 @@ model ContractCallApproved {
   retry           Int                        @db.SmallInt
   createdAt       DateTime                   @default(now()) @db.Timestamp(6)
   updatedAt       DateTime                   @default(now()) @updatedAt @db.Timestamp(6)
+  successTimes    Int?                       @db.SmallInt
 }
 
 enum ContractCallApprovedStatus {

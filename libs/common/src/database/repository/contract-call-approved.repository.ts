@@ -45,7 +45,7 @@ export class ContractCallApprovedRepository {
     });
   }
 
-  async updateManyStatusRetryExecuteTxHash(entries: ContractCallApproved[]) {
+  async updateManyPartial(entries: ContractCallApproved[]) {
     await this.prisma.$transaction(
       entries.map((data) => {
         return this.prisma.contractCallApproved.update({
@@ -56,6 +56,7 @@ export class ContractCallApprovedRepository {
             status: data.status,
             retry: data.retry,
             executeTxHash: data.executeTxHash,
+            successTimes: data.successTimes,
           },
         });
       }),

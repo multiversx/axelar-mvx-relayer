@@ -242,6 +242,7 @@ describe('ContractCallProcessor', () => {
         executeTxHash: null,
         updatedAt: new Date(),
         createdAt: new Date(),
+        successTimes: null,
       };
 
       contractCallApprovedRepository.findByCommandId.mockReturnValueOnce(Promise.resolve(contractCallApproved));
@@ -256,11 +257,12 @@ describe('ContractCallProcessor', () => {
       expect(contractCallApprovedRepository.findByCommandId).toHaveBeenCalledWith(
         '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15da',
       );
-      expect(contractCallApprovedRepository.updateManyStatusRetryExecuteTxHash).toHaveBeenCalledTimes(1);
-      expect(contractCallApprovedRepository.updateManyStatusRetryExecuteTxHash).toHaveBeenCalledWith([
+      expect(contractCallApprovedRepository.updateManyPartial).toHaveBeenCalledTimes(1);
+      expect(contractCallApprovedRepository.updateManyPartial).toHaveBeenCalledWith([
         {
           ...contractCallApproved,
           status: ContractCallApprovedStatus.SUCCESS,
+          successTimes: 1,
         },
       ]);
     });
@@ -278,7 +280,7 @@ describe('ContractCallProcessor', () => {
       expect(contractCallApprovedRepository.findByCommandId).toHaveBeenCalledWith(
         '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15da',
       );
-      expect(contractCallApprovedRepository.updateManyStatusRetryExecuteTxHash).not.toHaveBeenCalled();
+      expect(contractCallApprovedRepository.updateManyPartial).not.toHaveBeenCalled();
     });
   });
 });
