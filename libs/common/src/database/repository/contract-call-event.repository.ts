@@ -7,10 +7,21 @@ import { ContractCallEventWithGasPaid } from '@mvx-monorepo/common/database/enti
 export class ContractCallEventRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  create(data: Prisma.ContractCallEventCreateInput): Promise<ContractCallEvent | null> {
-    return this.prisma.contractCallEvent.create({
-      data,
-    });
+  async create(data: Prisma.ContractCallEventCreateInput): Promise<ContractCallEvent | null> {
+    try {
+      return await this.prisma.contractCallEvent.create({
+        data,
+      });
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError) {
+        // Unique constraint fails
+        if (e.code === 'P2002') {
+          return null;
+        }
+      }
+
+      throw e;
+    }
   }
 
   findWithoutGasPaid(gasPaid: Prisma.GasPaidCreateInput): Promise<ContractCallEvent | null> {

@@ -67,8 +67,9 @@ export class GatewayProcessor implements ProcessorInterface {
       payload: event.data.payload,
     });
 
+    // A duplicate might exist in the database, so we can skip creation in this case
     if (!contractCallEvent) {
-      throw new Error(`Couldn't save contract call event to database for hash ${rawEvent.txHash}`);
+      return;
     }
 
     // TODO: Should this be batched instead and have this in a separate cronjob?
