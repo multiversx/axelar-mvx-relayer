@@ -79,13 +79,13 @@ export class TransactionsHelper {
     }
   }
 
-  async awaitComplete(txHash: string) {
+  async awaitSuccess(txHash: string) {
     try {
       const result = await this.transactionWatcher.awaitCompleted({ getHash: () => new TransactionHash(txHash) });
 
       return !result.status.isFailed() && !result.status.isInvalid();
     } catch (e) {
-      this.logger.error(`Can not await transaction completed`);
+      this.logger.error(`Can not await transaction success`);
       this.logger.error(e);
 
       return false;

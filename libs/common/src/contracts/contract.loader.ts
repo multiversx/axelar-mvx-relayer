@@ -14,12 +14,9 @@ export class ContractLoader {
     this.logger = new Logger(ContractLoader.name);
   }
 
-  private async load(contractAddress: string): Promise<SmartContract> {
+  private async loadContract(contractAddress: string): Promise<SmartContract> {
     try {
-      const jsonContent: string = await fs.promises.readFile(this.abiPath, { encoding: 'utf8' });
-      const json = JSON.parse(jsonContent);
-
-      this.abiRegistry = AbiRegistry.create(json);
+      await this.loadAbiRegistry();
 
       return new SmartContract({
         address: new Address(contractAddress),
@@ -33,18 +30,27 @@ export class ContractLoader {
     }
   }
 
+  private async loadAbiRegistry() {
+    if (this.abiRegistry) {
+      return;
+    }
+
+    const jsonContent: string = await fs.promises.readFile(this.abiPath, { encoding: 'utf8' });
+    const json = JSON.parse(jsonContent);
+
+    this.abiRegistry = AbiRegistry.create(json);
+  }
+
   async getContract(contractAddress: string): Promise<SmartContract> {
     if (!this.contract) {
-      this.contract = await this.load(contractAddress);
+      this.contract = await this.loadContract(contractAddress);
     }
 
     return this.contract;
   }
 
-  async getAbiRegistry(contractAddress: string): Promise<AbiRegistry> {
-    if (!this.abiRegistry) {
-      await this.load(contractAddress);
-    }
+  async getAbiRegistry(): Promise<AbiRegistry> {
+    await this.loadAbiRegistry();
 
     return this.abiRegistry as AbiRegistry;
   }

@@ -143,8 +143,19 @@ describe('ContractCallProcessor', () => {
       expect(grpcService.verify).toHaveBeenCalledTimes(1);
     });
 
-    it('Should throw error can not save in database', async () => {
+    it('Should not handle duplicate', async () => {
       contractCallEventRepository.create.mockReturnValueOnce(Promise.resolve(null));
+
+      await service.handleEvent(rawEvent);
+
+      expect(gatewayContract.decodeContractCallEvent).toHaveBeenCalledTimes(1);
+      expect(gatewayContract.decodeContractCallEvent).toHaveBeenCalledWith(TransactionEvent.fromHttpResponse(rawEvent));
+      expect(contractCallEventRepository.create).toHaveBeenCalledTimes(1);
+      expect(grpcService.verify).not.toHaveBeenCalled();
+    });
+
+    it('Should throw error can not save in database', async () => {
+      contractCallEventRepository.create.mockRejectedValue(new Error('Can not save in database'));
 
       await expect(service.handleEvent(rawEvent)).rejects.toThrow();
 
@@ -216,6 +227,27 @@ describe('ContractCallProcessor', () => {
     });
   });
 
+  describe('handleOperatorshipTransferredEvent', () => {
+    const rawEvent: NotifierEvent = {
+      txHash: 'txHash',
+      address: 'mockGatewayAddress',
+      identifier: EventIdentifiers.EXECUTE,
+      data: Buffer.from(
+        '000000018049d639e5a6980d1cd2392abcce41029cda74a1563523a202f09641cc2618f80000000100000001020000000102',
+        'hex',
+      ).toString('base64'),
+      topics: [BinaryUtils.base64Encode(Events.OPERATORSHIP_TRANSFERRED_EVENT)],
+    };
+
+    it('Should handle event', async () => {
+      await service.handleEvent(rawEvent);
+
+      expect(gatewayContract.decodeOperatorshipTransferredEvent).toHaveBeenCalledTimes(1);
+      expect(gatewayContract.decodeOperatorshipTransferredEvent).toHaveBeenCalledWith(TransactionEvent.fromHttpResponse(rawEvent));
+      expect(grpcService.verifyWorkerSet).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('handleContractCallExecutedEvent', () => {
     const rawEvent: NotifierEvent = {
       txHash: 'txHash',
@@ -256,13 +288,11 @@ describe('ContractCallProcessor', () => {
       expect(contractCallApprovedRepository.findByCommandId).toHaveBeenCalledWith(
         '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15da',
       );
-      expect(contractCallApprovedRepository.updateManyStatusRetryExecuteTxHash).toHaveBeenCalledTimes(1);
-      expect(contractCallApprovedRepository.updateManyStatusRetryExecuteTxHash).toHaveBeenCalledWith([
-        {
-          ...contractCallApproved,
-          status: ContractCallApprovedStatus.SUCCESS,
-        },
-      ]);
+      expect(contractCallApprovedRepository.updateStatus).toHaveBeenCalledTimes(1);
+      expect(contractCallApprovedRepository.updateStatus).toHaveBeenCalledWith({
+        ...contractCallApproved,
+        status: ContractCallApprovedStatus.SUCCESS,
+      });
     });
 
     it('Should handle event no contract call approved', async () => {

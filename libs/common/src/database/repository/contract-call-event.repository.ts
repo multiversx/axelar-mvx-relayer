@@ -40,11 +40,11 @@ export class ContractCallEventRepository {
   }
 
   findPending(txHash: string, eventIndex: number): Promise<ContractCallEventWithGasPaid | null> {
-    return this.prisma.contractCallEvent.findUnique({
+    return this.prisma.contractCallEvent.findFirst({
       where: {
-        status: ContractCallEventStatus.PENDING,
         txHash,
         eventIndex,
+        status: ContractCallEventStatus.PENDING,
       },
       include: {
         gasPaidEntries: true,

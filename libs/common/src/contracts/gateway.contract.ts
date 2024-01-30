@@ -1,23 +1,20 @@
 import { AbiRegistry, BytesValue, IAddress, ResultsParser, SmartContract, Transaction } from '@multiversx/sdk-core/out';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Events } from '../utils/event.enum';
 import { TransactionEvent } from '@multiversx/sdk-network-providers/out';
 import { ContractCallApprovedEvent, ContractCallEvent } from '@mvx-monorepo/common/contracts/entities/gateway-events';
 import { DecodingUtils } from '@mvx-monorepo/common/utils/decoding.utils';
+import { TransferData } from '@mvx-monorepo/common/contracts/entities/auth-types';
+import { AuthContract } from '@mvx-monorepo/common/contracts/auth.contract';
 
 @Injectable()
 export class GatewayContract {
-  // @ts-ignore
-  private readonly logger: Logger;
-
   constructor(
-    // @ts-ignore
     private readonly smartContract: SmartContract,
     private readonly abi: AbiRegistry,
     private readonly resultsParser: ResultsParser,
-  ) {
-    this.logger = new Logger(GatewayContract.name);
-  }
+    private readonly authContract: AuthContract,
+  ) {}
 
   buildExecuteTransaction(executeData: Uint8Array, sender: IAddress): Transaction {
     return this.smartContract.methodsExplicit
@@ -52,6 +49,13 @@ export class GatewayContract {
       contractAddress: outcome.contract_address,
       payloadHash: DecodingUtils.decodeKeccak256Hash(outcome.payload_hash),
     };
+  }
+
+  decodeOperatorshipTransferredEvent(event: TransactionEvent): TransferData {
+    const eventDefinition = this.abi.getEvent(Events.OPERATORSHIP_TRANSFERRED_EVENT);
+    const outcome = this.resultsParser.parseEvent(event, eventDefinition);
+
+    return this.authContract.decodeTransferData(outcome.params);
   }
 
   decodeContractCallExecutedEvent(event: TransactionEvent): string {

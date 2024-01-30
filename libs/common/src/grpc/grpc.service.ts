@@ -2,8 +2,14 @@ import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { ProviderKeys } from '@mvx-monorepo/common/utils/provider.enum';
 import { ClientGrpc } from '@nestjs/microservices';
 import { ContractCallEvent } from '@prisma/client';
-import { Relayer, SubscribeToApprovalsResponse, VerifyRequest } from '@mvx-monorepo/common/grpc/entities/relayer';
+import {
+  BroadcastRequest,
+  Relayer,
+  SubscribeToApprovalsResponse,
+  VerifyRequest,
+} from '@mvx-monorepo/common/grpc/entities/relayer';
 import { firstValueFrom, Observable, ReplaySubject } from 'rxjs';
+import BigNumber from 'bignumber.js';
 
 const RELAYER_SERVICE = 'Relayer';
 
@@ -46,13 +52,31 @@ export class GrpcService implements OnModuleInit {
     return Buffer.from(result.payload);
   }
 
-  subscribeToApprovals(
-    chain: string,
-    startHeight?: number | undefined,
-  ): Observable<SubscribeToApprovalsResponse> {
+  subscribeToApprovals(chain: string, startHeight?: number | undefined): Observable<SubscribeToApprovalsResponse> {
     return this.relayerService.subscribeToApprovals({
       chain,
       startHeight,
     });
+  }
+
+  async verifyWorkerSet(messageId: string, newOperators: string[], newWeights: BigNumber[], newThreshold: BigNumber) {
+    // TODO: This is probably not right...
+    const weightsByAddresses = newOperators.reduce<any[]>((previousValue, operator, currentIndex) => {
+      previousValue.push({ operator, weight: newWeights[currentIndex] });
+
+      return previousValue;
+    }, []);
+
+    const request: BroadcastRequest = {
+      address: 'TODO',
+      payload: Buffer.concat([
+        Buffer.from(messageId, 'hex'),
+        Buffer.from(weightsByAddresses),
+        Buffer.from(newThreshold),
+      ]),
+    };
+
+    // TODO: Check with Axelar how it is best to handle this
+    await this.relayerService.broadcast(request);
   }
 }

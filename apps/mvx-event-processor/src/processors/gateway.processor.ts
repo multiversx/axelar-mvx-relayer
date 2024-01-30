@@ -38,13 +38,20 @@ export class GatewayProcessor implements ProcessorInterface {
       return;
     }
 
-    if (rawEvent.identifier === EventIdentifiers.EXECUTE && eventName === Events.CONTRACT_CALL_APPROVED_EVENT) {
-      await this.handleContractCallApprovedEvent(rawEvent);
+    if (rawEvent.identifier === EventIdentifiers.EXECUTE) {
+      if (eventName === Events.CONTRACT_CALL_APPROVED_EVENT) {
+        await this.handleContractCallApprovedEvent(rawEvent);
+      } else if (eventName === Events.OPERATORSHIP_TRANSFERRED_EVENT) {
+        await this.handleOperatorshipTransferredEvent(rawEvent);
+      }
 
       return;
     }
 
-    if (rawEvent.identifier === EventIdentifiers.VALIDATE_CONTRACT_CALL && eventName === Events.CONTRACT_CALL_EXECUTED_EVENT) {
+    if (
+      rawEvent.identifier === EventIdentifiers.VALIDATE_CONTRACT_CALL &&
+      eventName === Events.CONTRACT_CALL_EXECUTED_EVENT
+    ) {
       await this.handleContractCallExecutedEvent(rawEvent);
 
       return;
@@ -54,8 +61,9 @@ export class GatewayProcessor implements ProcessorInterface {
   private async handleContractCallEvent(rawEvent: NotifierEvent) {
     const event = this.gatewayContract.decodeContractCallEvent(TransactionEvent.fromHttpResponse(rawEvent));
 
+    const id = `${this.sourceChain}:${rawEvent.txHash}:${UNSUPPORTED_LOG_INDEX}`;
     const contractCallEvent = await this.contractCallEventRepository.create({
-      id: `${this.sourceChain}:${rawEvent.txHash}:${UNSUPPORTED_LOG_INDEX}`,
+      id,
       txHash: rawEvent.txHash,
       eventIndex: UNSUPPORTED_LOG_INDEX,
       status: ContractCallEventStatus.PENDING,
@@ -103,6 +111,21 @@ export class GatewayProcessor implements ProcessorInterface {
     }
   }
 
+  private async handleOperatorshipTransferredEvent(rawEvent: NotifierEvent) {
+    const trasnsferData = this.gatewayContract.decodeOperatorshipTransferredEvent(
+      TransactionEvent.fromHttpResponse(rawEvent),
+    );
+
+    const id = `${this.sourceChain}:${rawEvent.txHash}:${UNSUPPORTED_LOG_INDEX}`;
+
+    await this.grpcService.verifyWorkerSet(
+      id,
+      trasnsferData.newOperators,
+      trasnsferData.newWeights,
+      trasnsferData.newThreshold,
+    );
+  }
+
   private async handleContractCallExecutedEvent(rawEvent: NotifierEvent) {
     const commandId = this.gatewayContract.decodeContractCallExecutedEvent(TransactionEvent.fromHttpResponse(rawEvent));
 
@@ -114,6 +137,6 @@ export class GatewayProcessor implements ProcessorInterface {
 
     contractCallApproved.status = ContractCallApprovedStatus.SUCCESS;
 
-    await this.contractCallApprovedRepository.updateManyStatusRetryExecuteTxHash([contractCallApproved]);
+    await this.contractCallApprovedRepository.updateStatus(contractCallApproved);
   }
 }

@@ -230,7 +230,7 @@ describe('ApprovalsProcessorService', () => {
       expect(redisCacheService.get).toHaveBeenCalledWith(key);
       expect(redisCacheService.delete).toHaveBeenCalledTimes(1);
       expect(redisCacheService.delete).toHaveBeenCalledWith(key);
-      expect(transactionsHelper.awaitComplete).not.toHaveBeenCalled();
+      expect(transactionsHelper.awaitSuccess).not.toHaveBeenCalled();
     });
 
     it('Should handle success', async () => {
@@ -244,7 +244,7 @@ describe('ApprovalsProcessorService', () => {
           retry: 1,
         }),
       );
-      transactionsHelper.awaitComplete.mockReturnValueOnce(Promise.resolve(true));
+      transactionsHelper.awaitSuccess.mockReturnValueOnce(Promise.resolve(true));
 
       await service.handlePendingTransactionsRaw();
 
@@ -253,8 +253,8 @@ describe('ApprovalsProcessorService', () => {
       expect(redisCacheService.get).toHaveBeenCalledWith(key);
       expect(redisCacheService.delete).toHaveBeenCalledTimes(1);
       expect(redisCacheService.delete).toHaveBeenCalledWith(key);
-      expect(transactionsHelper.awaitComplete).toHaveBeenCalledTimes(1);
-      expect(transactionsHelper.awaitComplete).toHaveBeenCalledWith('txHashComplete');
+      expect(transactionsHelper.awaitSuccess).toHaveBeenCalledTimes(1);
+      expect(transactionsHelper.awaitSuccess).toHaveBeenCalledWith('txHashComplete');
       expect(transactionsHelper.getTransactionGas).not.toHaveBeenCalled();
     });
 
@@ -270,7 +270,7 @@ describe('ApprovalsProcessorService', () => {
           retry: 1,
         }),
       );
-      transactionsHelper.awaitComplete.mockReturnValueOnce(Promise.resolve(false));
+      transactionsHelper.awaitSuccess.mockReturnValueOnce(Promise.resolve(false));
 
       const userAddress = UserAddress.fromBech32('erd1qqqqqqqqqqqqqpgqhe8t5jewej70zupmh44jurgn29psua5l2jps3ntjj3');
       walletSigner.getAddress.mockReturnValueOnce(userAddress);
@@ -283,8 +283,8 @@ describe('ApprovalsProcessorService', () => {
 
       await service.handlePendingTransactionsRaw();
 
-      expect(transactionsHelper.awaitComplete).toHaveBeenCalledTimes(1);
-      expect(transactionsHelper.awaitComplete).toHaveBeenCalledWith('txHashComplete');
+      expect(transactionsHelper.awaitSuccess).toHaveBeenCalledTimes(1);
+      expect(transactionsHelper.awaitSuccess).toHaveBeenCalledWith('txHashComplete');
 
       expect(gatewayContract.buildExecuteTransaction).toHaveBeenCalledTimes(1);
       expect(gatewayContract.buildExecuteTransaction).toHaveBeenCalledWith(
@@ -322,12 +322,12 @@ describe('ApprovalsProcessorService', () => {
           retry: 3,
         }),
       );
-      transactionsHelper.awaitComplete.mockReturnValueOnce(Promise.resolve(false));
+      transactionsHelper.awaitSuccess.mockReturnValueOnce(Promise.resolve(false));
 
       await service.handlePendingTransactionsRaw();
 
-      expect(transactionsHelper.awaitComplete).toHaveBeenCalledTimes(1);
-      expect(transactionsHelper.awaitComplete).toHaveBeenCalledWith('txHashComplete');
+      expect(transactionsHelper.awaitSuccess).toHaveBeenCalledTimes(1);
+      expect(transactionsHelper.awaitSuccess).toHaveBeenCalledWith('txHashComplete');
       expect(transactionsHelper.getTransactionGas).not.toHaveBeenCalled();
     });
 
@@ -343,7 +343,7 @@ describe('ApprovalsProcessorService', () => {
           retry: 1,
         }),
       );
-      transactionsHelper.awaitComplete.mockReturnValueOnce(Promise.resolve(false));
+      transactionsHelper.awaitSuccess.mockReturnValueOnce(Promise.resolve(false));
 
       const userAddress = UserAddress.fromBech32('erd1qqqqqqqqqqqqqpgqhe8t5jewej70zupmh44jurgn29psua5l2jps3ntjj3');
       walletSigner.getAddress.mockReturnValueOnce(userAddress);
@@ -355,8 +355,8 @@ describe('ApprovalsProcessorService', () => {
 
       await service.handlePendingTransactionsRaw();
 
-      expect(transactionsHelper.awaitComplete).toHaveBeenCalledTimes(1);
-      expect(transactionsHelper.awaitComplete).toHaveBeenCalledWith('txHashComplete');
+      expect(transactionsHelper.awaitSuccess).toHaveBeenCalledTimes(1);
+      expect(transactionsHelper.awaitSuccess).toHaveBeenCalledWith('txHashComplete');
 
       expect(transactionsHelper.getTransactionGas).toHaveBeenCalledTimes(1);
       expect(transactionsHelper.getTransactionGas).toHaveBeenCalledWith(transaction, 1);

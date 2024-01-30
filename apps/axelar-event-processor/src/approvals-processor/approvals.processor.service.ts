@@ -90,7 +90,7 @@ export class ApprovalsProcessorService {
 
       const { txHash, executeData, retry } = cachedValue;
 
-      const success = await this.transactionsHelper.awaitComplete(txHash);
+      const success = await this.transactionsHelper.awaitSuccess(txHash);
 
       // Nothing to do on success
       if (success) {
