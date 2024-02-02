@@ -41,7 +41,6 @@ describe('CallContractApprovedProcessorService', () => {
       .compile();
 
     cacheService = await moduleRef.get(CacheService);
-    // proxy = await moduleRef.get(ProxyNetworkProvider);
     prisma = await moduleRef.get(PrismaService);
     contractCallApprovedRepository = await moduleRef.get(ContractCallApprovedRepository);
 
