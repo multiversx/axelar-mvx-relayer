@@ -39,7 +39,7 @@ export class ContractCallEventRepository {
     });
   }
 
-  findPending(txHash: string, eventIndex: number): Promise<ContractCallEventWithGasPaid | null> {
+  findOnePending(txHash: string, eventIndex: number): Promise<ContractCallEventWithGasPaid | null> {
     return this.prisma.contractCallEvent.findFirst({
       where: {
         txHash,
@@ -48,6 +48,35 @@ export class ContractCallEventRepository {
       },
       include: {
         gasPaidEntries: true,
+      },
+    });
+  }
+
+  findPending(page: number = 0, take: number = 10): Promise<ContractCallEvent[] | null> {
+    // Last updated more than two minute ago, if retrying
+    const lastUpdatedAt = new Date(new Date().getTime() - 120_000);
+
+    return this.prisma.contractCallEvent.findMany({
+      where: {
+        status: ContractCallEventStatus.PENDING,
+
+        updatedAt: {
+          lt: lastUpdatedAt,
+        },
+      },
+      orderBy: [{ createdAt: 'asc' }],
+      skip: page * take,
+      take,
+    });
+  }
+
+  async updateStatus(data: ContractCallEvent) {
+    await this.prisma.contractCallEvent.update({
+      where: {
+        id: data.id,
+      },
+      data: {
+        status: data.status,
       },
     });
   }

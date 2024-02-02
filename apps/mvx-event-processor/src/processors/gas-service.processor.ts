@@ -98,7 +98,7 @@ export class GasServiceProcessor implements ProcessorInterface {
   }
 
   async handleGasAddedEvents(event: GasAddedEvent, rawEventTxHash: string) {
-    const contractCallEvent = await this.contractCallEventRepository.findPending(event.txHash, event.logIndex);
+    const contractCallEvent = await this.contractCallEventRepository.findOnePending(event.txHash, event.logIndex);
 
     if (!contractCallEvent) {
       this.logger.warn('Received a GasAddedEvent but could find existing contract call entry');

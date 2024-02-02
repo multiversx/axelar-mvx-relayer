@@ -27,7 +27,7 @@ export class TransactionsHelper {
     return accountOnNetwork.nonce;
   }
 
-  // TODO: Check if this works properly
+  // TODO: Test if this works correctly
   async getTransactionGas(transaction: Transaction, retry: number): Promise<number> {
     transaction.setChainID(this.chainId);
 

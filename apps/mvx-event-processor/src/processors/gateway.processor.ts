@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { NotifierEvent } from '../event-processor/types';
 import { GatewayContract } from '@mvx-monorepo/common/contracts/gateway.contract';
 import { TransactionEvent } from '@multiversx/sdk-network-providers/out';
@@ -17,6 +17,7 @@ const UNSUPPORTED_LOG_INDEX: number = 0;
 
 @Injectable()
 export class GatewayProcessor implements ProcessorInterface {
+  private readonly logger: Logger;
   private readonly sourceChain: string;
 
   constructor(
@@ -26,6 +27,7 @@ export class GatewayProcessor implements ProcessorInterface {
     private readonly grpcService: GrpcService,
     apiConfigService: ApiConfigService,
   ) {
+    this.logger = new Logger(GatewayProcessor.name);
     this.sourceChain = apiConfigService.getSourceChainName();
   }
 
@@ -80,13 +82,23 @@ export class GatewayProcessor implements ProcessorInterface {
       return;
     }
 
-    // TODO: Should this be batched instead and have this in a separate cronjob?
-    await this.grpcService.verify(contractCallEvent);
-    // TODO: We should mark here the message as successfull after sending to grpc
-    // Maybe this sending should be async in a cron?
-    // For now the ContractCallEvent in db will remain as PENDING if it was not successfully sent to the Relayer API
-    // Verify endpoint. After it was sent, it can be marked as APPROVED
-    // GasPaid will remain as PENDING status for now
+    // TODO: Test if this works correctly
+    this.grpcService.verify(contractCallEvent).subscribe({
+      next: async (value) => {
+        if (value.success) {
+          contractCallEvent.status = ContractCallEventStatus.APPROVED;
+
+          await this.contractCallEventRepository.updateStatus(contractCallEvent);
+
+          return;
+        }
+
+        this.logger.warn(`Verify contract call event ${id} was not successful. Will be retried.`);
+      },
+      error: () => {
+        this.logger.warn(`Could not verify contract call event ${id}. Will be retried.`);
+      },
+    });
   }
 
   private async handleContractCallApprovedEvent(rawEvent: NotifierEvent) {
