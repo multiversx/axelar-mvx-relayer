@@ -1,16 +1,7 @@
 /* eslint-disable */
 import { Observable } from "rxjs";
 
-export const protobufPackage = "axelar.relayer.v1beta1";
-
-export interface VerifyRequest {
-  message: Message | undefined;
-}
-
-export interface VerifyResponse {
-  message: Message | undefined;
-  success: boolean;
-}
+export const protobufPackage = "";
 
 export interface Message {
   /** the unique identifier with which the message can be looked up on the source chain */
@@ -19,7 +10,6 @@ export interface Message {
   sourceAddress: string;
   destinationChain: string;
   destinationAddress: string;
-  /** when we have a better idea of the requirement, we can add an additional optional field here to facilitate verification proofs */
   payload: Uint8Array;
 }
 
@@ -43,8 +33,52 @@ export interface SubscribeToApprovalsResponse {
   blockHeight: number;
 }
 
+export interface VerifyRequest {
+  message: Message | undefined;
+}
+
+export interface VerifyResponse {
+  message: Message | undefined;
+  success: boolean;
+}
+
+export interface SubscribeToWasmEventsRequest {
+  startHeight?: number | undefined;
+}
+
+export interface SubscribeToWasmEventsResponse {
+  type: string;
+  attributes: Attribute[];
+  height: number;
+}
+
+export interface Attribute {
+  key: string;
+  value: string;
+}
+
+export interface BroadcastRequest {
+  address: string;
+  payload: Uint8Array;
+}
+
+export interface BroadcastResponse {
+  receipt: Receipt | undefined;
+}
+
+export interface Receipt {
+  error: string;
+  blockHeight: number;
+  gasUsed: number;
+  gasWanted: number;
+  txHash: string;
+  txResponseLog: string;
+}
+
 export interface Relayer {
   verify(request: Observable<VerifyRequest>): Observable<VerifyResponse>;
   getPayload(request: GetPayloadRequest): Promise<GetPayloadResponse>;
   subscribeToApprovals(request: SubscribeToApprovalsRequest): Observable<SubscribeToApprovalsResponse>;
+  subscribeToWasmEvents(request: SubscribeToWasmEventsRequest): Observable<SubscribeToWasmEventsResponse>;
+  broadcast(request: BroadcastRequest): Promise<BroadcastResponse>;
 }

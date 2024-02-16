@@ -13,6 +13,8 @@ import { GatewayContract } from '@mvx-monorepo/common/contracts/gateway.contract
 import { ContractCallApprovedEvent, ContractCallEvent } from '@mvx-monorepo/common/contracts/entities/gateway-events';
 import { TransactionEvent } from '@multiversx/sdk-network-providers/out';
 import { ContractCallApprovedRepository } from '@mvx-monorepo/common/database/repository/contract-call-approved.repository';
+import { Subject } from 'rxjs';
+import { VerifyResponse } from '@mvx-monorepo/common/grpc/entities/relayer';
 
 describe('ContractCallProcessor', () => {
   let gatewayContract: DeepMocked<GatewayContract>;
@@ -122,7 +124,10 @@ describe('ContractCallProcessor', () => {
       ],
     };
 
-    it('Should handle event', async () => {
+    it('Should handle event success', async () => {
+      const observable = new Subject<VerifyResponse>();
+      grpcService.verify.mockReturnValueOnce(observable);
+
       await service.handleEvent(rawEvent);
 
       expect(gatewayContract.decodeContractCallEvent).toHaveBeenCalledTimes(1);
@@ -141,10 +146,60 @@ describe('ContractCallProcessor', () => {
         payload: Buffer.from('payload'),
       });
       expect(grpcService.verify).toHaveBeenCalledTimes(1);
+
+      observable.next({
+        message: undefined,
+        success: true,
+      });
+      observable.complete();
+
+      expect(contractCallEventRepository.updateStatus).toHaveBeenCalledTimes(1);
+      expect(contractCallEventRepository.updateStatus).toHaveBeenCalledWith({
+        id: 'multiversx-test:txHash:0',
+        txHash: 'txHash',
+        eventIndex: 0,
+        status: ContractCallEventStatus.APPROVED,
+        sourceAddress: 'erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7',
+        sourceChain: 'multiversx-test',
+        destinationAddress: 'destinationAddress',
+        destinationChain: 'ethereum',
+        payloadHash: 'ebc84cbd75ba5516bf45e7024a9e12bc3c5c880f73e3a5beca7ebba52b2867a7',
+        payload: Buffer.from('payload'),
+      });
+    });
+
+    it('Should handle error success', async () => {
+      const observable = new Subject<VerifyResponse>();
+      grpcService.verify.mockReturnValueOnce(observable);
+
+      await service.handleEvent(rawEvent);
+
+      expect(gatewayContract.decodeContractCallEvent).toHaveBeenCalledTimes(1);
+      expect(contractCallEventRepository.create).toHaveBeenCalledTimes(1);
+      expect(grpcService.verify).toHaveBeenCalledTimes(1);
+
+      observable.next({
+        message: undefined,
+        success: false,
+      });
+      observable.complete();
+
+      expect(contractCallEventRepository.updateStatus).not.toHaveBeenCalled();
+    });
+
+    it('Should not handle duplicate', async () => {
+      contractCallEventRepository.create.mockReturnValueOnce(Promise.resolve(null));
+
+      await service.handleEvent(rawEvent);
+
+      expect(gatewayContract.decodeContractCallEvent).toHaveBeenCalledTimes(1);
+      expect(gatewayContract.decodeContractCallEvent).toHaveBeenCalledWith(TransactionEvent.fromHttpResponse(rawEvent));
+      expect(contractCallEventRepository.create).toHaveBeenCalledTimes(1);
+      expect(grpcService.verify).not.toHaveBeenCalled();
     });
 
     it('Should throw error can not save in database', async () => {
-      contractCallEventRepository.create.mockReturnValueOnce(Promise.resolve(null));
+      contractCallEventRepository.create.mockRejectedValue(new Error('Can not save in database'));
 
       await expect(service.handleEvent(rawEvent)).rejects.toThrow();
 
@@ -216,6 +271,29 @@ describe('ContractCallProcessor', () => {
     });
   });
 
+  describe('handleOperatorshipTransferredEvent', () => {
+    const rawEvent: NotifierEvent = {
+      txHash: 'txHash',
+      address: 'mockGatewayAddress',
+      identifier: EventIdentifiers.EXECUTE,
+      data: Buffer.from(
+        '000000018049d639e5a6980d1cd2392abcce41029cda74a1563523a202f09641cc2618f80000000100000001020000000102',
+        'hex',
+      ).toString('base64'),
+      topics: [BinaryUtils.base64Encode(Events.OPERATORSHIP_TRANSFERRED_EVENT)],
+    };
+
+    it('Should handle event', async () => {
+      await service.handleEvent(rawEvent);
+
+      expect(gatewayContract.decodeOperatorshipTransferredEvent).toHaveBeenCalledTimes(1);
+      expect(gatewayContract.decodeOperatorshipTransferredEvent).toHaveBeenCalledWith(
+        TransactionEvent.fromHttpResponse(rawEvent),
+      );
+      expect(grpcService.verifyWorkerSet).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('handleContractCallExecutedEvent', () => {
     const rawEvent: NotifierEvent = {
       txHash: 'txHash',
@@ -257,14 +335,12 @@ describe('ContractCallProcessor', () => {
       expect(contractCallApprovedRepository.findByCommandId).toHaveBeenCalledWith(
         '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15da',
       );
-      expect(contractCallApprovedRepository.updateManyPartial).toHaveBeenCalledTimes(1);
-      expect(contractCallApprovedRepository.updateManyPartial).toHaveBeenCalledWith([
-        {
-          ...contractCallApproved,
-          status: ContractCallApprovedStatus.SUCCESS,
-          successTimes: 1,
-        },
-      ]);
+      expect(contractCallApprovedRepository.updateStatusAndSuccessTimes).toHaveBeenCalledTimes(1);
+      expect(contractCallApprovedRepository.updateStatusAndSuccessTimes).toHaveBeenCalledWith({
+        ...contractCallApproved,
+        status: ContractCallApprovedStatus.SUCCESS,
+        successTimes: 1,
+      });
     });
 
     it('Should handle event no contract call approved', async () => {

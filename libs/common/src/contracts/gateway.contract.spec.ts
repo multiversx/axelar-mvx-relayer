@@ -2,24 +2,30 @@ import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { Test } from '@nestjs/testing';
 import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
 import { Events } from '@mvx-monorepo/common/utils/event.enum';
-import { AbiRegistry, Address, ResultsParser, SmartContract } from '@multiversx/sdk-core/out';
+import { AbiRegistry, Address, BinaryCodec, ResultsParser, SmartContract } from '@multiversx/sdk-core/out';
 import { GatewayContract } from '@mvx-monorepo/common/contracts/gateway.contract';
 import { TransactionEvent } from '@multiversx/sdk-network-providers/out';
 import { NotifierEvent } from '../../../../apps/mvx-event-processor/src/event-processor/types';
 
 import gatewayAbi from '../assets/gateway.abi.json';
+import authAbi from '../assets/auth.abi.json';
+import { AuthContract } from '@mvx-monorepo/common/contracts/auth.contract';
+import BigNumber from 'bignumber.js';
+import { TransactionEventData } from '@multiversx/sdk-network-providers/out/transactionEvents';
 
 describe('GatewayContract', () => {
   let smartContract: DeepMocked<SmartContract>;
   let abi: AbiRegistry;
   let resultsParser: ResultsParser;
 
+  let authContract: AuthContract;
   let contract: GatewayContract;
 
   beforeEach(async () => {
     smartContract = createMock();
     abi = AbiRegistry.create(gatewayAbi); // use real Gateway contract abi
     resultsParser = new ResultsParser();
+    authContract = new AuthContract(AbiRegistry.create(authAbi), new BinaryCodec());
 
     const moduleRef = await Test.createTestingModule({
       providers: [GatewayContract],
@@ -35,6 +41,10 @@ describe('GatewayContract', () => {
 
         if (token === ResultsParser) {
           return resultsParser;
+        }
+
+        if (token === AuthContract) {
+          return authContract;
         }
 
         return null;
@@ -124,6 +134,34 @@ describe('GatewayContract', () => {
       event.topics = [];
 
       expect(() => contract.decodeContractCallApprovedEvent(event)).toThrow();
+    });
+  });
+
+  describe('decodeOperatorshipTransferredEvent', () => {
+    const rawEvent: NotifierEvent = {
+      txHash: 'txHash',
+      address: 'mockGatewayAddress',
+      identifier: 'execute',
+      data: Buffer.from(
+        '000000018049d639e5a6980d1cd2392abcce41029cda74a1563523a202f09641cc2618f80000000100000001020000000102',
+        'hex',
+      ).toString('base64'),
+      topics: [],
+    };
+    const event = TransactionEvent.fromHttpResponse(rawEvent);
+
+    it('Should decode event', () => {
+      const result = contract.decodeOperatorshipTransferredEvent(event);
+
+      expect(result.newOperators).toEqual(['8049d639e5a6980d1cd2392abcce41029cda74a1563523a202f09641cc2618f8']);
+      expect(result.newWeights).toEqual([new BigNumber('2')]);
+      expect(result.newThreshold).toEqual(new BigNumber('2'));
+    });
+
+    it('Should throw error while decoding', () => {
+      event.dataPayload = new TransactionEventData(Buffer.from(''));
+
+      expect(() => contract.decodeOperatorshipTransferredEvent(event)).toThrow();
     });
   });
 

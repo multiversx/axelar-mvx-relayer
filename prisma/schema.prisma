@@ -12,7 +12,7 @@ datasource db {
 
 model ContractCallEvent {
   id                 String                  @id @db.VarChar(255) // should be formatted as [source_chain]:[unique identifier]:[log index], i.e. Ethereum:0x74ac0205b1f8f51023942856145182f0e6fdd41ccb2c8058bf2d89fc67564d56:0
-  txHash             String                  @unique @db.VarChar(64)
+  txHash             String                  @db.VarChar(64)
   eventIndex         Int                     @db.SmallInt
   status             ContractCallEventStatus
   sourceAddress      String                  @db.VarChar(62)
@@ -26,7 +26,7 @@ model ContractCallEvent {
   updatedAt          DateTime                @default(now()) @updatedAt @db.Timestamp(6)
   gasPaidEntries     GasPaid[]
 
-  @@index([txHash, eventIndex])
+  @@unique([txHash, eventIndex])
   @@index([sourceAddress, payloadHash])
 }
 
@@ -63,7 +63,7 @@ enum GasPaidStatus {
 
 model ContractCallApproved {
   commandId       String                     @id @db.VarChar(64)
-  txHash          String                     @unique @db.VarChar(64)
+  txHash          String                     @db.VarChar(64)
   status          ContractCallApprovedStatus
   sourceAddress   String                     @db.VarChar(255)
   sourceChain     String                     @db.VarChar(255)

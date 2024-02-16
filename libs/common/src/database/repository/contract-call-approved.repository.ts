@@ -62,4 +62,16 @@ export class ContractCallApprovedRepository {
       }),
     );
   }
+
+  async updateStatusAndSuccessTimes(data: ContractCallApproved) {
+    await this.prisma.contractCallApproved.update({
+      where: {
+        commandId: data.commandId,
+      },
+      data: {
+        status: data.status,
+        successTimes: data.successTimes,
+      },
+    });
+  }
 }

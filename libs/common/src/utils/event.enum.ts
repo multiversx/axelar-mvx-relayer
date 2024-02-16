@@ -7,6 +7,7 @@ export enum EventIdentifiers {
 export enum Events {
   CONTRACT_CALL_EVENT = 'contract_call_event',
   CONTRACT_CALL_APPROVED_EVENT = 'contract_call_approved_event',
+  OPERATORSHIP_TRANSFERRED_EVENT = 'operatorship_transferred_event',
   CONTRACT_CALL_EXECUTED_EVENT = 'contract_call_executed_event',
 
   GAS_PAID_FOR_CONTRACT_CALL_EVENT = 'gas_paid_for_contract_call_event',

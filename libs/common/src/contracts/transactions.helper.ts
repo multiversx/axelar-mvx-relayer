@@ -27,7 +27,7 @@ export class TransactionsHelper {
     return accountOnNetwork.nonce;
   }
 
-  // TODO: Check if this works properly
+  // TODO: Test if this works correctly
   async getTransactionGas(transaction: Transaction, retry: number): Promise<number> {
     transaction.setChainID(this.chainId);
 
@@ -83,13 +83,13 @@ export class TransactionsHelper {
     }
   }
 
-  async awaitComplete(txHash: string) {
+  async awaitSuccess(txHash: string) {
     try {
       const result = await this.transactionWatcher.awaitCompleted({ getHash: () => new TransactionHash(txHash) });
 
       return !result.status.isFailed() && !result.status.isInvalid();
     } catch (e) {
-      this.logger.error(`Can not await transaction completed`);
+      this.logger.error(`Can not await transaction success`);
       this.logger.error(e);
 
       return false;

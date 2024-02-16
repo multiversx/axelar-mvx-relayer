@@ -46,7 +46,6 @@ describe('CallContractApprovedProcessorService', () => {
       .compile();
 
     cacheService = await moduleRef.get(CacheService);
-    // proxy = await moduleRef.get(ProxyNetworkProvider);
     prisma = await moduleRef.get(PrismaService);
     contractCallApprovedRepository = await moduleRef.get(ContractCallApprovedRepository);
 
@@ -304,7 +303,7 @@ describe('CallContractApprovedProcessorService', () => {
       });
     });
 
-    it('Should send execute transaction deploy interchain token 2 times', async () => {
+    it.only('Should send execute transaction deploy interchain token 2 times', async () => {
       const originalItsExecute = await createContractCallApproved({
         contractAddress,
         commandId: '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15bb',

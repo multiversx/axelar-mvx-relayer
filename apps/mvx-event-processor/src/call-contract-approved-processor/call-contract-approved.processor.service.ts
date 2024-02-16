@@ -136,7 +136,7 @@ export class CallContractApprovedProcessorService {
 
     // In case first transaction exists for ITS, wait for it to complete and mark it as successful if necessary
     if (contractCallApproved.executeTxHash && !contractCallApproved.successTimes) {
-      const success = await this.transactionsHelper.awaitComplete(contractCallApproved.executeTxHash);
+      const success = await this.transactionsHelper.awaitSuccess(contractCallApproved.executeTxHash);
 
       if (success) {
         contractCallApproved.successTimes = 1;

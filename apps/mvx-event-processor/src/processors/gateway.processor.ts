@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { NotifierEvent } from '../event-processor/types';
 import { GatewayContract } from '@mvx-monorepo/common/contracts/gateway.contract';
 import { TransactionEvent } from '@multiversx/sdk-network-providers/out';
@@ -17,6 +17,7 @@ const UNSUPPORTED_LOG_INDEX: number = 0;
 
 @Injectable()
 export class GatewayProcessor implements ProcessorInterface {
+  private readonly logger: Logger;
   private readonly sourceChain: string;
 
   constructor(
@@ -26,6 +27,7 @@ export class GatewayProcessor implements ProcessorInterface {
     private readonly grpcService: GrpcService,
     apiConfigService: ApiConfigService,
   ) {
+    this.logger = new Logger(GatewayProcessor.name);
     this.sourceChain = apiConfigService.getSourceChainName();
   }
 
@@ -38,13 +40,20 @@ export class GatewayProcessor implements ProcessorInterface {
       return;
     }
 
-    if (rawEvent.identifier === EventIdentifiers.EXECUTE && eventName === Events.CONTRACT_CALL_APPROVED_EVENT) {
-      await this.handleContractCallApprovedEvent(rawEvent);
+    if (rawEvent.identifier === EventIdentifiers.EXECUTE) {
+      if (eventName === Events.CONTRACT_CALL_APPROVED_EVENT) {
+        await this.handleContractCallApprovedEvent(rawEvent);
+      } else if (eventName === Events.OPERATORSHIP_TRANSFERRED_EVENT) {
+        await this.handleOperatorshipTransferredEvent(rawEvent);
+      }
 
       return;
     }
 
-    if (rawEvent.identifier === EventIdentifiers.VALIDATE_CONTRACT_CALL && eventName === Events.CONTRACT_CALL_EXECUTED_EVENT) {
+    if (
+      rawEvent.identifier === EventIdentifiers.VALIDATE_CONTRACT_CALL &&
+      eventName === Events.CONTRACT_CALL_EXECUTED_EVENT
+    ) {
       await this.handleContractCallExecutedEvent(rawEvent);
 
       return;
@@ -54,8 +63,9 @@ export class GatewayProcessor implements ProcessorInterface {
   private async handleContractCallEvent(rawEvent: NotifierEvent) {
     const event = this.gatewayContract.decodeContractCallEvent(TransactionEvent.fromHttpResponse(rawEvent));
 
+    const id = `${this.sourceChain}:${rawEvent.txHash}:${UNSUPPORTED_LOG_INDEX}`;
     const contractCallEvent = await this.contractCallEventRepository.create({
-      id: `${this.sourceChain}:${rawEvent.txHash}:${UNSUPPORTED_LOG_INDEX}`,
+      id,
       txHash: rawEvent.txHash,
       eventIndex: UNSUPPORTED_LOG_INDEX,
       status: ContractCallEventStatus.PENDING,
@@ -67,17 +77,28 @@ export class GatewayProcessor implements ProcessorInterface {
       payload: event.data.payload,
     });
 
+    // A duplicate might exist in the database, so we can skip creation in this case
     if (!contractCallEvent) {
-      throw new Error(`Couldn't save contract call event to database for hash ${rawEvent.txHash}`);
+      return;
     }
 
-    // TODO: Should this be batched instead and have this in a separate cronjob?
-    await this.grpcService.verify(contractCallEvent);
-    // TODO: We should mark here the message as successfull after sending to grpc
-    // Maybe this sending should be async in a cron?
-    // For now the ContractCallEvent in db will remain as PENDING if it was not successfully sent to the Relayer API
-    // Verify endpoint. After it was sent, it can be marked as APPROVED
-    // GasPaid will remain as PENDING status for now
+    // TODO: Test if this works correctly
+    this.grpcService.verify(contractCallEvent).subscribe({
+      next: async (value) => {
+        if (value.success) {
+          contractCallEvent.status = ContractCallEventStatus.APPROVED;
+
+          await this.contractCallEventRepository.updateStatus(contractCallEvent);
+
+          return;
+        }
+
+        this.logger.warn(`Verify contract call event ${id} was not successful. Will be retried.`);
+      },
+      error: () => {
+        this.logger.warn(`Could not verify contract call event ${id}. Will be retried.`);
+      },
+    });
   }
 
   private async handleContractCallApprovedEvent(rawEvent: NotifierEvent) {
@@ -102,6 +123,21 @@ export class GatewayProcessor implements ProcessorInterface {
     }
   }
 
+  private async handleOperatorshipTransferredEvent(rawEvent: NotifierEvent) {
+    const trasnsferData = this.gatewayContract.decodeOperatorshipTransferredEvent(
+      TransactionEvent.fromHttpResponse(rawEvent),
+    );
+
+    const id = `${this.sourceChain}:${rawEvent.txHash}:${UNSUPPORTED_LOG_INDEX}`;
+
+    await this.grpcService.verifyWorkerSet(
+      id,
+      trasnsferData.newOperators,
+      trasnsferData.newWeights,
+      trasnsferData.newThreshold,
+    );
+  }
+
   private async handleContractCallExecutedEvent(rawEvent: NotifierEvent) {
     const commandId = this.gatewayContract.decodeContractCallExecutedEvent(TransactionEvent.fromHttpResponse(rawEvent));
 
@@ -114,6 +150,6 @@ export class GatewayProcessor implements ProcessorInterface {
     contractCallApproved.status = ContractCallApprovedStatus.SUCCESS;
     contractCallApproved.successTimes = (contractCallApproved.successTimes || 0) + 1;
 
-    await this.contractCallApprovedRepository.updateManyPartial([contractCallApproved]);
+    await this.contractCallApprovedRepository.updateStatusAndSuccessTimes(contractCallApproved);
   }
 }

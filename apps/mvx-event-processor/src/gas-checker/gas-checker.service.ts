@@ -88,7 +88,7 @@ export class GasCheckerService {
 
     const txHash = await this.transactionsHelper.signAndSendTransaction(transaction, this.walletSigner);
 
-    const success = await this.transactionsHelper.awaitComplete(txHash);
+    const success = await this.transactionsHelper.awaitSuccess(txHash);
 
     if (!success) {
       throw new Error(`Error while executing transaction ${txHash}`);
@@ -113,7 +113,7 @@ export class GasCheckerService {
 
       const txHash = await this.transactionsHelper.signAndSendTransaction(transaction, this.walletSigner);
 
-      const success = await this.transactionsHelper.awaitComplete(txHash);
+      const success = await this.transactionsHelper.awaitSuccess(txHash);
 
       if (!success) {
         throw new Error(`Error while executing unwrap egld transaction ${txHash}`);

@@ -188,12 +188,12 @@ describe('GasServiceProcessor', () => {
     contractCallEvent: any = null,
     extraGasPaid: any = null,
   ) {
-    contractCallEventRepository.findPending.mockReturnValueOnce(Promise.resolve(contractCallEvent));
+    contractCallEventRepository.findOnePending.mockReturnValueOnce(Promise.resolve(contractCallEvent));
 
     await service.handleEvent(rawEvent);
 
-    expect(contractCallEventRepository.findPending).toHaveBeenCalledTimes(1);
-    expect(contractCallEventRepository.findPending).toHaveBeenCalledWith(event.txHash, event.logIndex);
+    expect(contractCallEventRepository.findOnePending).toHaveBeenCalledTimes(1);
+    expect(contractCallEventRepository.findOnePending).toHaveBeenCalledWith(event.txHash, event.logIndex);
 
     if (!extraGasPaid) {
       expect(gasPaidRepository.update).not.toHaveBeenCalled();
