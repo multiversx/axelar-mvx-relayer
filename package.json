@@ -25,6 +25,7 @@
     "test:e2e": "dotenv -e .env.test -- jest --config ./apps/mvx-event-processor/test/jest-e2e.json --force-exit",
     "migrate": "prisma migrate dev",
     "generate": "prisma generate",
+    "deploy": "prisma migrate deploy",
     "test:migrate": "dotenv -e .env.test -- prisma migrate deploy"
   },
   "dependencies": {
