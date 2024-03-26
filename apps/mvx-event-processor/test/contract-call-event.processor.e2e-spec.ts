@@ -10,7 +10,7 @@ import { ContractCallEvent, ContractCallEventStatus } from '@prisma/client';
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { GrpcModule, GrpcService } from '@mvx-monorepo/common';
 import { Subject } from 'rxjs';
-import { VerifyResponse } from '@mvx-monorepo/common/grpc/entities/relayer';
+import { ErrorCode, VerifyResponse } from '@mvx-monorepo/common/grpc/entities/amplifier';
 import { TestGrpcModule } from './testGrpc.module';
 
 describe('ContractCallEventProcessorService', () => {
@@ -87,7 +87,7 @@ describe('ContractCallEventProcessorService', () => {
     setTimeout(() => {
       observable.next({
         message: undefined,
-        success: true,
+        error: undefined,
       });
       observable.complete();
     }, 500);
@@ -122,7 +122,10 @@ describe('ContractCallEventProcessorService', () => {
     setTimeout(() => {
       observable.next({
         message: undefined,
-        success: false,
+        error: {
+          error: 'error',
+          errorCode: ErrorCode.VERIFICATION_FAILED,
+        },
       });
       observable.complete();
     }, 500);

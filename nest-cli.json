@@ -27,7 +27,7 @@
         "tsConfigPath": "apps/axelar-event-processor/tsconfig.app.json",
         "assets": [
           {
-            "include": "../axelar/relayer.proto",
+            "include": "../axelar/amplifier.proto",
             "outDir": "./dist/apps/axelar-event-processor/axelar"
           }
         ]

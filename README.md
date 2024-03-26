@@ -1,4 +1,6 @@
-Axelar Relayer for MultiversX blockchain
+Axelar Relayer for MultiversX blockchain.
+
+Based on Amplifier API Docs: https://bright-ambert-2bd.notion.site/Amplifier-API-Docs-EXTERNAL-7c56c143852147cd95b1c4a949121851
 
 ## Quick start
 
@@ -42,7 +44,7 @@ protoc --plugin=./node_modules/.bin/protoc-gen-ts_proto\
     --ts_proto_out=./libs/common/src/grpc/entities\
     --proto_path=./libs/common/src/assets\
     --ts_proto_opt="$(IFS=, ; echo "${TS_ARGS[*]}")"\
-    ./libs/common/src/assets/relayer.proto
+    ./libs/common/src/assets/amplifier.proto
 ```
 
 Check out these resources for more information:

@@ -31,14 +31,16 @@ export class ContractCallEventProcessorService {
           this.logger.debug(`Trying to verify ContractCallEvent with id ${contractCallEvent.id}`);
 
           try {
-            const value = await firstValueFrom(this.grpcService.verify(contractCallEvent));
+            const response = await firstValueFrom(this.grpcService.verify(contractCallEvent));
 
-            if (value.success) {
+            if (!response.error) {
               contractCallEvent.status = ContractCallEventStatus.APPROVED;
             } else {
               contractCallEvent.status = ContractCallEventStatus.FAILED;
 
-              this.logger.error(`Verify contract call event ${contractCallEvent.id} was not successful`);
+              this.logger.error(
+                `Verify contract call event ${contractCallEvent.id} was not successful. Got error code ${response.error.errorCode}`,
+              );
             }
           } catch (e) {
             this.logger.error(`Could not verify contract call event ${contractCallEvent.id}`);

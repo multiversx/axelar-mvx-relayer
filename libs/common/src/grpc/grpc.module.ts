@@ -4,7 +4,7 @@ import { ApiConfigModule, ApiConfigService } from '@mvx-monorepo/common';
 import { join } from 'path';
 import { ProviderKeys } from '@mvx-monorepo/common/utils/provider.enum';
 import { GrpcService } from '@mvx-monorepo/common/grpc/grpc.service';
-import { protobufPackage } from '@mvx-monorepo/common/grpc/entities/relayer';
+import { protobufPackage } from '@mvx-monorepo/common/grpc/entities/amplifier';
 
 @Module({
   imports: [
@@ -17,7 +17,7 @@ import { protobufPackage } from '@mvx-monorepo/common/grpc/entities/relayer';
             transport: Transport.GRPC,
             options: {
               package: protobufPackage,
-              protoPath: join(__dirname, '../assets/relayer.proto'),
+              protoPath: join(__dirname, '../assets/amplifier.proto'),
               url: apiConfigService.getAxelarApiUrl(),
             },
           };

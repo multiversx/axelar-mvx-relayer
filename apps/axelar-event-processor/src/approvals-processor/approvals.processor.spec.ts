@@ -8,7 +8,7 @@ import { RedisCacheService } from '@multiversx/sdk-nestjs-cache';
 import { UserSigner } from '@multiversx/sdk-wallet/out';
 import { ProviderKeys } from '@mvx-monorepo/common/utils/provider.enum';
 import { Subject } from 'rxjs';
-import { SubscribeToApprovalsResponse } from '@mvx-monorepo/common/grpc/entities/relayer';
+import { SubscribeToApprovalsResponse } from '@mvx-monorepo/common/grpc/entities/amplifier';
 import { UserAddress } from '@multiversx/sdk-wallet/out/userAddress';
 import { Transaction } from '@multiversx/sdk-core/out';
 
@@ -29,8 +29,6 @@ describe('ApprovalsProcessorService', () => {
     transactionsHelper = createMock();
     gatewayContract = createMock();
     apiConfigService = createMock();
-
-    apiConfigService.getSourceChainName.mockReturnValue('multiversx-test');
 
     const moduleRef = await Test.createTestingModule({
       providers: [ApprovalsProcessorService],
@@ -64,7 +62,6 @@ describe('ApprovalsProcessorService', () => {
       })
       .compile();
 
-    apiConfigService.getSourceChainName.mockReturnValueOnce('multiversx-test');
     apiConfigService.getChainId.mockReturnValue('test');
     redisCacheService.get.mockImplementation(() => {
       return Promise.resolve(undefined);
@@ -85,7 +82,7 @@ describe('ApprovalsProcessorService', () => {
 
       expect(redisCacheService.get).toHaveBeenCalledTimes(1);
       expect(grpcService.subscribeToApprovals).toHaveBeenCalledTimes(1);
-      expect(grpcService.subscribeToApprovals).toHaveBeenCalledWith('multiversx-test', undefined);
+      expect(grpcService.subscribeToApprovals).toHaveBeenCalledWith('multiversx', undefined);
 
       const userAddress = UserAddress.fromBech32('erd1qqqqqqqqqqqqqpgqhe8t5jewej70zupmh44jurgn29psua5l2jps3ntjj3');
       walletSigner.getAddress.mockReturnValueOnce(userAddress);
@@ -98,7 +95,7 @@ describe('ApprovalsProcessorService', () => {
 
       // Process a message
       const message: SubscribeToApprovalsResponse = {
-        chain: 'multiversx-test',
+        chain: 'multiversx',
         executeData: Uint8Array.of(1, 2, 3, 4),
         blockHeight: 1,
       };
@@ -134,7 +131,7 @@ describe('ApprovalsProcessorService', () => {
 
       expect(redisCacheService.set).toHaveBeenCalledWith(
         CacheInfo.StartProcessHeight().key,
-        message.blockHeight + 1, // next block height
+        message.blockHeight,
         CacheInfo.StartProcessHeight().ttl,
       );
     });
@@ -152,7 +149,7 @@ describe('ApprovalsProcessorService', () => {
       await service.handleNewApprovalsRaw();
       // Process a message
       const message: SubscribeToApprovalsResponse = {
-        chain: 'multiversx-test',
+        chain: 'multiversx',
         executeData: Uint8Array.of(1, 2, 3, 4),
         blockHeight: 1,
       };
@@ -185,7 +182,7 @@ describe('ApprovalsProcessorService', () => {
 
       expect(redisCacheService.get).toHaveBeenCalledTimes(2);
       expect(grpcService.subscribeToApprovals).toHaveBeenCalledTimes(2);
-      expect(grpcService.subscribeToApprovals).toHaveBeenCalledWith('multiversx-test', 1);
+      expect(grpcService.subscribeToApprovals).toHaveBeenCalledWith('multiversx', 1);
     });
 
     it('Should reinitialize subscription on complete or on error', async () => {
