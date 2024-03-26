@@ -2,24 +2,19 @@ import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { ProviderKeys } from '@mvx-monorepo/common/utils/provider.enum';
 import { ClientGrpc } from '@nestjs/microservices';
 import { ContractCallEvent } from '@prisma/client';
-import {
-  BroadcastRequest,
-  Relayer,
-  SubscribeToApprovalsResponse,
-  VerifyRequest,
-} from '@mvx-monorepo/common/grpc/entities/relayer';
+import { Amplifier, SubscribeToApprovalsResponse, VerifyRequest } from '@mvx-monorepo/common/grpc/entities/amplifier';
 import { first, Observable, ReplaySubject, timeout } from 'rxjs';
 import BigNumber from 'bignumber.js';
 import { ApiConfigService } from '@mvx-monorepo/common/config';
 
-const RELAYER_SERVICE = 'Relayer';
+const AMPLIFIER_SERVICE = 'Amplifier';
 
 const VERIFY_TIMEOUT = 30_000; // TODO: Check if this timeout is enough
 
 @Injectable()
 export class GrpcService implements OnModuleInit {
   // @ts-ignore
-  private relayerService: Relayer;
+  private amplifierService: Amplifier;
   private readonly axelarContractVotingVerifier: string;
 
   constructor(
@@ -30,7 +25,7 @@ export class GrpcService implements OnModuleInit {
   }
 
   onModuleInit() {
-    this.relayerService = this.client.getService<Relayer>(RELAYER_SERVICE);
+    this.amplifierService = this.client.getService<Amplifier>(AMPLIFIER_SERVICE);
   }
 
   verify(contractCallEvent: ContractCallEvent) {
@@ -48,11 +43,11 @@ export class GrpcService implements OnModuleInit {
     });
     replaySubject.complete();
 
-    return this.relayerService.verify(replaySubject).pipe(first(), timeout(VERIFY_TIMEOUT));
+    return this.amplifierService.verify(replaySubject).pipe(first(), timeout(VERIFY_TIMEOUT));
   }
 
   async getPayload(payloadHash: string): Promise<Buffer> {
-    const result = await this.relayerService.getPayload({
+    const result = await this.amplifierService.getPayload({
       hash: Buffer.from(payloadHash, 'hex'),
     });
 
@@ -60,8 +55,8 @@ export class GrpcService implements OnModuleInit {
   }
 
   subscribeToApprovals(chain: string, startHeight?: number | undefined): Observable<SubscribeToApprovalsResponse> {
-    return this.relayerService.subscribeToApprovals({
-      chain,
+    return this.amplifierService.subscribeToApprovals({
+      chains: [chain],
       startHeight,
     });
   }
@@ -86,12 +81,9 @@ export class GrpcService implements OnModuleInit {
       }),
     );
 
-    const request: BroadcastRequest = {
+    return await this.amplifierService.broadcast({
       address: this.axelarContractVotingVerifier,
       payload,
-    };
-
-    // TODO: Should we add a retry mechanism here?
-    await this.relayerService.broadcast(request);
+    });
   }
 }

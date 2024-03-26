@@ -3,9 +3,20 @@ import { Observable } from "rxjs";
 
 export const protobufPackage = "";
 
+export enum ErrorCode {
+  VERIFICATION_FAILED = 0,
+  INTERNAL_ERROR = 1,
+  AXELAR_NETWORK_ERROR = 2,
+  INSUFFICIENT_GAS = 3,
+  FAILED_ON_CHAIN = 4,
+  MESSAGE_NOT_FOUND = 5,
+  UNRECOGNIZED = -1,
+}
+
 export interface Message {
-  /** the unique identifier with which the message can be looked up on the source chain */
+  /** the unique identifier with which the message can be looked */
   id: string;
+  /** up on the source chain */
   sourceChain: string;
   sourceAddress: string;
   destinationChain: string;
@@ -22,7 +33,7 @@ export interface GetPayloadResponse {
 }
 
 export interface SubscribeToApprovalsRequest {
-  chain: string;
+  chains: string[];
   /** can be used to replay events */
   startHeight?: number | undefined;
 }
@@ -39,7 +50,12 @@ export interface VerifyRequest {
 
 export interface VerifyResponse {
   message: Message | undefined;
-  success: boolean;
+  error?: Error | undefined;
+}
+
+export interface Error {
+  error: string;
+  errorCode: ErrorCode;
 }
 
 export interface SubscribeToWasmEventsRequest {
@@ -63,19 +79,10 @@ export interface BroadcastRequest {
 }
 
 export interface BroadcastResponse {
-  receipt: Receipt | undefined;
+  success: boolean;
 }
 
-export interface Receipt {
-  error: string;
-  blockHeight: number;
-  gasUsed: number;
-  gasWanted: number;
-  txHash: string;
-  txResponseLog: string;
-}
-
-export interface Relayer {
+export interface Amplifier {
   verify(request: Observable<VerifyRequest>): Observable<VerifyResponse>;
   getPayload(request: GetPayloadRequest): Promise<GetPayloadResponse>;
   subscribeToApprovals(request: SubscribeToApprovalsRequest): Observable<SubscribeToApprovalsResponse>;
