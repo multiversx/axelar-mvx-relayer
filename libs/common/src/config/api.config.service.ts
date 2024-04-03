@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EVENTS_NOTIFIER_QUEUE } from '../../../../config/configuration';
-import { CONSTANTS } from '@mvx-monorepo/common/utils/constants.enum';
 
 @Injectable()
 export class ApiConfigService {
@@ -119,10 +118,6 @@ export class ApiConfigService {
     }
 
     return chainId;
-  }
-
-  getSourceChainName(): string {
-    return CONSTANTS.SOURCE_CHAIN_NAME_SUFFIX + this.getChainId();
   }
 
   getWalletMnemonic(): string {

@@ -3,13 +3,16 @@ import { NotifierEvent } from '../event-processor/types';
 import { GatewayContract } from '@mvx-monorepo/common/contracts/gateway.contract';
 import { TransactionEvent } from '@multiversx/sdk-network-providers/out';
 import { ContractCallEventRepository } from '@mvx-monorepo/common/database/repository/contract-call-event.repository';
-import { ApiConfigService } from '@mvx-monorepo/common';
 import { ContractCallApprovedStatus, ContractCallEventStatus } from '@prisma/client';
 import { GrpcService } from '@mvx-monorepo/common/grpc/grpc.service';
 import { ProcessorInterface } from './entities/processor.interface';
 import { EventIdentifiers, Events } from '@mvx-monorepo/common/utils/event.enum';
 import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
-import { ContractCallApprovedRepository } from '@mvx-monorepo/common/database/repository/contract-call-approved.repository';
+import {
+  ContractCallApprovedRepository,
+} from '@mvx-monorepo/common/database/repository/contract-call-approved.repository';
+import { ErrorCode } from '@mvx-monorepo/common/grpc/entities/amplifier';
+import { CONSTANTS } from '@mvx-monorepo/common/utils/constants.enum';
 
 // order/logIndex is unsupported since we can't easily get it in the relayer, so we use 0 by default
 // this means that only one cross chain call is supported for now (the first appropriate call found in transaction logs)
@@ -18,17 +21,14 @@ const UNSUPPORTED_LOG_INDEX: number = 0;
 @Injectable()
 export class GatewayProcessor implements ProcessorInterface {
   private readonly logger: Logger;
-  private readonly sourceChain: string;
 
   constructor(
     private readonly gatewayContract: GatewayContract,
     private readonly contractCallEventRepository: ContractCallEventRepository,
     private readonly contractCallApprovedRepository: ContractCallApprovedRepository,
     private readonly grpcService: GrpcService,
-    apiConfigService: ApiConfigService,
   ) {
     this.logger = new Logger(GatewayProcessor.name);
-    this.sourceChain = apiConfigService.getSourceChainName();
   }
 
   async handleEvent(rawEvent: NotifierEvent) {
@@ -63,14 +63,14 @@ export class GatewayProcessor implements ProcessorInterface {
   private async handleContractCallEvent(rawEvent: NotifierEvent) {
     const event = this.gatewayContract.decodeContractCallEvent(TransactionEvent.fromHttpResponse(rawEvent));
 
-    const id = `${this.sourceChain}:${rawEvent.txHash}:${UNSUPPORTED_LOG_INDEX}`;
+    const id = `${CONSTANTS.SOURCE_CHAIN_NAME}:${rawEvent.txHash}:${UNSUPPORTED_LOG_INDEX}`;
     const contractCallEvent = await this.contractCallEventRepository.create({
       id,
       txHash: rawEvent.txHash,
       eventIndex: UNSUPPORTED_LOG_INDEX,
       status: ContractCallEventStatus.PENDING,
       sourceAddress: event.sender.bech32(),
-      sourceChain: this.sourceChain,
+      sourceChain: CONSTANTS.SOURCE_CHAIN_NAME,
       destinationAddress: event.destinationAddress,
       destinationChain: event.destinationChain,
       payloadHash: event.data.payloadHash,
@@ -84,9 +84,19 @@ export class GatewayProcessor implements ProcessorInterface {
 
     // TODO: Test if this works correctly
     this.grpcService.verify(contractCallEvent).subscribe({
-      next: async (value) => {
-        if (value.success) {
+      next: async (response) => {
+        if (!response.error) {
           contractCallEvent.status = ContractCallEventStatus.APPROVED;
+
+          await this.contractCallEventRepository.updateStatus(contractCallEvent);
+
+          return;
+        } else if (response.error.errorCode === ErrorCode.FAILED_ON_CHAIN) {
+          this.logger.error(
+            `Verify contract call event ${id} was not successful. Will NOT be retried.  Got error code ${response.error.errorCode}`,
+          );
+
+          contractCallEvent.status = ContractCallEventStatus.FAILED;
 
           await this.contractCallEventRepository.updateStatus(contractCallEvent);
 
@@ -128,14 +138,33 @@ export class GatewayProcessor implements ProcessorInterface {
       TransactionEvent.fromHttpResponse(rawEvent),
     );
 
-    const id = `${this.sourceChain}:${rawEvent.txHash}:${UNSUPPORTED_LOG_INDEX}`;
+    const id = `${CONSTANTS.SOURCE_CHAIN_NAME}:${rawEvent.txHash}:${UNSUPPORTED_LOG_INDEX}`;
 
-    await this.grpcService.verifyWorkerSet(
+    const response = await this.grpcService.verifyWorkerSet(
       id,
       trasnsferData.newOperators,
       trasnsferData.newWeights,
       trasnsferData.newThreshold,
     );
+
+    if (response.success) {
+      return;
+    }
+
+    this.logger.warn(`Couldn't dispatch verifyWorkerSet ${id} to Amplifier API. Retrying...`);
+
+    setTimeout(async () => {
+      const response = await this.grpcService.verifyWorkerSet(
+        id,
+        trasnsferData.newOperators,
+        trasnsferData.newWeights,
+        trasnsferData.newThreshold,
+      );
+
+      if (!response.success) {
+        this.logger.error(`Couldn't dispatch verifyWorkerSet ${id} to Amplifier API.`);
+      }
+    }, 60_000);
   }
 
   private async handleContractCallExecutedEvent(rawEvent: NotifierEvent) {

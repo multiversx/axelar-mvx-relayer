@@ -3,21 +3,21 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { GrpcService } from '@mvx-monorepo/common/grpc/grpc.service';
 import { RedisCacheService } from '@multiversx/sdk-nestjs-cache';
-import { ApiConfigService, CacheInfo } from '@mvx-monorepo/common';
+import { CacheInfo } from '@mvx-monorepo/common';
 import { Subscription } from 'rxjs';
-import { SubscribeToApprovalsResponse } from '@mvx-monorepo/common/grpc/entities/relayer';
+import { SubscribeToApprovalsResponse } from '@mvx-monorepo/common/grpc/entities/amplifier';
 import { ProviderKeys } from '@mvx-monorepo/common/utils/provider.enum';
 import { UserSigner } from '@multiversx/sdk-wallet/out';
 import { TransactionsHelper } from '@mvx-monorepo/common/contracts/transactions.helper';
 import { GatewayContract } from '@mvx-monorepo/common/contracts/gateway.contract';
 import { PendingTransaction } from './entities/pending-transaction';
+import { CONSTANTS } from '@mvx-monorepo/common/utils/constants.enum';
 
 const MAX_NUMBER_OF_RETRIES = 3;
 
 @Injectable()
 export class ApprovalsProcessorService {
   private readonly logger: Logger;
-  private readonly sourceChain: string;
 
   private approvalsSubscription: Subscription | null = null;
 
@@ -27,10 +27,8 @@ export class ApprovalsProcessorService {
     @Inject(ProviderKeys.WALLET_SIGNER) private readonly walletSigner: UserSigner,
     private readonly transactionsHelper: TransactionsHelper,
     private readonly gatewayContract: GatewayContract,
-    apiConfigService: ApiConfigService,
   ) {
     this.logger = new Logger(ApprovalsProcessorService.name);
-    this.sourceChain = apiConfigService.getSourceChainName();
   }
 
   @Cron('*/30 * * * * *')
@@ -55,7 +53,7 @@ export class ApprovalsProcessorService {
     const lastProcessedHeight =
       (await this.redisCacheService.get<number>(CacheInfo.StartProcessHeight().key)) || undefined;
 
-    const observable = this.grpcService.subscribeToApprovals(this.sourceChain, lastProcessedHeight);
+    const observable = this.grpcService.subscribeToApprovals(CONSTANTS.SOURCE_CHAIN_NAME, lastProcessedHeight);
 
     const onComplete = () => {
       this.logger.warn('Approvals stream subscription ended');
@@ -133,25 +131,17 @@ export class ApprovalsProcessorService {
       this.logger.error('Error while processing Axelar Approvals response...');
       this.logger.error(e);
 
-      // Set start process height to current block height
+      // Unsubscribe so processing stops at this event and is retried
+      this.approvalsSubscription?.unsubscribe();
+    } finally {
+      // Set start process height to this block height to not lose any progress in case of unexpected issues
+      // It is safe to retry Gateway execute transaction that were already executed since the contract supports this
       await this.redisCacheService.set(
         CacheInfo.StartProcessHeight().key,
         response.blockHeight,
         CacheInfo.StartProcessHeight().ttl,
       );
-
-      // Unsubscribe so processing stops at this event and is retried
-      this.approvalsSubscription?.unsubscribe();
-
-      return;
     }
-
-    // Set start process height to next block height.
-    await this.redisCacheService.set(
-      CacheInfo.StartProcessHeight().key,
-      response.blockHeight + 1,
-      CacheInfo.StartProcessHeight().ttl,
-    );
   }
 
   private async executeTransaction(executeData: Uint8Array, retry: number = 0) {
