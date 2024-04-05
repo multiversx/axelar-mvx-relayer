@@ -1,6 +1,5 @@
 import { CacheModule, RedisCacheModule, RedisCacheModuleOptions } from '@multiversx/sdk-nestjs-cache';
-import { DynamicModule, Provider } from '@nestjs/common';
-import { ClientOptions, ClientProxyFactory, Transport } from '@nestjs/microservices';
+import { DynamicModule } from '@nestjs/common';
 import { ApiConfigModule, ApiConfigService } from '../config';
 
 export class DynamicModuleUtils {
@@ -38,26 +37,5 @@ export class DynamicModuleUtils {
         ),
       inject: [ApiConfigService],
     });
-  }
-
-  static getPubSubService(): Provider {
-    return {
-      provide: 'PUBSUB_SERVICE',
-      useFactory: (apiConfigService: ApiConfigService) => {
-        const clientOptions: ClientOptions = {
-          transport: Transport.REDIS,
-          options: {
-            host: apiConfigService.getRedisUrl(),
-            port: 6379,
-            retryDelay: 1000,
-            retryAttempts: 10,
-            retryStrategy: () => 1000,
-          },
-        };
-
-        return ClientProxyFactory.create(clientOptions);
-      },
-      inject: [ApiConfigService],
-    };
   }
 }

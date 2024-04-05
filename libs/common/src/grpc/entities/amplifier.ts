@@ -1,7 +1,7 @@
 /* eslint-disable */
 import { Observable } from "rxjs";
 
-export const protobufPackage = "";
+export const protobufPackage = "axelar.amplifier.v1beta1";
 
 export enum ErrorCode {
   VERIFICATION_FAILED = 0,

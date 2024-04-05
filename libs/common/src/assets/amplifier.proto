@@ -1,6 +1,8 @@
 syntax = "proto3";
 import "google/api/annotations.proto";
 
+package axelar.amplifier.v1beta1;
+
 service Amplifier {
   rpc Verify(stream VerifyRequest) returns (stream VerifyResponse);
   rpc GetPayload(GetPayloadRequest) returns (GetPayloadResponse) {
