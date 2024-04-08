@@ -8,8 +8,6 @@ export enum ErrorCode {
   INTERNAL_ERROR = 1,
   AXELAR_NETWORK_ERROR = 2,
   INSUFFICIENT_GAS = 3,
-  FAILED_ON_CHAIN = 4,
-  MESSAGE_NOT_FOUND = 5,
   UNRECOGNIZED = -1,
 }
 
@@ -21,6 +19,10 @@ export interface Message {
   sourceAddress: string;
   destinationChain: string;
   destinationAddress: string;
+  /**
+   * when we have a better idea of the requirement, we can add an additional
+   * optional field here to facilitate verification proofs
+   */
   payload: Uint8Array;
 }
 
@@ -49,7 +51,10 @@ export interface VerifyRequest {
 }
 
 export interface VerifyResponse {
-  message: Message | undefined;
+  message:
+    | Message
+    | undefined;
+  /** bool success = 2; */
   error?: Error | undefined;
 }
 
@@ -79,7 +84,7 @@ export interface BroadcastRequest {
 }
 
 export interface BroadcastResponse {
-  success: boolean;
+  result: boolean;
 }
 
 export interface Amplifier {

@@ -188,40 +188,6 @@ describe('ContractCallProcessor', () => {
       expect(contractCallEventRepository.updateStatus).not.toHaveBeenCalled();
     });
 
-    it('Should handle unrecoverable error', async () => {
-      const observable = new Subject<VerifyResponse>();
-      grpcService.verify.mockReturnValueOnce(observable);
-
-      await service.handleEvent(rawEvent);
-
-      expect(gatewayContract.decodeContractCallEvent).toHaveBeenCalledTimes(1);
-      expect(contractCallEventRepository.create).toHaveBeenCalledTimes(1);
-      expect(grpcService.verify).toHaveBeenCalledTimes(1);
-
-      observable.next({
-        message: undefined,
-        error: {
-          error: 'error',
-          errorCode: ErrorCode.FAILED_ON_CHAIN,
-        },
-      });
-      observable.complete();
-
-      expect(contractCallEventRepository.updateStatus).toHaveBeenCalledTimes(1);
-      expect(contractCallEventRepository.updateStatus).toHaveBeenCalledWith({
-        id: 'multiversx:txHash:0',
-        txHash: 'txHash',
-        eventIndex: 0,
-        status: ContractCallEventStatus.FAILED,
-        sourceAddress: 'erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7',
-        sourceChain: 'multiversx',
-        destinationAddress: 'destinationAddress',
-        destinationChain: 'ethereum',
-        payloadHash: 'ebc84cbd75ba5516bf45e7024a9e12bc3c5c880f73e3a5beca7ebba52b2867a7',
-        payload: Buffer.from('payload'),
-      });
-    });
-
     it('Should not handle duplicate', async () => {
       contractCallEventRepository.create.mockReturnValueOnce(Promise.resolve(null));
 
@@ -329,9 +295,11 @@ describe('ContractCallProcessor', () => {
     });
 
     it('Should handle event error', async () => {
-      grpcService.verifyWorkerSet.mockReturnValueOnce(Promise.resolve({
-        success: false,
-      }));
+      grpcService.verifyWorkerSet.mockReturnValueOnce(
+        Promise.resolve({
+          result: false,
+        }),
+      );
 
       await service.handleEvent(rawEvent);
 

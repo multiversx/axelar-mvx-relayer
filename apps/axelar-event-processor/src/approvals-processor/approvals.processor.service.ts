@@ -1,5 +1,5 @@
 import { Locker } from '@multiversx/sdk-nestjs-common';
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { GrpcService } from '@mvx-monorepo/common/grpc/grpc.service';
 import { RedisCacheService } from '@multiversx/sdk-nestjs-cache';
@@ -16,7 +16,7 @@ import { CONSTANTS } from '@mvx-monorepo/common/utils/constants.enum';
 const MAX_NUMBER_OF_RETRIES = 3;
 
 @Injectable()
-export class ApprovalsProcessorService {
+export class ApprovalsProcessorService implements OnModuleInit {
   private readonly logger: Logger;
 
   private approvalsSubscription: Subscription | null = null;
@@ -29,6 +29,10 @@ export class ApprovalsProcessorService {
     private readonly gatewayContract: GatewayContract,
   ) {
     this.logger = new Logger(ApprovalsProcessorService.name);
+  }
+
+  async onModuleInit() {
+    await this.handleNewApprovalsRaw();
   }
 
   @Cron('*/30 * * * * *')

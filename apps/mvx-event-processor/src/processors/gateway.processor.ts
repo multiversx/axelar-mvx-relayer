@@ -11,7 +11,6 @@ import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
 import {
   ContractCallApprovedRepository,
 } from '@mvx-monorepo/common/database/repository/contract-call-approved.repository';
-import { ErrorCode } from '@mvx-monorepo/common/grpc/entities/amplifier';
 import { CONSTANTS } from '@mvx-monorepo/common/utils/constants.enum';
 
 // order/logIndex is unsupported since we can't easily get it in the relayer, so we use 0 by default
@@ -91,16 +90,6 @@ export class GatewayProcessor implements ProcessorInterface {
           await this.contractCallEventRepository.updateStatus(contractCallEvent);
 
           return;
-        } else if (response.error.errorCode === ErrorCode.FAILED_ON_CHAIN) {
-          this.logger.error(
-            `Verify contract call event ${id} was not successful. Will NOT be retried.  Got error code ${response.error.errorCode}`,
-          );
-
-          contractCallEvent.status = ContractCallEventStatus.FAILED;
-
-          await this.contractCallEventRepository.updateStatus(contractCallEvent);
-
-          return;
         }
 
         this.logger.warn(`Verify contract call event ${id} was not successful. Will be retried.`);
@@ -140,6 +129,7 @@ export class GatewayProcessor implements ProcessorInterface {
 
     const id = `${CONSTANTS.SOURCE_CHAIN_NAME}:${rawEvent.txHash}:${UNSUPPORTED_LOG_INDEX}`;
 
+    // TODO: Test that this works correctly
     const response = await this.grpcService.verifyWorkerSet(
       id,
       trasnsferData.newOperators,
@@ -147,7 +137,7 @@ export class GatewayProcessor implements ProcessorInterface {
       trasnsferData.newThreshold,
     );
 
-    if (response.success) {
+    if (response.result) {
       return;
     }
 
@@ -161,7 +151,7 @@ export class GatewayProcessor implements ProcessorInterface {
         trasnsferData.newThreshold,
       );
 
-      if (!response.success) {
+      if (!response.result) {
         this.logger.error(`Couldn't dispatch verifyWorkerSet ${id} to Amplifier API.`);
       }
     }, 60_000);
