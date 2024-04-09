@@ -62,7 +62,7 @@ export class GatewayProcessor implements ProcessorInterface {
   private async handleContractCallEvent(rawEvent: NotifierEvent) {
     const event = this.gatewayContract.decodeContractCallEvent(TransactionEvent.fromHttpResponse(rawEvent));
 
-    const id = `${CONSTANTS.SOURCE_CHAIN_NAME}:${rawEvent.txHash}:${UNSUPPORTED_LOG_INDEX}`;
+    const id = `${CONSTANTS.SOURCE_CHAIN_NAME}_${rawEvent.txHash}-${UNSUPPORTED_LOG_INDEX}`;
     const contractCallEvent = await this.contractCallEventRepository.create({
       id,
       txHash: rawEvent.txHash,
