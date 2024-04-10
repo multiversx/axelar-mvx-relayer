@@ -54,10 +54,10 @@ export class ApprovalsProcessorService implements OnModuleInit {
 
     this.logger.log('Starting GRPC approvals stream subscription');
 
-    const lastProcessedHeight =
+    const startProcessHeight =
       (await this.redisCacheService.get<number>(CacheInfo.StartProcessHeight().key)) || undefined;
 
-    const observable = this.grpcService.subscribeToApprovals(CONSTANTS.SOURCE_CHAIN_NAME, lastProcessedHeight);
+    const observable = this.grpcService.subscribeToApprovals(CONSTANTS.SOURCE_CHAIN_NAME, startProcessHeight);
 
     const onComplete = () => {
       this.logger.warn('Approvals stream subscription ended');
@@ -74,8 +74,8 @@ export class ApprovalsProcessorService implements OnModuleInit {
     // TODO: Test if this works as expected
     this.approvalsSubscription = observable.subscribe({
       next: this.processMessage.bind(this),
-      complete: onComplete,
-      error: onError,
+      complete: onComplete.bind(this),
+      error: onError.bind(this),
     });
   }
 

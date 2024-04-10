@@ -82,11 +82,13 @@ export class CallContractApprovedProcessorService {
           contractCallApproved.retry += 1;
         }
 
-        const result = await this.transactionsHelper.sendTransactions(transactionsToSend);
+        const hashes = await this.transactionsHelper.sendTransactions(transactionsToSend);
 
-        if (result) {
+        if (hashes) {
+          const actuallySentEntries = entries.filter(entry => hashes.includes(entry.executeTxHash as string));
+
           // Page is not modified if database records are updated
-          await this.contractCallApprovedRepository.updateManyPartial(entries);
+          await this.contractCallApprovedRepository.updateManyPartial(actuallySentEntries);
         } else {
           // re-retrieve account nonce in case sendTransactions failed because of nonce error
           accountNonce = null;

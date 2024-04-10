@@ -313,6 +313,10 @@ describe('CallContractApprovedProcessorService', () => {
         payload: Buffer.from(AbiCoder.defaultAbiCoder().encode(['uint256'], [1]).substring(2), 'hex'),
       });
 
+      proxy.sendTransactions.mockReturnValueOnce(Promise.resolve([
+        'af0848face1fa76874752bbc9fab1928b33e08ff646471cab3d0fa91a6506a51',
+      ]));
+
       await service.processPendingContractCallApproved();
 
       expect(proxy.getAccount).toHaveBeenCalledTimes(1);
@@ -358,6 +362,10 @@ describe('CallContractApprovedProcessorService', () => {
         }),
       );
 
+      proxy.sendTransactions.mockReturnValueOnce(Promise.resolve([
+        '36a71e24554303f6b734143ad90f939b57018f8c05f8abaa63e23950f899ce56',
+      ]));
+
       // Process transaction 2nd time
       await service.processPendingContractCallApproved();
 
@@ -379,7 +387,28 @@ describe('CallContractApprovedProcessorService', () => {
       itsExecute.updatedAt = new Date(new Date().getTime() - 60_500);
       await prisma.contractCallApproved.update({ where: { commandId: itsExecute.commandId }, data: itsExecute });
 
-      // Process transaction 3rd time will retry
+      // Process transaction 3rd time will retry transaction not sent
+      await service.processPendingContractCallApproved();
+
+      transactions = proxy.sendTransactions.mock.lastCall?.[0] as Transaction[];
+      expect(transactions).toHaveLength(1);
+      expect(transactions[0].getValue()).toBe('50000000000000000'); // assert sent with value
+
+      // @ts-ignore
+      itsExecute = await contractCallApprovedRepository.findByCommandId(originalItsExecute.commandId);
+      expect(itsExecute).toEqual({
+        ...originalItsExecute,
+        retry: 2,
+        executeTxHash: '36a71e24554303f6b734143ad90f939b57018f8c05f8abaa63e23950f899ce56',
+        updatedAt: expect.any(Date),
+        successTimes: 1,
+      });
+
+      // Process transaction 3rd time will retry transaction sent
+      proxy.sendTransactions.mockReturnValueOnce(Promise.resolve([
+        'e072d88e869e51a261e4a48aea1abb6f62a1f69c8af6fc3740d26e57b5e0a2bb',
+      ]));
+
       await service.processPendingContractCallApproved();
 
       transactions = proxy.sendTransactions.mock.lastCall?.[0] as Transaction[];

@@ -64,22 +64,22 @@ export class TransactionsHelper {
 
   async sendTransactions(transactions: Transaction[]) {
     if (!transactions.length) {
-      return true;
+      return [];
     }
 
     try {
-      await this.proxy.sendTransactions(transactions);
+      const hashes = await this.proxy.sendTransactions(transactions);
 
       this.logger.log(
-        `Sent ${transactions.length} transactions to proxy: ${transactions.map((trans) => trans.getHash())}`,
+        `Sent ${transactions.length} transactions to proxy: ${hashes}`,
       );
 
-      return true;
+      return hashes;
     } catch (e) {
       this.logger.error(`Can not send transactions to proxy...`);
       this.logger.error(e);
 
-      return false;
+      return null;
     }
   }
 
