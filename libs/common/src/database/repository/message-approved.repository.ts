@@ -1,24 +1,24 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@mvx-monorepo/common/database/prisma.service';
-import { ContractCallApproved, ContractCallApprovedStatus, Prisma } from '@prisma/client';
+import { MessageApproved, MessageApprovedStatus, Prisma } from '@prisma/client';
 
 @Injectable()
-export class ContractCallApprovedRepository {
+export class MessageApprovedRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  create(data: Prisma.ContractCallApprovedCreateInput): Promise<ContractCallApproved | null> {
-    return this.prisma.contractCallApproved.create({
+  create(data: Prisma.MessageApprovedCreateInput): Promise<MessageApproved | null> {
+    return this.prisma.messageApproved.create({
       data,
     });
   }
 
-  findPending(page: number = 0, take: number = 10): Promise<ContractCallApproved[] | null> {
+  findPending(page: number = 0, take: number = 10): Promise<MessageApproved[] | null> {
     // Last updated more than one minute ago, if retrying
     const lastUpdatedAt = new Date(new Date().getTime() - 60_000);
 
-    return this.prisma.contractCallApproved.findMany({
+    return this.prisma.messageApproved.findMany({
       where: {
-        status: ContractCallApprovedStatus.PENDING,
+        status: MessageApprovedStatus.PENDING,
         OR: [
           { retry: 0 },
           {
@@ -37,18 +37,18 @@ export class ContractCallApprovedRepository {
     });
   }
 
-  findByCommandId(commandId: string): Promise<ContractCallApproved | null> {
-    return this.prisma.contractCallApproved.findUnique({
+  findByCommandId(commandId: string): Promise<MessageApproved | null> {
+    return this.prisma.messageApproved.findUnique({
       where: {
         commandId: commandId,
       },
     });
   }
 
-  async updateManyPartial(entries: ContractCallApproved[]) {
+  async updateManyPartial(entries: MessageApproved[]) {
     await this.prisma.$transaction(
       entries.map((data) => {
-        return this.prisma.contractCallApproved.update({
+        return this.prisma.messageApproved.update({
           where: {
             commandId: data.commandId,
           },
@@ -63,8 +63,8 @@ export class ContractCallApprovedRepository {
     );
   }
 
-  async updateStatusAndSuccessTimes(data: ContractCallApproved) {
-    await this.prisma.contractCallApproved.update({
+  async updateStatusAndSuccessTimes(data: MessageApproved) {
+    await this.prisma.messageApproved.update({
       where: {
         commandId: data.commandId,
       },

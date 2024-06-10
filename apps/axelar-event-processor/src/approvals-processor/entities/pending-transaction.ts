@@ -1,5 +1,5 @@
 export interface PendingTransaction {
   txHash: string;
-  executeData: Uint8Array;
+  externalData: Uint8Array;
   retry: number;
 }

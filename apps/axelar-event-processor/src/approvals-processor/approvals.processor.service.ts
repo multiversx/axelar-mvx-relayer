@@ -1,4 +1,4 @@
-import { Locker } from '@multiversx/sdk-nestjs-common';
+import { BinaryUtils, Locker } from '@multiversx/sdk-nestjs-common';
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { GrpcService } from '@mvx-monorepo/common/grpc/grpc.service';
@@ -90,7 +90,7 @@ export class ApprovalsProcessorService implements OnModuleInit {
         continue;
       }
 
-      const { txHash, executeData, retry } = cachedValue;
+      const { txHash, externalData, retry } = cachedValue;
 
       const success = await this.transactionsHelper.awaitSuccess(txHash);
 
@@ -106,7 +106,7 @@ export class ApprovalsProcessorService implements OnModuleInit {
       }
 
       try {
-        await this.executeTransaction(executeData, retry);
+        await this.executeTransaction(externalData, retry);
       } catch (e) {
         this.logger.error('Error while trying to retry Axelar Approvals response transaction...');
         this.logger.error(e);
@@ -116,7 +116,7 @@ export class ApprovalsProcessorService implements OnModuleInit {
           CacheInfo.PendingTransaction(txHash).key,
           {
             txHash,
-            executeData: executeData,
+            externalData: externalData,
             retry: retry,
           },
           CacheInfo.PendingTransaction(txHash).ttl,
@@ -148,11 +148,15 @@ export class ApprovalsProcessorService implements OnModuleInit {
     }
   }
 
-  private async executeTransaction(executeData: Uint8Array, retry: number = 0) {
-    this.logger.debug(`Trying to execute Gateway execute transaction with executeData:`);
-    this.logger.debug(executeData);
+  private async executeTransaction(externalData: Uint8Array, retry: number = 0) {
+    // The Amplifier for MultiversX encodes the executeData as hex, we need to decode it to string
+    // It will have the format `function@arg1HEX@arg2HEX...`
+    const decodedExecuteData = BinaryUtils.hexToString(Buffer.from(externalData).toString('hex'));
 
-    const transaction = this.gatewayContract.buildExecuteTransaction(executeData, this.walletSigner.getAddress());
+    this.logger.debug(`Trying to execute Gateway execute transaction with externalData:`);
+    this.logger.debug(decodedExecuteData);
+
+    const transaction = this.gatewayContract.buildTransactionExternalFunction(decodedExecuteData, this.walletSigner.getAddress());
 
     const gas = await this.transactionsHelper.getTransactionGas(transaction, retry);
     transaction.setGasLimit(gas);
@@ -163,7 +167,7 @@ export class ApprovalsProcessorService implements OnModuleInit {
       CacheInfo.PendingTransaction(txHash).key,
       {
         txHash,
-        executeData: executeData,
+        externalData,
         retry: retry + 1,
       },
       CacheInfo.PendingTransaction(txHash).ttl,

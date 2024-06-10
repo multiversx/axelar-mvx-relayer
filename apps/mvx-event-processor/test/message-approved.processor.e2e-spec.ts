@@ -1,43 +1,33 @@
 import { Test } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import { AccountOnNetwork, ProxyNetworkProvider, TransactionStatus } from '@multiversx/sdk-network-providers/out';
-import {
-  CallContractApprovedProcessorModule,
-  CallContractApprovedProcessorService,
-} from '../src/call-contract-approved-processor';
-import { ContractCallApprovedRepository } from '@mvx-monorepo/common/database/repository/contract-call-approved.repository';
+import { MessageApprovedProcessorModule, MessageApprovedProcessorService } from '../src/message-approved-processor';
+import { MessageApprovedRepository } from '@mvx-monorepo/common/database/repository/message-approved.repository';
 import { PrismaService } from '@mvx-monorepo/common/database/prisma.service';
-import { CacheService } from '@multiversx/sdk-nestjs-cache';
-import { CacheInfo } from '@mvx-monorepo/common';
-import { ContractCallApproved, ContractCallApprovedStatus } from '@prisma/client';
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { Transaction, TransactionWatcher } from '@multiversx/sdk-core/out';
 import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
 import { AbiCoder } from 'ethers';
+import { MessageApproved, MessageApprovedStatus } from '@prisma/client';
 
 const WALLET_SIGNER_ADDRESS = 'erd1fsk0cnaag2m78gunfddsvg0y042rf0maxxgz6kvm32kxcl25m0yq8s38vt';
 
 describe('CallContractApprovedProcessorService', () => {
-  let cacheService: CacheService;
   let proxy: DeepMocked<ProxyNetworkProvider>;
   let transactionWatcher: DeepMocked<TransactionWatcher>;
   let prisma: PrismaService;
-  let contractCallApprovedRepository: ContractCallApprovedRepository;
+  let messageApprovedRepository: MessageApprovedRepository;
 
-  let service: CallContractApprovedProcessorService;
+  let service: MessageApprovedProcessorService;
 
   let app: INestApplication;
-
-  const resetCache = async () => {
-    await cacheService.deleteMany([CacheInfo.ChainId().key]);
-  };
 
   beforeEach(async () => {
     proxy = createMock();
     transactionWatcher = createMock();
 
     const moduleRef = await Test.createTestingModule({
-      imports: [CallContractApprovedProcessorModule],
+      imports: [MessageApprovedProcessorModule],
     })
       .overrideProvider(ProxyNetworkProvider)
       .useValue(proxy)
@@ -45,11 +35,10 @@ describe('CallContractApprovedProcessorService', () => {
       .useValue(transactionWatcher)
       .compile();
 
-    cacheService = await moduleRef.get(CacheService);
     prisma = await moduleRef.get(PrismaService);
-    contractCallApprovedRepository = await moduleRef.get(ContractCallApprovedRepository);
+    messageApprovedRepository = await moduleRef.get(MessageApprovedRepository);
 
-    service = await moduleRef.get(CallContractApprovedProcessorService);
+    service = await moduleRef.get(MessageApprovedProcessorService);
 
     // Mock general calls
     proxy.getAccount.mockReturnValueOnce(
@@ -72,28 +61,27 @@ describe('CallContractApprovedProcessorService', () => {
     });
 
     // Reset database & cache
-    await prisma.contractCallApproved.deleteMany();
-    await resetCache();
+    await prisma.messageApproved.deleteMany();
 
     app = moduleRef.createNestApplication();
     await app.init();
   });
 
   afterEach(async () => {
-    await resetCache();
     await prisma.$disconnect();
 
     await app.close();
   });
 
-  const createContractCallApproved = async (
-    extraData: Partial<ContractCallApproved> = {},
-  ): Promise<ContractCallApproved> => {
-    const result = await contractCallApprovedRepository.create({
+  const createMessageApproved = async (
+    extraData: Partial<MessageApproved> = {},
+  ): Promise<MessageApproved> => {
+    const result = await messageApprovedRepository.create({
       commandId: '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15aa',
       txHash: 'txHashA',
-      status: ContractCallApprovedStatus.PENDING,
+      status: MessageApprovedStatus.PENDING,
       sourceAddress: 'sourceAddress',
+      messageId: 'messageId',
       sourceChain: 'ethereum',
       contractAddress: 'erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7',
       payloadHash: 'ebc84cbd75ba5516bf45e7024a9e12bc3c5c880f73e3a5beca7ebba52b2867a7',
@@ -112,19 +100,19 @@ describe('CallContractApprovedProcessorService', () => {
     return result;
   };
 
-  const assertArgs = (transaction: Transaction, entry: ContractCallApproved) => {
+  const assertArgs = (transaction: Transaction, entry: MessageApproved) => {
     const args = transaction.getData().toString().split('@');
 
     expect(args[0]).toBe('execute');
-    expect(args[1]).toBe(entry.commandId);
-    expect(args[2]).toBe(BinaryUtils.stringToHex(entry.sourceChain));
+    expect(args[1]).toBe(BinaryUtils.stringToHex(entry.sourceChain));
+    expect(args[2]).toBe(BinaryUtils.stringToHex(entry.messageId));
     expect(args[3]).toBe(BinaryUtils.stringToHex(entry.sourceAddress));
     expect(args[4]).toBe(entry.payload.toString('hex'));
   };
 
   it('Should send execute transaction two initial', async () => {
-    const originalFirstEntry = await createContractCallApproved();
-    const originalSecondEntry = await createContractCallApproved({
+    const originalFirstEntry = await createMessageApproved();
+    const originalSecondEntry = await createMessageApproved({
       commandId: '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15bb',
       txHash: 'txHashB',
       sourceChain: 'polygon',
@@ -132,7 +120,7 @@ describe('CallContractApprovedProcessorService', () => {
       payload: Buffer.from('otherPayload'),
     });
 
-    await service.processPendingContractCallApproved();
+    await service.processPendingMessageApproved();
 
     expect(proxy.getAccount).toHaveBeenCalledTimes(1);
     expect(proxy.doPostGeneric).toHaveBeenCalledTimes(2);
@@ -155,10 +143,10 @@ describe('CallContractApprovedProcessorService', () => {
     assertArgs(transactions[1], originalSecondEntry);
 
     // No contract call approved pending
-    expect(await contractCallApprovedRepository.findPending()).toEqual([]);
+    expect(await messageApprovedRepository.findPending()).toEqual([]);
 
     // Expect entries in database updated
-    const firstEntry = await contractCallApprovedRepository.findByCommandId(originalFirstEntry.commandId);
+    const firstEntry = await messageApprovedRepository.findByCommandId(originalFirstEntry.commandId);
     expect(firstEntry).toEqual({
       ...originalFirstEntry,
       retry: 1,
@@ -166,7 +154,7 @@ describe('CallContractApprovedProcessorService', () => {
       updatedAt: expect.any(Date),
     });
 
-    const secondEntry = await contractCallApprovedRepository.findByCommandId(originalSecondEntry.commandId);
+    const secondEntry = await messageApprovedRepository.findByCommandId(originalSecondEntry.commandId);
     expect(secondEntry).toEqual({
       ...originalSecondEntry,
       retry: 1,
@@ -177,11 +165,11 @@ describe('CallContractApprovedProcessorService', () => {
 
   it('Should send execute transaction retry one processed one failed', async () => {
     // Entries will be processed
-    const originalFirstEntry = await createContractCallApproved({
+    const originalFirstEntry = await createMessageApproved({
       retry: 1,
       updatedAt: new Date(new Date().getTime() - 60_500),
     });
-    const originalSecondEntry = await createContractCallApproved({
+    const originalSecondEntry = await createMessageApproved({
       commandId: '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15bb',
       txHash: 'txHashB',
       sourceChain: 'polygon',
@@ -191,13 +179,13 @@ describe('CallContractApprovedProcessorService', () => {
       updatedAt: new Date(new Date().getTime() - 60_500),
     });
     // Entry will not be processed (updated too early)
-    const originalThirdEntry = await createContractCallApproved({
+    const originalThirdEntry = await createMessageApproved({
       commandId: '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15cc',
       txHash: 'txHashC',
       retry: 1,
     });
 
-    await service.processPendingContractCallApproved();
+    await service.processPendingMessageApproved();
 
     expect(proxy.getAccount).toHaveBeenCalledTimes(1);
     expect(proxy.doPostGeneric).toHaveBeenCalledTimes(1);
@@ -214,10 +202,10 @@ describe('CallContractApprovedProcessorService', () => {
     assertArgs(transactions[0], originalFirstEntry);
 
     // No contract call approved pending remained
-    expect(await contractCallApprovedRepository.findPending()).toEqual([]);
+    expect(await messageApprovedRepository.findPending()).toEqual([]);
 
     // Expect entries in database updated
-    const firstEntry = await contractCallApprovedRepository.findByCommandId(originalFirstEntry.commandId);
+    const firstEntry = await messageApprovedRepository.findByCommandId(originalFirstEntry.commandId);
     expect(firstEntry).toEqual({
       ...originalFirstEntry,
       retry: 2,
@@ -225,15 +213,15 @@ describe('CallContractApprovedProcessorService', () => {
       updatedAt: expect.any(Date),
     });
 
-    const secondEntry = await contractCallApprovedRepository.findByCommandId(originalSecondEntry.commandId);
+    const secondEntry = await messageApprovedRepository.findByCommandId(originalSecondEntry.commandId);
     expect(secondEntry).toEqual({
       ...originalSecondEntry,
-      status: ContractCallApprovedStatus.FAILED,
+      status: MessageApprovedStatus.FAILED,
       updatedAt: expect.any(Date),
     });
 
     // Was not updated
-    const thirdEntry = await contractCallApprovedRepository.findByCommandId(originalThirdEntry.commandId);
+    const thirdEntry = await messageApprovedRepository.findByCommandId(originalThirdEntry.commandId);
     expect(thirdEntry).toEqual({
       ...originalThirdEntry,
     });
@@ -243,11 +231,11 @@ describe('CallContractApprovedProcessorService', () => {
     const contractAddress = 'erd1qqqqqqqqqqqqqpgq97wezxw6l7lgg7k9rxvycrz66vn92ksh2tssxwf7ep';
 
     it('Should send execute transaction one deploy interchain token one other', async () => {
-      const originalItsExecuteOther = await createContractCallApproved({
+      const originalItsExecuteOther = await createMessageApproved({
         contractAddress,
         payload: Buffer.from(AbiCoder.defaultAbiCoder().encode(['uint256'], [0]).substring(2), 'hex'),
       });
-      const originalItsExecute = await createContractCallApproved({
+      const originalItsExecute = await createMessageApproved({
         contractAddress,
         commandId: '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15bb',
         txHash: 'txHashB',
@@ -256,7 +244,7 @@ describe('CallContractApprovedProcessorService', () => {
         payload: Buffer.from(AbiCoder.defaultAbiCoder().encode(['uint256'], [1]).substring(2), 'hex'),
       });
 
-      await service.processPendingContractCallApproved();
+      await service.processPendingMessageApproved();
 
       expect(proxy.getAccount).toHaveBeenCalledTimes(1);
       expect(proxy.doPostGeneric).toHaveBeenCalledTimes(2);
@@ -281,10 +269,10 @@ describe('CallContractApprovedProcessorService', () => {
       expect(transactions[1].getValue()).toBe('0'); // assert sent with value 0
 
       // No contract call approved pending
-      expect(await contractCallApprovedRepository.findPending()).toEqual([]);
+      expect(await messageApprovedRepository.findPending()).toEqual([]);
 
       // Expect entries in database updated
-      const itsExecuteOther = await contractCallApprovedRepository.findByCommandId(originalItsExecuteOther.commandId);
+      const itsExecuteOther = await messageApprovedRepository.findByCommandId(originalItsExecuteOther.commandId);
       expect(itsExecuteOther).toEqual({
         ...originalItsExecuteOther,
         retry: 1,
@@ -293,7 +281,7 @@ describe('CallContractApprovedProcessorService', () => {
         successTimes: null,
       });
 
-      const itsExecute = await contractCallApprovedRepository.findByCommandId(originalItsExecute.commandId);
+      const itsExecute = await messageApprovedRepository.findByCommandId(originalItsExecute.commandId);
       expect(itsExecute).toEqual({
         ...originalItsExecute,
         retry: 1,
@@ -303,8 +291,8 @@ describe('CallContractApprovedProcessorService', () => {
       });
     });
 
-    it.only('Should send execute transaction deploy interchain token 2 times', async () => {
-      const originalItsExecute = await createContractCallApproved({
+    it('Should send execute transaction deploy interchain token 2 times', async () => {
+      const originalItsExecute = await createMessageApproved({
         contractAddress,
         commandId: '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15bb',
         txHash: 'txHashB',
@@ -317,7 +305,7 @@ describe('CallContractApprovedProcessorService', () => {
         'af0848face1fa76874752bbc9fab1928b33e08ff646471cab3d0fa91a6506a51',
       ]));
 
-      await service.processPendingContractCallApproved();
+      await service.processPendingMessageApproved();
 
       expect(proxy.getAccount).toHaveBeenCalledTimes(1);
       expect(proxy.doPostGeneric).toHaveBeenCalledTimes(1);
@@ -335,10 +323,10 @@ describe('CallContractApprovedProcessorService', () => {
       expect(transactions[0].getValue()).toBe('0'); // assert sent with no value 1st time
 
       // No contract call approved pending
-      expect(await contractCallApprovedRepository.findPending()).toEqual([]);
+      expect(await messageApprovedRepository.findPending()).toEqual([]);
 
       // @ts-ignore
-      let itsExecute: ContractCallApproved = await contractCallApprovedRepository.findByCommandId(
+      let itsExecute: MessageApproved = await messageApprovedRepository.findByCommandId(
         originalItsExecute.commandId,
       );
       expect(itsExecute).toEqual({
@@ -351,7 +339,7 @@ describe('CallContractApprovedProcessorService', () => {
 
       // Mark as last updated more than 1 minute ago
       itsExecute.updatedAt = new Date(new Date().getTime() - 60_500);
-      await prisma.contractCallApproved.update({ where: { commandId: itsExecute.commandId }, data: itsExecute });
+      await prisma.messageApproved.update({ where: { commandId: itsExecute.commandId }, data: itsExecute });
 
       // Mock 1st transaction executed successfully
       transactionWatcher.awaitCompleted.mockReturnValueOnce(
@@ -367,14 +355,14 @@ describe('CallContractApprovedProcessorService', () => {
       ]));
 
       // Process transaction 2nd time
-      await service.processPendingContractCallApproved();
+      await service.processPendingMessageApproved();
 
       transactions = proxy.sendTransactions.mock.lastCall?.[0] as Transaction[];
       expect(transactions).toHaveLength(1);
       expect(transactions[0].getValue()).toBe('50000000000000000'); // assert sent with value 2nd time
 
       // @ts-ignore
-      itsExecute = await contractCallApprovedRepository.findByCommandId(originalItsExecute.commandId);
+      itsExecute = await messageApprovedRepository.findByCommandId(originalItsExecute.commandId);
       expect(itsExecute).toEqual({
         ...originalItsExecute,
         retry: 2,
@@ -385,17 +373,17 @@ describe('CallContractApprovedProcessorService', () => {
 
       // Mark as last updated more than 1 minute ago
       itsExecute.updatedAt = new Date(new Date().getTime() - 60_500);
-      await prisma.contractCallApproved.update({ where: { commandId: itsExecute.commandId }, data: itsExecute });
+      await prisma.messageApproved.update({ where: { commandId: itsExecute.commandId }, data: itsExecute });
 
       // Process transaction 3rd time will retry transaction not sent
-      await service.processPendingContractCallApproved();
+      await service.processPendingMessageApproved();
 
       transactions = proxy.sendTransactions.mock.lastCall?.[0] as Transaction[];
       expect(transactions).toHaveLength(1);
       expect(transactions[0].getValue()).toBe('50000000000000000'); // assert sent with value
 
       // @ts-ignore
-      itsExecute = await contractCallApprovedRepository.findByCommandId(originalItsExecute.commandId);
+      itsExecute = await messageApprovedRepository.findByCommandId(originalItsExecute.commandId);
       expect(itsExecute).toEqual({
         ...originalItsExecute,
         retry: 2,
@@ -409,14 +397,14 @@ describe('CallContractApprovedProcessorService', () => {
         'e072d88e869e51a261e4a48aea1abb6f62a1f69c8af6fc3740d26e57b5e0a2bb',
       ]));
 
-      await service.processPendingContractCallApproved();
+      await service.processPendingMessageApproved();
 
       transactions = proxy.sendTransactions.mock.lastCall?.[0] as Transaction[];
       expect(transactions).toHaveLength(1);
       expect(transactions[0].getValue()).toBe('50000000000000000'); // assert sent with value
 
       // @ts-ignore
-      itsExecute = await contractCallApprovedRepository.findByCommandId(originalItsExecute.commandId);
+      itsExecute = await messageApprovedRepository.findByCommandId(originalItsExecute.commandId);
       expect(itsExecute).toEqual({
         ...originalItsExecute,
         retry: 3,

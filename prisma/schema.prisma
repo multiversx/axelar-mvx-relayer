@@ -61,12 +61,13 @@ enum GasPaidStatus {
   FAILED
 }
 
-model ContractCallApproved {
+model MessageApproved {
   commandId       String                     @id @db.VarChar(64)
   txHash          String                     @db.VarChar(64)
-  status          ContractCallApprovedStatus
+  status          MessageApprovedStatus
   sourceAddress   String                     @db.VarChar(255)
   sourceChain     String                     @db.VarChar(255)
+  messageId       String                     @db.VarChar(255)
   contractAddress String                     @db.VarChar(62)
   payloadHash     String                     @db.VarChar(64)
   payload         Bytes
@@ -77,7 +78,7 @@ model ContractCallApproved {
   successTimes    Int?                       @db.SmallInt
 }
 
-enum ContractCallApprovedStatus {
+enum MessageApprovedStatus {
   PENDING
   SUCCESS
   FAILED

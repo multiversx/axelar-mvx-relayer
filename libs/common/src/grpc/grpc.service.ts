@@ -33,7 +33,7 @@ export class GrpcService implements OnModuleInit {
 
     replaySubject.next({
       message: {
-        id: contractCallEvent.id,
+        id: '0x' + contractCallEvent.id, // TODO: Check that this format is correct for the messageId
         sourceChain: contractCallEvent.sourceChain,
         sourceAddress: contractCallEvent.sourceAddress,
         destinationChain: contractCallEvent.destinationChain,
@@ -61,21 +61,20 @@ export class GrpcService implements OnModuleInit {
     });
   }
 
-  async verifyWorkerSet(messageId: string, newOperators: string[], newWeights: BigNumber[], newThreshold: BigNumber) {
-    const weightsByAddresses: string[] = newOperators.reduce<any[]>((previousValue, operator, currentIndex) => {
-      previousValue.push([operator, newWeights[currentIndex].toString()]);
-
-      return previousValue;
-    }, []);
-
+  // TODO: This is not right...
+  async verifyVerifierSet(messageId: string, signers: {
+    signer: string,
+    weight: BigNumber,
+  }[], threshold: BigNumber, nonce: string) {
     // JSON format is used by CosmWasm contracts running on Axelar
     const payload = Buffer.from(
       JSON.stringify({
-        verify_worker_set: {
+        verify_verifier_set: {
           message_id: messageId,
-          new_operators: {
-            weights_by_addresses: weightsByAddresses,
-            threshold: newThreshold.toString(),
+          new_verifier_set: {
+            signers,
+            threshold: threshold.toString(),
+            nonce,
           },
         },
       }),

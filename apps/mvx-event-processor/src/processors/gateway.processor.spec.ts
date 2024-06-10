@@ -7,19 +7,19 @@ import { ContractCallEventRepository } from '@mvx-monorepo/common/database/repos
 import { GatewayProcessor } from './gateway.processor';
 import { NotifierEvent } from '../event-processor/types';
 import { Address } from '@multiversx/sdk-core/out';
-import { ContractCallApproved, ContractCallApprovedStatus, ContractCallEventStatus } from '@prisma/client';
+import { MessageApproved, MessageApprovedStatus, ContractCallEventStatus } from '@prisma/client';
 import { GrpcService } from '@mvx-monorepo/common/grpc/grpc.service';
 import { GatewayContract } from '@mvx-monorepo/common/contracts/gateway.contract';
-import { ContractCallApprovedEvent, ContractCallEvent } from '@mvx-monorepo/common/contracts/entities/gateway-events';
+import { MessageApprovedEvent, ContractCallEvent } from '@mvx-monorepo/common/contracts/entities/gateway-events';
 import { TransactionEvent } from '@multiversx/sdk-network-providers/out';
-import { ContractCallApprovedRepository } from '@mvx-monorepo/common/database/repository/contract-call-approved.repository';
+import { MessageApprovedRepository } from '@mvx-monorepo/common/database/repository/message-approved.repository';
 import { Subject } from 'rxjs';
 import { ErrorCode, VerifyResponse } from '@mvx-monorepo/common/grpc/entities/amplifier';
 
 describe('ContractCallProcessor', () => {
   let gatewayContract: DeepMocked<GatewayContract>;
   let contractCallEventRepository: DeepMocked<ContractCallEventRepository>;
-  let contractCallApprovedRepository: DeepMocked<ContractCallApprovedRepository>;
+  let messageApprovedRepository: DeepMocked<MessageApprovedRepository>;
   let grpcService: DeepMocked<GrpcService>;
   let apiConfigService: DeepMocked<ApiConfigService>;
 
@@ -29,14 +29,13 @@ describe('ContractCallProcessor', () => {
     sender: Address.fromBech32('erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7'),
     destinationChain: 'ethereum',
     destinationAddress: 'destinationAddress',
-    data: {
-      payloadHash: 'ebc84cbd75ba5516bf45e7024a9e12bc3c5c880f73e3a5beca7ebba52b2867a7',
-      payload: Buffer.from('payload'),
-    },
+    payloadHash: 'ebc84cbd75ba5516bf45e7024a9e12bc3c5c880f73e3a5beca7ebba52b2867a7',
+    payload: Buffer.from('payload'),
   };
-  const contractCallApprovedEvent: ContractCallApprovedEvent = {
+  const messageApprovedEvent: MessageApprovedEvent = {
     commandId: '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15da',
     sourceChain: 'ethereum',
+    messageId: 'messageId',
     sourceAddress: 'sourceAddress',
     contractAddress: Address.fromBech32('erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7'),
     payloadHash: 'ebc84cbd75ba5516bf45e7024a9e12bc3c5c880f73e3a5beca7ebba52b2867a7',
@@ -45,7 +44,7 @@ describe('ContractCallProcessor', () => {
   beforeEach(async () => {
     gatewayContract = createMock();
     contractCallEventRepository = createMock();
-    contractCallApprovedRepository = createMock();
+    messageApprovedRepository = createMock();
     grpcService = createMock();
     apiConfigService = createMock();
 
@@ -61,8 +60,8 @@ describe('ContractCallProcessor', () => {
           return contractCallEventRepository;
         }
 
-        if (token === ContractCallApprovedRepository) {
-          return contractCallApprovedRepository;
+        if (token === MessageApprovedRepository) {
+          return messageApprovedRepository;
         }
 
         if (token === GrpcService) {
@@ -78,8 +77,8 @@ describe('ContractCallProcessor', () => {
       .compile();
 
     gatewayContract.decodeContractCallEvent.mockReturnValue(contractCallEvent);
-    gatewayContract.decodeContractCallApprovedEvent.mockReturnValue(contractCallApprovedEvent);
-    gatewayContract.decodeContractCallExecutedEvent.mockReturnValue(contractCallApprovedEvent.commandId);
+    gatewayContract.decodeMessageApprovedEvent.mockReturnValue(messageApprovedEvent);
+    gatewayContract.decodeMessageExecutedEvent.mockReturnValue(messageApprovedEvent.commandId);
 
     service = moduleRef.get(GatewayProcessor);
   });
@@ -96,19 +95,16 @@ describe('ContractCallProcessor', () => {
     await service.handleEvent(rawEvent);
 
     expect(gatewayContract.decodeContractCallEvent).not.toHaveBeenCalled();
-    expect(gatewayContract.decodeContractCallApprovedEvent).not.toHaveBeenCalled();
+    expect(gatewayContract.decodeMessageApprovedEvent).not.toHaveBeenCalled();
     expect(contractCallEventRepository.create).not.toHaveBeenCalled();
-    expect(contractCallApprovedRepository.create).not.toHaveBeenCalled();
+    expect(messageApprovedRepository.create).not.toHaveBeenCalled();
     expect(grpcService.verify).not.toHaveBeenCalled();
     expect(grpcService.getPayload).not.toHaveBeenCalled();
   });
 
   describe('handleContractCallEvent', () => {
-    const data = Buffer.concat([
-      Buffer.from(contractCallEvent.data.payloadHash, 'hex'),
-      Buffer.from('00000007', 'hex'), // length of payload as u32
-      contractCallEvent.data.payload,
-    ]);
+    const data = contractCallEvent.payload;
+
     const rawEvent: NotifierEvent = {
       txHash: 'txHash',
       address: 'mockGatewayAddress',
@@ -119,6 +115,7 @@ describe('ContractCallProcessor', () => {
         Buffer.from((contractCallEvent.sender as Address).hex(), 'hex').toString('base64'),
         BinaryUtils.base64Encode(contractCallEvent.destinationChain),
         BinaryUtils.base64Encode(contractCallEvent.destinationAddress),
+        Buffer.from(contractCallEvent.payloadHash, 'hex').toString('base64'),
       ],
     };
 
@@ -132,7 +129,7 @@ describe('ContractCallProcessor', () => {
       expect(gatewayContract.decodeContractCallEvent).toHaveBeenCalledWith(TransactionEvent.fromHttpResponse(rawEvent));
       expect(contractCallEventRepository.create).toHaveBeenCalledTimes(1);
       expect(contractCallEventRepository.create).toHaveBeenCalledWith({
-        id: 'multiversx_txHash-0',
+        id: 'txHash-0',
         txHash: 'txHash',
         eventIndex: 0,
         status: ContractCallEventStatus.PENDING,
@@ -211,16 +208,17 @@ describe('ContractCallProcessor', () => {
     });
   });
 
-  describe('handleContractCallApprovedEvent', () => {
+  describe('handleMessageApprovedEvent', () => {
     const rawEvent: NotifierEvent = {
       txHash: 'txHash',
       address: 'mockGatewayAddress',
-      identifier: EventIdentifiers.EXECUTE,
+      identifier: EventIdentifiers.APPROVE_MESSAGES,
       data: '',
       topics: [
-        BinaryUtils.base64Encode(Events.CONTRACT_CALL_APPROVED_EVENT),
+        BinaryUtils.base64Encode(Events.MESSAGE_APPROVED_EVENT),
         Buffer.from('0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15da', 'hex').toString('base64'),
         BinaryUtils.base64Encode('ethereum'),
+        BinaryUtils.base64Encode('messageId'),
         BinaryUtils.base64Encode('sourceAddress'),
         Buffer.from(
           Address.fromBech32('erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7').hex(),
@@ -235,19 +233,20 @@ describe('ContractCallProcessor', () => {
 
       await service.handleEvent(rawEvent);
 
-      expect(gatewayContract.decodeContractCallApprovedEvent).toHaveBeenCalledTimes(1);
-      expect(gatewayContract.decodeContractCallApprovedEvent).toHaveBeenCalledWith(
+      expect(gatewayContract.decodeMessageApprovedEvent).toHaveBeenCalledTimes(1);
+      expect(gatewayContract.decodeMessageApprovedEvent).toHaveBeenCalledWith(
         TransactionEvent.fromHttpResponse(rawEvent),
       );
       expect(grpcService.getPayload).toHaveBeenCalledTimes(1);
-      expect(grpcService.getPayload).toHaveBeenCalledWith(contractCallApprovedEvent.payloadHash);
-      expect(contractCallApprovedRepository.create).toHaveBeenCalledTimes(1);
-      expect(contractCallApprovedRepository.create).toHaveBeenCalledWith({
+      expect(grpcService.getPayload).toHaveBeenCalledWith(messageApprovedEvent.payloadHash);
+      expect(messageApprovedRepository.create).toHaveBeenCalledTimes(1);
+      expect(messageApprovedRepository.create).toHaveBeenCalledWith({
         commandId: '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15da',
         txHash: 'txHash',
-        status: ContractCallApprovedStatus.PENDING,
+        status: MessageApprovedStatus.PENDING,
         sourceAddress: 'sourceAddress',
         sourceChain: 'ethereum',
+        messageId: 'messageId',
         contractAddress: 'erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7',
         payloadHash: 'ebc84cbd75ba5516bf45e7024a9e12bc3c5c880f73e3a5beca7ebba52b2867a7',
         payload: Buffer.from('payload'),
@@ -258,44 +257,48 @@ describe('ContractCallProcessor', () => {
     it('Should throw error can not save in database', async () => {
       grpcService.getPayload.mockReturnValueOnce(Promise.resolve(Buffer.from('payload')));
 
-      contractCallApprovedRepository.create.mockReturnValueOnce(Promise.resolve(null));
+      messageApprovedRepository.create.mockReturnValueOnce(Promise.resolve(null));
 
       await expect(service.handleEvent(rawEvent)).rejects.toThrow();
 
-      expect(gatewayContract.decodeContractCallApprovedEvent).toHaveBeenCalledTimes(1);
-      expect(gatewayContract.decodeContractCallApprovedEvent).toHaveBeenCalledWith(
+      expect(gatewayContract.decodeMessageApprovedEvent).toHaveBeenCalledTimes(1);
+      expect(gatewayContract.decodeMessageApprovedEvent).toHaveBeenCalledWith(
         TransactionEvent.fromHttpResponse(rawEvent),
       );
       expect(grpcService.getPayload).toHaveBeenCalledTimes(1);
-      expect(grpcService.getPayload).toHaveBeenCalledWith(contractCallApprovedEvent.payloadHash);
-      expect(contractCallApprovedRepository.create).toHaveBeenCalledTimes(1);
+      expect(grpcService.getPayload).toHaveBeenCalledWith(messageApprovedEvent.payloadHash);
+      expect(messageApprovedRepository.create).toHaveBeenCalledTimes(1);
     });
   });
 
-  describe('handleOperatorshipTransferredEvent', () => {
+  describe('handleSignersRotatedEvent', () => {
     const rawEvent: NotifierEvent = {
       txHash: 'txHash',
       address: 'mockGatewayAddress',
-      identifier: EventIdentifiers.EXECUTE,
+      identifier: EventIdentifiers.ROTATE_SIGNERS,
       data: Buffer.from(
-        '000000018049d639e5a6980d1cd2392abcce41029cda74a1563523a202f09641cc2618f80000000100000001020000000102',
+        '000000030139472eff6886771a982f3083da5d421f24c29181e63888228dc81ca60d69e100000001018049d639e5a6980d1cd2392abcce41029cda74a1563523a202f09641cc2618f80000000101b2a11555ce521e4944e09ab17549d85b487dcd26c84b5017a39e31a3670889ba00000001010000000103290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e563',
         'hex',
       ).toString('base64'),
-      topics: [BinaryUtils.base64Encode(Events.OPERATORSHIP_TRANSFERRED_EVENT)],
+      topics: [
+        BinaryUtils.base64Encode(Events.SIGNERS_ROTATED_EVENT),
+        BinaryUtils.hexToBase64('01'),
+        Buffer.from('0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15da', 'hex').toString('base64'),
+      ],
     };
 
     it('Should handle event', async () => {
       await service.handleEvent(rawEvent);
 
-      expect(gatewayContract.decodeOperatorshipTransferredEvent).toHaveBeenCalledTimes(1);
-      expect(gatewayContract.decodeOperatorshipTransferredEvent).toHaveBeenCalledWith(
+      expect(gatewayContract.decodeSignersRotatedEvent).toHaveBeenCalledTimes(1);
+      expect(gatewayContract.decodeSignersRotatedEvent).toHaveBeenCalledWith(
         TransactionEvent.fromHttpResponse(rawEvent),
       );
-      expect(grpcService.verifyWorkerSet).toHaveBeenCalledTimes(1);
+      expect(grpcService.verifyVerifierSet).toHaveBeenCalledTimes(1);
     });
 
     it('Should handle event error', async () => {
-      grpcService.verifyWorkerSet.mockReturnValueOnce(
+      grpcService.verifyVerifierSet.mockReturnValueOnce(
         Promise.resolve({
           published: false,
           receiptId: '',
@@ -304,33 +307,36 @@ describe('ContractCallProcessor', () => {
 
       await service.handleEvent(rawEvent);
 
-      expect(gatewayContract.decodeOperatorshipTransferredEvent).toHaveBeenCalledTimes(1);
-      expect(gatewayContract.decodeOperatorshipTransferredEvent).toHaveBeenCalledWith(
+      expect(gatewayContract.decodeSignersRotatedEvent).toHaveBeenCalledTimes(1);
+      expect(gatewayContract.decodeSignersRotatedEvent).toHaveBeenCalledWith(
         TransactionEvent.fromHttpResponse(rawEvent),
       );
-      expect(grpcService.verifyWorkerSet).toHaveBeenCalledTimes(1);
+      expect(grpcService.verifyVerifierSet).toHaveBeenCalledTimes(1);
     });
   });
 
-  describe('handleContractCallExecutedEvent', () => {
+  describe('handleMessageExecutedEvent', () => {
     const rawEvent: NotifierEvent = {
       txHash: 'txHash',
       address: 'mockGatewayAddress',
-      identifier: EventIdentifiers.VALIDATE_CONTRACT_CALL,
+      identifier: EventIdentifiers.VALIDATE_MESSAGE,
       data: '',
       topics: [
-        BinaryUtils.base64Encode(Events.CONTRACT_CALL_EXECUTED_EVENT),
+        BinaryUtils.base64Encode(Events.MESSAGE_EXECUTED_EVENT),
         Buffer.from('0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15da', 'hex').toString('base64'),
+        BinaryUtils.base64Encode('ethereum'),
+        BinaryUtils.base64Encode('messageId'),
       ],
     };
 
     it('Should handle event update contract call approved', async () => {
-      const contractCallApproved: ContractCallApproved = {
+      const messageApproved: MessageApproved = {
         commandId: '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15da',
         txHash: 'txHash',
-        status: ContractCallApprovedStatus.PENDING,
+        status: MessageApprovedStatus.PENDING,
         sourceAddress: 'sourceAddress',
         sourceChain: 'ethereum',
+        messageId: 'messageId',
         contractAddress: 'erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7',
         payloadHash: 'ebc84cbd75ba5516bf45e7024a9e12bc3c5c880f73e3a5beca7ebba52b2867a7',
         payload: Buffer.from('payload'),
@@ -341,40 +347,40 @@ describe('ContractCallProcessor', () => {
         successTimes: null,
       };
 
-      contractCallApprovedRepository.findByCommandId.mockReturnValueOnce(Promise.resolve(contractCallApproved));
+      messageApprovedRepository.findByCommandId.mockReturnValueOnce(Promise.resolve(messageApproved));
 
       await service.handleEvent(rawEvent);
 
-      expect(gatewayContract.decodeContractCallExecutedEvent).toHaveBeenCalledTimes(1);
-      expect(gatewayContract.decodeContractCallExecutedEvent).toHaveBeenCalledWith(
+      expect(gatewayContract.decodeMessageExecutedEvent).toHaveBeenCalledTimes(1);
+      expect(gatewayContract.decodeMessageExecutedEvent).toHaveBeenCalledWith(
         TransactionEvent.fromHttpResponse(rawEvent),
       );
-      expect(contractCallApprovedRepository.findByCommandId).toHaveBeenCalledTimes(1);
-      expect(contractCallApprovedRepository.findByCommandId).toHaveBeenCalledWith(
+      expect(messageApprovedRepository.findByCommandId).toHaveBeenCalledTimes(1);
+      expect(messageApprovedRepository.findByCommandId).toHaveBeenCalledWith(
         '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15da',
       );
-      expect(contractCallApprovedRepository.updateStatusAndSuccessTimes).toHaveBeenCalledTimes(1);
-      expect(contractCallApprovedRepository.updateStatusAndSuccessTimes).toHaveBeenCalledWith({
-        ...contractCallApproved,
-        status: ContractCallApprovedStatus.SUCCESS,
+      expect(messageApprovedRepository.updateStatusAndSuccessTimes).toHaveBeenCalledTimes(1);
+      expect(messageApprovedRepository.updateStatusAndSuccessTimes).toHaveBeenCalledWith({
+        ...messageApproved,
+        status: MessageApprovedStatus.SUCCESS,
         successTimes: 1,
       });
     });
 
     it('Should handle event no contract call approved', async () => {
-      contractCallApprovedRepository.findByCommandId.mockReturnValueOnce(Promise.resolve(null));
+      messageApprovedRepository.findByCommandId.mockReturnValueOnce(Promise.resolve(null));
 
       await service.handleEvent(rawEvent);
 
-      expect(gatewayContract.decodeContractCallExecutedEvent).toHaveBeenCalledTimes(1);
-      expect(gatewayContract.decodeContractCallExecutedEvent).toHaveBeenCalledWith(
+      expect(gatewayContract.decodeMessageExecutedEvent).toHaveBeenCalledTimes(1);
+      expect(gatewayContract.decodeMessageExecutedEvent).toHaveBeenCalledWith(
         TransactionEvent.fromHttpResponse(rawEvent),
       );
-      expect(contractCallApprovedRepository.findByCommandId).toHaveBeenCalledTimes(1);
-      expect(contractCallApprovedRepository.findByCommandId).toHaveBeenCalledWith(
+      expect(messageApprovedRepository.findByCommandId).toHaveBeenCalledTimes(1);
+      expect(messageApprovedRepository.findByCommandId).toHaveBeenCalledWith(
         '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15da',
       );
-      expect(contractCallApprovedRepository.updateManyPartial).not.toHaveBeenCalled();
+      expect(messageApprovedRepository.updateManyPartial).not.toHaveBeenCalled();
     });
   });
 });

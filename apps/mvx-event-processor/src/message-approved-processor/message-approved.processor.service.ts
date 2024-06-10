@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { Locker } from '@multiversx/sdk-nestjs-common';
-import { ContractCallApprovedRepository } from '@mvx-monorepo/common/database/repository/contract-call-approved.repository';
+import { MessageApprovedRepository } from '@mvx-monorepo/common/database/repository/message-approved.repository';
 import { ProviderKeys } from '@mvx-monorepo/common/utils/provider.enum';
 import { UserSigner } from '@multiversx/sdk-wallet/out';
 import {
@@ -13,7 +13,7 @@ import {
   StringValue,
   Transaction,
 } from '@multiversx/sdk-core/out';
-import { ContractCallApproved, ContractCallApprovedStatus } from '@prisma/client';
+import { MessageApproved, MessageApprovedStatus } from '@prisma/client';
 import { TransactionsHelper } from '@mvx-monorepo/common/contracts/transactions.helper';
 import { ApiConfigService } from '@mvx-monorepo/common';
 import { ItsContract } from '@mvx-monorepo/common/contracts/its.contract';
@@ -22,34 +22,34 @@ import { ItsContract } from '@mvx-monorepo/common/contracts/its.contract';
 const MAX_NUMBER_OF_RETRIES: number = 3;
 
 @Injectable()
-export class CallContractApprovedProcessorService {
+export class MessageApprovedProcessorService {
   private readonly logger: Logger;
 
   private readonly chainId: string;
   private readonly contractItsAddress: string;
 
   constructor(
-    private readonly contractCallApprovedRepository: ContractCallApprovedRepository,
+    private readonly messageApprovedRepository: MessageApprovedRepository,
     @Inject(ProviderKeys.WALLET_SIGNER) private readonly walletSigner: UserSigner,
     private readonly transactionsHelper: TransactionsHelper,
     private readonly itsContract: ItsContract,
     apiConfigService: ApiConfigService,
   ) {
-    this.logger = new Logger(CallContractApprovedProcessorService.name);
+    this.logger = new Logger(MessageApprovedProcessorService.name);
     this.chainId = apiConfigService.getChainId();
     this.contractItsAddress = apiConfigService.getContractIts();
   }
 
   @Cron('*/30 * * * * *')
-  async processPendingContractCallApproved() {
-    await Locker.lock('processPendingContractCallApproved', async () => {
-      this.logger.debug('Running processPendingContractCallApproved cron');
+  async processPendingMessageApproved() {
+    await Locker.lock('processPendingMessageApproved', async () => {
+      this.logger.debug('Running processPendingMessageApproved cron');
 
       let accountNonce = null;
 
       let page = 0;
       let entries;
-      while ((entries = await this.contractCallApprovedRepository.findPending(page))?.length) {
+      while ((entries = await this.messageApprovedRepository.findPending(page))?.length) {
         if (accountNonce === null) {
           accountNonce = await this.transactionsHelper.getAccountNonce(this.walletSigner.getAddress());
         }
@@ -57,29 +57,29 @@ export class CallContractApprovedProcessorService {
         this.logger.log(`Found ${entries.length} CallContractApproved transactions to execute`);
 
         const transactionsToSend = [];
-        for (const contractCallApproved of entries) {
-          if (contractCallApproved.retry === MAX_NUMBER_OF_RETRIES) {
+        for (const messageApproved of entries) {
+          if (messageApproved.retry === MAX_NUMBER_OF_RETRIES) {
             this.logger.error(
-              `Could not execute ContractCallApproved transaction with commandId ${contractCallApproved.commandId} after ${contractCallApproved.retry} retries`,
+              `Could not execute MessageApproved transaction with commandId ${messageApproved.commandId} after ${messageApproved.retry} retries`,
             );
 
-            contractCallApproved.status = ContractCallApprovedStatus.FAILED;
+            messageApproved.status = MessageApprovedStatus.FAILED;
 
             continue;
           }
 
           this.logger.debug(
-            `Trying to execute ContractCallApproved transaction with commandId ${contractCallApproved.commandId}`,
+            `Trying to execute MessageApproved transaction with commandId ${messageApproved.commandId}`,
           );
 
-          const transaction = await this.buildAndSignExecuteTransaction(contractCallApproved, accountNonce);
+          const transaction = await this.buildAndSignExecuteTransaction(messageApproved, accountNonce);
 
           accountNonce++;
 
           transactionsToSend.push(transaction);
 
-          contractCallApproved.executeTxHash = transaction.getHash().toString();
-          contractCallApproved.retry += 1;
+          messageApproved.executeTxHash = transaction.getHash().toString();
+          messageApproved.retry += 1;
         }
 
         const hashes = await this.transactionsHelper.sendTransactions(transactionsToSend);
@@ -88,7 +88,7 @@ export class CallContractApprovedProcessorService {
           const actuallySentEntries = entries.filter(entry => hashes.includes(entry.executeTxHash as string));
 
           // Page is not modified if database records are updated
-          await this.contractCallApprovedRepository.updateManyPartial(actuallySentEntries);
+          await this.messageApprovedRepository.updateManyPartial(actuallySentEntries);
         } else {
           // re-retrieve account nonce in case sendTransactions failed because of nonce error
           accountNonce = null;
@@ -100,10 +100,10 @@ export class CallContractApprovedProcessorService {
   }
 
   private async buildAndSignExecuteTransaction(
-    contractCallApproved: ContractCallApproved,
+    messageApproved: MessageApproved,
     accountNonce: number,
   ): Promise<Transaction> {
-    const interaction = await this.buildExecuteInteraction(contractCallApproved);
+    const interaction = await this.buildExecuteInteraction(messageApproved);
 
     const transaction = interaction
       .withSender(this.walletSigner.getAddress())
@@ -111,7 +111,7 @@ export class CallContractApprovedProcessorService {
       .withChainID(this.chainId)
       .buildTransaction();
 
-    const gas = await this.transactionsHelper.getTransactionGas(transaction, contractCallApproved.retry);
+    const gas = await this.transactionsHelper.getTransactionGas(transaction, messageApproved.retry);
     transaction.setGasLimit(gas);
 
     const signature = await this.walletSigner.sign(transaction.serializeForSigning());
@@ -120,37 +120,35 @@ export class CallContractApprovedProcessorService {
     return transaction;
   }
 
-  private async buildExecuteInteraction(contractCallApproved: ContractCallApproved) {
-    const commandId = Buffer.from(contractCallApproved.commandId, 'hex');
-
-    if (contractCallApproved.contractAddress !== this.contractItsAddress) {
-      const contract = new SmartContract({ address: new Address(contractCallApproved.contractAddress) });
+  private async buildExecuteInteraction(messageApproved: MessageApproved) {
+    if (messageApproved.contractAddress !== this.contractItsAddress) {
+      const contract = new SmartContract({ address: new Address(messageApproved.contractAddress) });
 
       const args = [
-        new BytesValue(commandId),
-        new StringValue(contractCallApproved.sourceChain),
-        new StringValue(contractCallApproved.sourceAddress),
-        new BytesValue(contractCallApproved.payload),
+        new StringValue(messageApproved.sourceChain),
+        new StringValue(messageApproved.messageId),
+        new StringValue(messageApproved.sourceAddress),
+        new BytesValue(messageApproved.payload),
       ];
 
       return new Interaction(contract, new ContractFunction('execute'), args);
     }
 
     // In case first transaction exists for ITS, wait for it to complete and mark it as successful if necessary
-    if (contractCallApproved.executeTxHash && !contractCallApproved.successTimes) {
-      const success = await this.transactionsHelper.awaitSuccess(contractCallApproved.executeTxHash);
+    if (messageApproved.executeTxHash && !messageApproved.successTimes) {
+      const success = await this.transactionsHelper.awaitSuccess(messageApproved.executeTxHash);
 
       if (success) {
-        contractCallApproved.successTimes = 1;
+        messageApproved.successTimes = 1;
       }
     }
 
     return this.itsContract.execute(
-      commandId,
-      contractCallApproved.sourceChain,
-      contractCallApproved.sourceAddress,
-      contractCallApproved.payload,
-      contractCallApproved.successTimes || 0,
+      messageApproved.sourceChain,
+      messageApproved.messageId,
+      messageApproved.sourceAddress,
+      messageApproved.payload,
+      messageApproved.successTimes || 0,
     );
   }
 }
