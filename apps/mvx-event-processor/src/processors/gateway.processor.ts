@@ -137,7 +137,7 @@ export class GatewayProcessor implements ProcessorInterface {
       trasnsferData.newThreshold,
     );
 
-    if (response.result) {
+    if (response.published) {
       return;
     }
 
@@ -151,7 +151,7 @@ export class GatewayProcessor implements ProcessorInterface {
         trasnsferData.newThreshold,
       );
 
-      if (!response.result) {
+      if (!response.published) {
         this.logger.error(`Couldn't dispatch verifyWorkerSet ${id} to Amplifier API.`);
       }
     }, 60_000);

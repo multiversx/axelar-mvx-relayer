@@ -297,7 +297,8 @@ describe('ContractCallProcessor', () => {
     it('Should handle event error', async () => {
       grpcService.verifyWorkerSet.mockReturnValueOnce(
         Promise.resolve({
-          result: false,
+          published: false,
+          receiptId: '',
         }),
       );
 

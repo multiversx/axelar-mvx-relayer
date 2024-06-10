@@ -8,6 +8,8 @@ export enum ErrorCode {
   INTERNAL_ERROR = 1,
   AXELAR_NETWORK_ERROR = 2,
   INSUFFICIENT_GAS = 3,
+  FAILED_ON_CHAIN = 4,
+  MESSAGE_NOT_FOUND = 5,
   UNRECOGNIZED = -1,
 }
 
@@ -51,10 +53,7 @@ export interface VerifyRequest {
 }
 
 export interface VerifyResponse {
-  message:
-    | Message
-    | undefined;
-  /** bool success = 2; */
+  message: Message | undefined;
   error?: Error | undefined;
 }
 
@@ -84,7 +83,16 @@ export interface BroadcastRequest {
 }
 
 export interface BroadcastResponse {
-  result: boolean;
+  published: boolean;
+  receiptId: string;
+}
+
+export interface GetReceiptRequest {
+  receiptId: string;
+}
+
+export interface GetReceiptResponse {
+  txHash: string;
 }
 
 export interface Amplifier {
@@ -93,4 +101,5 @@ export interface Amplifier {
   subscribeToApprovals(request: SubscribeToApprovalsRequest): Observable<SubscribeToApprovalsResponse>;
   subscribeToWasmEvents(request: SubscribeToWasmEventsRequest): Observable<SubscribeToWasmEventsResponse>;
   broadcast(request: BroadcastRequest): Promise<BroadcastResponse>;
+  getReceipt(request: GetReceiptRequest): Promise<GetReceiptResponse>;
 }

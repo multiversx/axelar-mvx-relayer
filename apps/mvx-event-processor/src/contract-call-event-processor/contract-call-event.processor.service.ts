@@ -17,7 +17,7 @@ export class ContractCallEventProcessorService {
     this.logger = new Logger(ContractCallEventProcessorService.name);
   }
 
-  // Ofset at second 15 to not run at the same time as processPendingContractCallApproved
+  // Offset at second 15 to not run at the same time as processPendingContractCallApproved
   @Cron('15 */2 * * * *')
   async processPendingContractCallEvent() {
     await Locker.lock('processPendingContractCallEvent', async () => {

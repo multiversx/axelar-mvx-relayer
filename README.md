@@ -13,6 +13,7 @@ Based on Amplifier API Docs: https://bright-ambert-2bd.notion.site/Amplifier-API
 
 1. Redis Server is required to be installed [docs](https://redis.io/).
 2. PostgreSQL is required to be installed [docs](https://www.postgresql.org/).
+3. For E2E tests you need dotenv-cli `npm install -g dotenv-cli`
 
 In this repo there is a `docker-compose.yml` file providing these services so you can run them easily using `docker-compose up -d`
 
