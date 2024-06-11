@@ -47,16 +47,18 @@ export class MessageApprovedProcessorService {
 
       let accountNonce = null;
 
-      let page = 0;
+      // Always start processing from beginning (page 0) since the query will skip recently updated entries
       let entries;
-      while ((entries = await this.messageApprovedRepository.findPending(page))?.length) {
+      while ((entries = await this.messageApprovedRepository.findPending(0))?.length) {
         if (accountNonce === null) {
           accountNonce = await this.transactionsHelper.getAccountNonce(this.walletSigner.getAddress());
         }
 
         this.logger.log(`Found ${entries.length} CallContractApproved transactions to execute`);
 
-        const transactionsToSend = [];
+        const transactionsToSend: Transaction[] = [];
+        const entriesToUpdate: MessageApproved[] = [];
+        const entriesWithTransactions: MessageApproved[] = [];
         for (const messageApproved of entries) {
           if (messageApproved.retry === MAX_NUMBER_OF_RETRIES) {
             this.logger.error(
@@ -64,6 +66,8 @@ export class MessageApprovedProcessorService {
             );
 
             messageApproved.status = MessageApprovedStatus.FAILED;
+
+            entriesToUpdate.push(messageApproved);
 
             continue;
           }
@@ -80,20 +84,32 @@ export class MessageApprovedProcessorService {
 
           messageApproved.executeTxHash = transaction.getHash().toString();
           messageApproved.retry += 1;
+
+          entriesWithTransactions.push(messageApproved);
         }
 
         const hashes = await this.transactionsHelper.sendTransactions(transactionsToSend);
 
         if (hashes) {
-          const actuallySentEntries = entries.filter(entry => hashes.includes(entry.executeTxHash as string));
+          entriesWithTransactions.forEach(entry => {
+            const sent = hashes.includes(entry.executeTxHash as string);
 
-          // Page is not modified if database records are updated
-          await this.messageApprovedRepository.updateManyPartial(actuallySentEntries);
+            // If not sent revert fields but still save to database so it is retried later and does
+            // not block the processing
+            if (!sent) {
+              entry.executeTxHash = null;
+              entry.retry = entry.retry === 1 ? 1 : entry.retry - 1; // retry should be 1 or more to not be processed immediately
+            }
+
+            entriesToUpdate.push(entry);
+          });
         } else {
           // re-retrieve account nonce in case sendTransactions failed because of nonce error
           accountNonce = null;
+        }
 
-          page++;
+        if (entriesToUpdate.length) {
+          await this.messageApprovedRepository.updateManyPartial(entriesToUpdate);
         }
       }
     });

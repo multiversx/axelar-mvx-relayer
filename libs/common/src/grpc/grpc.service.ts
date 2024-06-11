@@ -61,7 +61,7 @@ export class GrpcService implements OnModuleInit {
     });
   }
 
-  // TODO: This is not right...
+  // TODO: This is not right... Wait for Amplifier API to provide more endpoints to do this more easily
   async verifyVerifierSet(messageId: string, signers: {
     signer: string,
     weight: BigNumber,
@@ -70,7 +70,7 @@ export class GrpcService implements OnModuleInit {
     const payload = Buffer.from(
       JSON.stringify({
         verify_verifier_set: {
-          message_id: messageId,
+          message_id: '0x' + messageId, // TODO: Check that this format is correct for the messageId
           new_verifier_set: {
             signers,
             threshold: threshold.toString(),

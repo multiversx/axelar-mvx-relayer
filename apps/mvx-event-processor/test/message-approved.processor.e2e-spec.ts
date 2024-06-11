@@ -73,9 +73,7 @@ describe('CallContractApprovedProcessorService', () => {
     await app.close();
   });
 
-  const createMessageApproved = async (
-    extraData: Partial<MessageApproved> = {},
-  ): Promise<MessageApproved> => {
+  const createMessageApproved = async (extraData: Partial<MessageApproved> = {}): Promise<MessageApproved> => {
     const result = await messageApprovedRepository.create({
       commandId: '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15aa',
       txHash: 'txHashA',
@@ -114,10 +112,15 @@ describe('CallContractApprovedProcessorService', () => {
     const originalFirstEntry = await createMessageApproved();
     const originalSecondEntry = await createMessageApproved({
       commandId: '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15bb',
+      messageId: 'messageId2',
       txHash: 'txHashB',
       sourceChain: 'polygon',
       sourceAddress: 'otherSourceAddress',
       payload: Buffer.from('otherPayload'),
+    });
+
+    proxy.sendTransactions.mockImplementation((transactions): Promise<string[]> => {
+      return Promise.resolve(transactions.map((transaction: any) => transaction.getHash().toString() as string));
     });
 
     await service.processPendingMessageApproved();
@@ -150,7 +153,7 @@ describe('CallContractApprovedProcessorService', () => {
     expect(firstEntry).toEqual({
       ...originalFirstEntry,
       retry: 1,
-      executeTxHash: 'dbb1d4ed062e8b71538567116b5360911d1fe43025f1cf1858a14666aa2c9fda',
+      executeTxHash: 'e2daca735e49dc56857886f74a82dcfec0c51fadaccf649fb59fd6525c0c6eb0',
       updatedAt: expect.any(Date),
     });
 
@@ -158,7 +161,7 @@ describe('CallContractApprovedProcessorService', () => {
     expect(secondEntry).toEqual({
       ...originalSecondEntry,
       retry: 1,
-      executeTxHash: 'cf1c10a09bf817e198bc18df08357c6ac7a666a3ea9f2b760f92762f1f591601',
+      executeTxHash: 'b0de1af3ea2501bf0c6fdd71acad4c53eb2ca6c2921a1f8883bad371156997f6',
       updatedAt: expect.any(Date),
     });
   });
@@ -171,6 +174,7 @@ describe('CallContractApprovedProcessorService', () => {
     });
     const originalSecondEntry = await createMessageApproved({
       commandId: '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15bb',
+      messageId: 'messageId2',
       txHash: 'txHashB',
       sourceChain: 'polygon',
       sourceAddress: 'otherSourceAddress',
@@ -181,8 +185,13 @@ describe('CallContractApprovedProcessorService', () => {
     // Entry will not be processed (updated too early)
     const originalThirdEntry = await createMessageApproved({
       commandId: '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15cc',
+      messageId: 'messageId3',
       txHash: 'txHashC',
       retry: 1,
+    });
+
+    proxy.sendTransactions.mockImplementation((transactions): Promise<string[]> => {
+      return Promise.resolve(transactions.map((transaction: any) => transaction.getHash().toString() as string));
     });
 
     await service.processPendingMessageApproved();
@@ -209,7 +218,7 @@ describe('CallContractApprovedProcessorService', () => {
     expect(firstEntry).toEqual({
       ...originalFirstEntry,
       retry: 2,
-      executeTxHash: 'fc08669e4eabdf452e43adf5705777f8a527f4d6f84df9bf90ae74b499371061',
+      executeTxHash: '7807d1ac6b310b841c654b5a34be490ba04990d2c479c19335e55e031357d651',
       updatedAt: expect.any(Date),
     });
 
@@ -227,6 +236,61 @@ describe('CallContractApprovedProcessorService', () => {
     });
   });
 
+  it('Should send execute transaction not successfully sent', async () => {
+    const originalFirstEntry = await createMessageApproved();
+    const originalSecondEntry = await createMessageApproved({
+      commandId: '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15bb',
+      messageId: 'messageId2',
+      txHash: 'txHashB',
+      sourceChain: 'polygon',
+      sourceAddress: 'otherSourceAddress',
+      payload: Buffer.from('otherPayload'),
+      retry: 2,
+      updatedAt: new Date(new Date().getTime() - 60_500),
+    });
+
+    proxy.sendTransactions.mockImplementation((): Promise<string[]> => {
+      return Promise.resolve([]);
+    });
+
+    await service.processPendingMessageApproved();
+
+    expect(proxy.getAccount).toHaveBeenCalledTimes(1);
+    expect(proxy.doPostGeneric).toHaveBeenCalledTimes(2);
+    expect(proxy.sendTransactions).toHaveBeenCalledTimes(1);
+
+    // Assert transactions data is correct
+    const transactions = proxy.sendTransactions.mock.lastCall?.[0] as Transaction[];
+    expect(transactions).toHaveLength(2);
+
+    assertArgs(transactions[0], originalFirstEntry);
+    assertArgs(transactions[1], originalSecondEntry);
+
+    // 2 are still pending because of proxy error
+    expect(await messageApprovedRepository.findPending()).toEqual([]);
+
+    // Expect entries in database to NOT be updated
+    const firstEntry = await messageApprovedRepository.findByCommandId(originalFirstEntry.commandId);
+    expect(firstEntry).toEqual({
+      ...originalFirstEntry,
+      retry: 1, // retry is set to 1
+      updatedAt: expect.any(Date),
+    });
+
+    const secondEntry = await messageApprovedRepository.findByCommandId(originalSecondEntry.commandId);
+    expect(secondEntry).toEqual({
+      ...originalSecondEntry,
+      retry: 2, // retry stays the same
+      updatedAt: expect.any(Date),
+    });
+  });
+
+  function mockProxySendTransactionsSuccess() {
+    proxy.sendTransactions.mockImplementation((transactions): Promise<string[]> => {
+      return Promise.resolve(transactions.map((transaction: any) => transaction.getHash().toString() as string));
+    });
+  }
+
   describe('ITS execute', () => {
     const contractAddress = 'erd1qqqqqqqqqqqqqpgq97wezxw6l7lgg7k9rxvycrz66vn92ksh2tssxwf7ep';
 
@@ -243,6 +307,8 @@ describe('CallContractApprovedProcessorService', () => {
         sourceAddress: 'otherSourceAddress',
         payload: Buffer.from(AbiCoder.defaultAbiCoder().encode(['uint256'], [1]).substring(2), 'hex'),
       });
+
+      mockProxySendTransactionsSuccess();
 
       await service.processPendingMessageApproved();
 
@@ -276,7 +342,7 @@ describe('CallContractApprovedProcessorService', () => {
       expect(itsExecuteOther).toEqual({
         ...originalItsExecuteOther,
         retry: 1,
-        executeTxHash: '2795b8489921528a63a317ab6241e2b63f42fba3ac7f3821a524d771a55c2f1b',
+        executeTxHash: 'e55b33a1e697e68107c1581fe6b6d0885be0a69e00a4a191e3e217d64bea7133',
         updatedAt: expect.any(Date),
         successTimes: null,
       });
@@ -285,7 +351,7 @@ describe('CallContractApprovedProcessorService', () => {
       expect(itsExecute).toEqual({
         ...originalItsExecute,
         retry: 1,
-        executeTxHash: '9206c0fad5d91eef0802311b2baea2d6c91677da8a2fa6cc8ebc2d4a7c5892b4',
+        executeTxHash: '138878bdb853b0d1b2f19cb4d811a3aaa768a7081264a5eaef994f7c3c9a4fd2',
         updatedAt: expect.any(Date),
         successTimes: null,
       });
@@ -301,9 +367,7 @@ describe('CallContractApprovedProcessorService', () => {
         payload: Buffer.from(AbiCoder.defaultAbiCoder().encode(['uint256'], [1]).substring(2), 'hex'),
       });
 
-      proxy.sendTransactions.mockReturnValueOnce(Promise.resolve([
-        'af0848face1fa76874752bbc9fab1928b33e08ff646471cab3d0fa91a6506a51',
-      ]));
+      mockProxySendTransactionsSuccess();
 
       await service.processPendingMessageApproved();
 
@@ -326,13 +390,11 @@ describe('CallContractApprovedProcessorService', () => {
       expect(await messageApprovedRepository.findPending()).toEqual([]);
 
       // @ts-ignore
-      let itsExecute: MessageApproved = await messageApprovedRepository.findByCommandId(
-        originalItsExecute.commandId,
-      );
+      let itsExecute: MessageApproved = await messageApprovedRepository.findByCommandId(originalItsExecute.commandId);
       expect(itsExecute).toEqual({
         ...originalItsExecute,
         retry: 1,
-        executeTxHash: 'af0848face1fa76874752bbc9fab1928b33e08ff646471cab3d0fa91a6506a51',
+        executeTxHash: 'a47a870b417e9e8de9eda053938ae7a63bc36034bed3a9708a8ee93f40674f14',
         updatedAt: expect.any(Date),
         successTimes: null,
       });
@@ -350,10 +412,6 @@ describe('CallContractApprovedProcessorService', () => {
         }),
       );
 
-      proxy.sendTransactions.mockReturnValueOnce(Promise.resolve([
-        '36a71e24554303f6b734143ad90f939b57018f8c05f8abaa63e23950f899ce56',
-      ]));
-
       // Process transaction 2nd time
       await service.processPendingMessageApproved();
 
@@ -366,7 +424,7 @@ describe('CallContractApprovedProcessorService', () => {
       expect(itsExecute).toEqual({
         ...originalItsExecute,
         retry: 2,
-        executeTxHash: '36a71e24554303f6b734143ad90f939b57018f8c05f8abaa63e23950f899ce56',
+        executeTxHash: '44e7f533bbb229bc5e401dae45a561cda2029e45d800e9ff797d3a87e698abb1',
         updatedAt: expect.any(Date),
         successTimes: 1,
       });
@@ -376,6 +434,8 @@ describe('CallContractApprovedProcessorService', () => {
       await prisma.messageApproved.update({ where: { commandId: itsExecute.commandId }, data: itsExecute });
 
       // Process transaction 3rd time will retry transaction not sent
+      proxy.sendTransactions.mockReturnValueOnce(Promise.resolve([]));
+
       await service.processPendingMessageApproved();
 
       transactions = proxy.sendTransactions.mock.lastCall?.[0] as Transaction[];
@@ -387,15 +447,17 @@ describe('CallContractApprovedProcessorService', () => {
       expect(itsExecute).toEqual({
         ...originalItsExecute,
         retry: 2,
-        executeTxHash: '36a71e24554303f6b734143ad90f939b57018f8c05f8abaa63e23950f899ce56',
+        executeTxHash: null,
         updatedAt: expect.any(Date),
         successTimes: 1,
       });
 
+      // Mark as last updated more than 1 minute ago
+      itsExecute.updatedAt = new Date(new Date().getTime() - 60_500);
+      await prisma.messageApproved.update({ where: { commandId: itsExecute.commandId }, data: itsExecute });
+
       // Process transaction 3rd time will retry transaction sent
-      proxy.sendTransactions.mockReturnValueOnce(Promise.resolve([
-        'e072d88e869e51a261e4a48aea1abb6f62a1f69c8af6fc3740d26e57b5e0a2bb',
-      ]));
+      mockProxySendTransactionsSuccess();
 
       await service.processPendingMessageApproved();
 
@@ -408,7 +470,7 @@ describe('CallContractApprovedProcessorService', () => {
       expect(itsExecute).toEqual({
         ...originalItsExecute,
         retry: 3,
-        executeTxHash: 'e072d88e869e51a261e4a48aea1abb6f62a1f69c8af6fc3740d26e57b5e0a2bb',
+        executeTxHash: 'bea373a3fc25339c2c409b0afb03664d87a8db85a3ec9fa77d9201e2409ca152',
         updatedAt: expect.any(Date),
         successTimes: 1,
       });
