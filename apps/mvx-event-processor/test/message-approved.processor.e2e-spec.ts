@@ -41,7 +41,7 @@ describe('CallContractApprovedProcessorService', () => {
     service = await moduleRef.get(MessageApprovedProcessorService);
 
     // Mock general calls
-    proxy.getAccount.mockReturnValueOnce(
+    proxy.getAccount.mockReturnValue(
       Promise.resolve(
         new AccountOnNetwork({
           nonce: 1,
@@ -153,7 +153,7 @@ describe('CallContractApprovedProcessorService', () => {
     expect(firstEntry).toEqual({
       ...originalFirstEntry,
       retry: 1,
-      executeTxHash: 'e2daca735e49dc56857886f74a82dcfec0c51fadaccf649fb59fd6525c0c6eb0',
+      executeTxHash: '8d4112e355c9d2b59e6e80bb552e14fb0f9231e7aea12bf5e15ca59498944e70',
       updatedAt: expect.any(Date),
     });
 
@@ -161,7 +161,7 @@ describe('CallContractApprovedProcessorService', () => {
     expect(secondEntry).toEqual({
       ...originalSecondEntry,
       retry: 1,
-      executeTxHash: 'b0de1af3ea2501bf0c6fdd71acad4c53eb2ca6c2921a1f8883bad371156997f6',
+      executeTxHash: 'e804e15e143f46003999887ead28642924581381d54f32ba41e386283e59b143',
       updatedAt: expect.any(Date),
     });
   });
@@ -218,7 +218,7 @@ describe('CallContractApprovedProcessorService', () => {
     expect(firstEntry).toEqual({
       ...originalFirstEntry,
       retry: 2,
-      executeTxHash: '7807d1ac6b310b841c654b5a34be490ba04990d2c479c19335e55e031357d651',
+      executeTxHash: '347a94a760aefcc674c0d13b9405ea2619bef2a326c04695b372f6e7d7df0426',
       updatedAt: expect.any(Date),
     });
 
@@ -325,14 +325,14 @@ describe('CallContractApprovedProcessorService', () => {
       expect(transactions[0].getChainID()).toBe('test');
       expect(transactions[0].getSender().bech32()).toBe(WALLET_SIGNER_ADDRESS);
       assertArgs(transactions[0], originalItsExecuteOther);
-      expect(transactions[0].getValue()).toBe('0'); // assert sent with value 0
+      expect(transactions[0].getValue()).toBe(0n); // assert sent with value 0
 
       expect(transactions[1].getGasLimit()).toBe(11_000_000);
       expect(transactions[1].getNonce()).toBe(2);
       expect(transactions[1].getChainID()).toBe('test');
       expect(transactions[1].getSender().bech32()).toBe(WALLET_SIGNER_ADDRESS);
       assertArgs(transactions[1], originalItsExecute);
-      expect(transactions[1].getValue()).toBe('0'); // assert sent with value 0
+      expect(transactions[1].getValue()).toBe(0n); // assert sent with value 0
 
       // No contract call approved pending
       expect(await messageApprovedRepository.findPending()).toEqual([]);
@@ -342,7 +342,7 @@ describe('CallContractApprovedProcessorService', () => {
       expect(itsExecuteOther).toEqual({
         ...originalItsExecuteOther,
         retry: 1,
-        executeTxHash: 'e55b33a1e697e68107c1581fe6b6d0885be0a69e00a4a191e3e217d64bea7133',
+        executeTxHash: 'bf98d80b5850d39de84f3bcf128badf49546b0f03e366d9fe89b0bd321942619',
         updatedAt: expect.any(Date),
         successTimes: null,
       });
@@ -351,7 +351,7 @@ describe('CallContractApprovedProcessorService', () => {
       expect(itsExecute).toEqual({
         ...originalItsExecute,
         retry: 1,
-        executeTxHash: '138878bdb853b0d1b2f19cb4d811a3aaa768a7081264a5eaef994f7c3c9a4fd2',
+        executeTxHash: '0d3703be6d54ce8610ac8869a85f90eb7feef5258a4258b3b441af526084ec98',
         updatedAt: expect.any(Date),
         successTimes: null,
       });
@@ -384,7 +384,7 @@ describe('CallContractApprovedProcessorService', () => {
       expect(transactions[0].getChainID()).toBe('test');
       expect(transactions[0].getSender().bech32()).toBe(WALLET_SIGNER_ADDRESS);
       assertArgs(transactions[0], originalItsExecute);
-      expect(transactions[0].getValue()).toBe('0'); // assert sent with no value 1st time
+      expect(transactions[0].getValue()).toBe(0n); // assert sent with no value 1st time
 
       // No contract call approved pending
       expect(await messageApprovedRepository.findPending()).toEqual([]);
@@ -394,7 +394,7 @@ describe('CallContractApprovedProcessorService', () => {
       expect(itsExecute).toEqual({
         ...originalItsExecute,
         retry: 1,
-        executeTxHash: 'a47a870b417e9e8de9eda053938ae7a63bc36034bed3a9708a8ee93f40674f14',
+        executeTxHash: '67b2b814e2ec9bdd08f57073f575ec95d160c76ec9ccd4d14395e7824b6b77cc',
         updatedAt: expect.any(Date),
         successTimes: null,
       });
@@ -417,14 +417,14 @@ describe('CallContractApprovedProcessorService', () => {
 
       transactions = proxy.sendTransactions.mock.lastCall?.[0] as Transaction[];
       expect(transactions).toHaveLength(1);
-      expect(transactions[0].getValue()).toBe('50000000000000000'); // assert sent with value 2nd time
+      expect(transactions[0].getValue()).toBe(50000000000000000n); // assert sent with value 2nd time
 
       // @ts-ignore
       itsExecute = await messageApprovedRepository.findByCommandId(originalItsExecute.commandId);
       expect(itsExecute).toEqual({
         ...originalItsExecute,
         retry: 2,
-        executeTxHash: '44e7f533bbb229bc5e401dae45a561cda2029e45d800e9ff797d3a87e698abb1',
+        executeTxHash: 'e51db2e016b546d937c204725e3ecef6d725dec3049695de1e92419e0536ea4d',
         updatedAt: expect.any(Date),
         successTimes: 1,
       });
@@ -440,7 +440,7 @@ describe('CallContractApprovedProcessorService', () => {
 
       transactions = proxy.sendTransactions.mock.lastCall?.[0] as Transaction[];
       expect(transactions).toHaveLength(1);
-      expect(transactions[0].getValue()).toBe('50000000000000000'); // assert sent with value
+      expect(transactions[0].getValue()).toBe(50000000000000000n); // assert sent with value
 
       // @ts-ignore
       itsExecute = await messageApprovedRepository.findByCommandId(originalItsExecute.commandId);
@@ -463,14 +463,14 @@ describe('CallContractApprovedProcessorService', () => {
 
       transactions = proxy.sendTransactions.mock.lastCall?.[0] as Transaction[];
       expect(transactions).toHaveLength(1);
-      expect(transactions[0].getValue()).toBe('50000000000000000'); // assert sent with value
+      expect(transactions[0].getValue()).toBe(50000000000000000n); // assert sent with value
 
       // @ts-ignore
       itsExecute = await messageApprovedRepository.findByCommandId(originalItsExecute.commandId);
       expect(itsExecute).toEqual({
         ...originalItsExecute,
         retry: 3,
-        executeTxHash: 'bea373a3fc25339c2c409b0afb03664d87a8db85a3ec9fa77d9201e2409ca152',
+        executeTxHash: 'ef05047f045cc3769eaa31130ce1efa4c558367df7920327b57d9350ed123dfd',
         updatedAt: expect.any(Date),
         successTimes: 1,
       });

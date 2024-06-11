@@ -1,6 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { Locker } from '@multiversx/sdk-nestjs-common';
 import { MessageApprovedRepository } from '@mvx-monorepo/common/database/repository/message-approved.repository';
 import { ProviderKeys } from '@mvx-monorepo/common/utils/provider.enum';
 import { UserSigner } from '@multiversx/sdk-wallet/out';
@@ -42,7 +41,7 @@ export class MessageApprovedProcessorService {
 
   @Cron('*/30 * * * * *')
   async processPendingMessageApproved() {
-    await Locker.lock('processPendingMessageApproved', async () => {
+    // await Locker.lock('processPendingMessageApproved', async () => {
       this.logger.debug('Running processPendingMessageApproved cron');
 
       let accountNonce = null;
@@ -112,7 +111,7 @@ export class MessageApprovedProcessorService {
           await this.messageApprovedRepository.updateManyPartial(entriesToUpdate);
         }
       }
-    });
+    // });
   }
 
   private async buildAndSignExecuteTransaction(
