@@ -1,0 +1,1106 @@
+{
+    "buildInfo": {
+        "rustc": {
+            "version": "1.76.0-nightly",
+            "commitHash": "d86d65bbc19b928387f68427fcc3a0da498d8a19",
+            "commitDate": "2023-12-10",
+            "channel": "Nightly",
+            "short": "rustc 1.76.0-nightly (d86d65bbc 2023-12-10)"
+        },
+        "contractCrate": {
+            "name": "interchain-token-service",
+            "version": "0.0.0"
+        },
+        "framework": {
+            "name": "multiversx-sc",
+            "version": "0.46.1"
+        }
+    },
+    "name": "InterchainTokenServiceContract",
+    "constructor": {
+        "inputs": [
+            {
+                "name": "gateway",
+                "type": "Address"
+            },
+            {
+                "name": "gas_service",
+                "type": "Address"
+            },
+            {
+                "name": "token_manager_implementation",
+                "type": "Address"
+            },
+            {
+                "name": "operator",
+                "type": "Address"
+            },
+            {
+                "name": "chain_name",
+                "type": "bytes"
+            },
+            {
+                "name": "trusted_chain_names",
+                "type": "counted-variadic<bytes>",
+                "multi_arg": true
+            },
+            {
+                "name": "trusted_addresses",
+                "type": "counted-variadic<bytes>",
+                "multi_arg": true
+            }
+        ],
+        "outputs": []
+    },
+    "endpoints": [
+        {
+            "name": "upgrade",
+            "mutability": "mutable",
+            "inputs": [],
+            "outputs": []
+        },
+        {
+            "name": "setInterchainTokenFactory",
+            "onlyOwner": true,
+            "mutability": "mutable",
+            "inputs": [
+                {
+                    "name": "interchain_token_factory",
+                    "type": "Address"
+                }
+            ],
+            "outputs": []
+        },
+        {
+            "docs": [
+                "User Functions"
+            ],
+            "name": "deployTokenManager",
+            "mutability": "mutable",
+            "payableInTokens": [
+                "EGLD"
+            ],
+            "inputs": [
+                {
+                    "name": "salt",
+                    "type": "array32<u8>"
+                },
+                {
+                    "name": "destination_chain",
+                    "type": "bytes"
+                },
+                {
+                    "name": "token_manager_type",
+                    "type": "TokenManagerType"
+                },
+                {
+                    "name": "params",
+                    "type": "bytes"
+                }
+            ],
+            "outputs": [
+                {
+                    "type": "array32<u8>"
+                }
+            ]
+        },
+        {
+            "name": "deployInterchainToken",
+            "mutability": "mutable",
+            "payableInTokens": [
+                "EGLD"
+            ],
+            "inputs": [
+                {
+                    "name": "salt",
+                    "type": "array32<u8>"
+                },
+                {
+                    "name": "destination_chain",
+                    "type": "bytes"
+                },
+                {
+                    "name": "name",
+                    "type": "bytes"
+                },
+                {
+                    "name": "symbol",
+                    "type": "bytes"
+                },
+                {
+                    "name": "decimals",
+                    "type": "u8"
+                },
+                {
+                    "name": "minter",
+                    "type": "bytes"
+                }
+            ],
+            "outputs": [
+                {
+                    "type": "array32<u8>"
+                }
+            ]
+        },
+        {
+            "name": "expressExecute",
+            "mutability": "mutable",
+            "payableInTokens": [
+                "*"
+            ],
+            "inputs": [
+                {
+                    "name": "command_id",
+                    "type": "array32<u8>"
+                },
+                {
+                    "name": "source_chain",
+                    "type": "bytes"
+                },
+                {
+                    "name": "source_address",
+                    "type": "bytes"
+                },
+                {
+                    "name": "payload",
+                    "type": "bytes"
+                }
+            ],
+            "outputs": []
+        },
+        {
+            "name": "interchainTransfer",
+            "mutability": "mutable",
+            "payableInTokens": [
+                "*"
+            ],
+            "inputs": [
+                {
+                    "name": "token_id",
+                    "type": "array32<u8>"
+                },
+                {
+                    "name": "destination_chain",
+                    "type": "bytes"
+                },
+                {
+                    "name": "destination_address",
+                    "type": "bytes"
+                },
+                {
+                    "name": "metadata",
+                    "type": "bytes"
+                },
+                {
+                    "name": "gas_value",
+                    "type": "BigUint"
+                }
+            ],
+            "outputs": []
+        },
+        {
+            "name": "callContractWithInterchainToken",
+            "mutability": "mutable",
+            "payableInTokens": [
+                "*"
+            ],
+            "inputs": [
+                {
+                    "name": "token_id",
+                    "type": "array32<u8>"
+                },
+                {
+                    "name": "destination_chain",
+                    "type": "bytes"
+                },
+                {
+                    "name": "destination_address",
+                    "type": "bytes"
+                },
+                {
+                    "name": "data",
+                    "type": "bytes"
+                },
+                {
+                    "name": "gas_value",
+                    "type": "BigUint"
+                }
+            ],
+            "outputs": []
+        },
+        {
+            "docs": [
+                "Owner functions"
+            ],
+            "name": "setFlowLimits",
+            "mutability": "mutable",
+            "inputs": [
+                {
+                    "name": "token_ids",
+                    "type": "counted-variadic<array32<u8>>",
+                    "multi_arg": true
+                },
+                {
+                    "name": "flow_limits",
+                    "type": "counted-variadic<BigUint>",
+                    "multi_arg": true
+                }
+            ],
+            "outputs": [],
+            "allow_multiple_var_args": true
+        },
+        {
+            "docs": [
+                "Internal Functions"
+            ],
+            "name": "execute",
+            "mutability": "mutable",
+            "payableInTokens": [
+                "EGLD"
+            ],
+            "inputs": [
+                {
+                    "name": "command_id",
+                    "type": "array32<u8>"
+                },
+                {
+                    "name": "source_chain",
+                    "type": "bytes"
+                },
+                {
+                    "name": "source_address",
+                    "type": "bytes"
+                },
+                {
+                    "name": "payload",
+                    "type": "bytes"
+                }
+            ],
+            "outputs": []
+        },
+        {
+            "name": "interchainTokenId",
+            "mutability": "readonly",
+            "inputs": [
+                {
+                    "name": "sender",
+                    "type": "Address"
+                },
+                {
+                    "name": "salt",
+                    "type": "array32<u8>"
+                }
+            ],
+            "outputs": [
+                {
+                    "type": "array32<u8>"
+                }
+            ]
+        },
+        {
+            "name": "contractCallValue",
+            "mutability": "readonly",
+            "inputs": [
+                {
+                    "name": "source_chain",
+                    "type": "bytes"
+                },
+                {
+                    "name": "source_address",
+                    "type": "bytes"
+                },
+                {
+                    "name": "payload",
+                    "type": "bytes"
+                }
+            ],
+            "outputs": [
+                {
+                    "type": "EgldOrEsdtTokenIdentifier"
+                },
+                {
+                    "type": "BigUint"
+                }
+            ]
+        },
+        {
+            "name": "interchainTokenFactory",
+            "mutability": "readonly",
+            "inputs": [],
+            "outputs": [
+                {
+                    "type": "Address"
+                }
+            ]
+        },
+        {
+            "name": "chainNameHash",
+            "mutability": "readonly",
+            "inputs": [],
+            "outputs": [
+                {
+                    "type": "array32<u8>"
+                }
+            ]
+        },
+        {
+            "name": "transferOperatorship",
+            "mutability": "mutable",
+            "inputs": [
+                {
+                    "name": "operator",
+                    "type": "Address"
+                }
+            ],
+            "outputs": []
+        },
+        {
+            "name": "proposeOperatorship",
+            "mutability": "mutable",
+            "inputs": [
+                {
+                    "name": "operator",
+                    "type": "Address"
+                }
+            ],
+            "outputs": []
+        },
+        {
+            "name": "acceptOperatorship",
+            "mutability": "mutable",
+            "inputs": [
+                {
+                    "name": "from_operator",
+                    "type": "Address"
+                }
+            ],
+            "outputs": []
+        },
+        {
+            "name": "isOperator",
+            "mutability": "readonly",
+            "inputs": [
+                {
+                    "name": "address",
+                    "type": "Address"
+                }
+            ],
+            "outputs": [
+                {
+                    "type": "bool"
+                }
+            ]
+        },
+        {
+            "name": "getAccountRoles",
+            "mutability": "readonly",
+            "inputs": [
+                {
+                    "name": "address",
+                    "type": "Address"
+                }
+            ],
+            "outputs": [
+                {
+                    "type": "u8"
+                }
+            ]
+        },
+        {
+            "name": "getProposedRoles",
+            "mutability": "readonly",
+            "inputs": [
+                {
+                    "name": "from_address",
+                    "type": "Address"
+                },
+                {
+                    "name": "to_address",
+                    "type": "Address"
+                }
+            ],
+            "outputs": [
+                {
+                    "type": "u8"
+                }
+            ]
+        },
+        {
+            "name": "setTrustedAddress",
+            "onlyOwner": true,
+            "mutability": "mutable",
+            "inputs": [
+                {
+                    "name": "chain",
+                    "type": "bytes"
+                },
+                {
+                    "name": "address",
+                    "type": "bytes"
+                }
+            ],
+            "outputs": []
+        },
+        {
+            "name": "removeTrustedAddress",
+            "onlyOwner": true,
+            "mutability": "mutable",
+            "inputs": [
+                {
+                    "name": "source_chain",
+                    "type": "bytes"
+                }
+            ],
+            "outputs": []
+        },
+        {
+            "name": "chainName",
+            "mutability": "readonly",
+            "inputs": [],
+            "outputs": [
+                {
+                    "type": "bytes"
+                }
+            ]
+        },
+        {
+            "name": "trustedAddress",
+            "mutability": "readonly",
+            "inputs": [
+                {
+                    "name": "chain_name",
+                    "type": "bytes"
+                }
+            ],
+            "outputs": [
+                {
+                    "type": "bytes"
+                }
+            ]
+        },
+        {
+            "name": "trustedAddressHash",
+            "mutability": "readonly",
+            "inputs": [
+                {
+                    "name": "chain_name",
+                    "type": "bytes"
+                }
+            ],
+            "outputs": [
+                {
+                    "type": "array32<u8>"
+                }
+            ]
+        },
+        {
+            "name": "flowLimit",
+            "mutability": "readonly",
+            "inputs": [
+                {
+                    "name": "token_id",
+                    "type": "array32<u8>"
+                }
+            ],
+            "outputs": [
+                {
+                    "type": "BigUint"
+                }
+            ]
+        },
+        {
+            "name": "flowOutAmount",
+            "mutability": "readonly",
+            "inputs": [
+                {
+                    "name": "token_id",
+                    "type": "array32<u8>"
+                }
+            ],
+            "outputs": [
+                {
+                    "type": "BigUint"
+                }
+            ]
+        },
+        {
+            "name": "flowInAmount",
+            "mutability": "readonly",
+            "inputs": [
+                {
+                    "name": "token_id",
+                    "type": "array32<u8>"
+                }
+            ],
+            "outputs": [
+                {
+                    "type": "BigUint"
+                }
+            ]
+        },
+        {
+            "name": "validTokenManagerAddress",
+            "mutability": "readonly",
+            "inputs": [
+                {
+                    "name": "token_id",
+                    "type": "array32<u8>"
+                }
+            ],
+            "outputs": [
+                {
+                    "type": "Address"
+                }
+            ]
+        },
+        {
+            "name": "validTokenIdentifier",
+            "mutability": "readonly",
+            "inputs": [
+                {
+                    "name": "token_id",
+                    "type": "array32<u8>"
+                }
+            ],
+            "outputs": [
+                {
+                    "type": "EgldOrEsdtTokenIdentifier"
+                }
+            ]
+        },
+        {
+            "name": "invalidTokenManagerAddress",
+            "mutability": "readonly",
+            "inputs": [
+                {
+                    "name": "token_id",
+                    "type": "array32<u8>"
+                }
+            ],
+            "outputs": [
+                {
+                    "type": "Address"
+                }
+            ]
+        },
+        {
+            "name": "gateway",
+            "mutability": "readonly",
+            "inputs": [],
+            "outputs": [
+                {
+                    "type": "Address"
+                }
+            ]
+        },
+        {
+            "name": "gasService",
+            "mutability": "readonly",
+            "inputs": [],
+            "outputs": [
+                {
+                    "type": "Address"
+                }
+            ]
+        },
+        {
+            "name": "tokenManagerAddress",
+            "mutability": "readonly",
+            "inputs": [
+                {
+                    "name": "token_id",
+                    "type": "array32<u8>"
+                }
+            ],
+            "outputs": [
+                {
+                    "type": "Address"
+                }
+            ]
+        },
+        {
+            "name": "tokenManagerImplementation",
+            "mutability": "readonly",
+            "inputs": [],
+            "outputs": [
+                {
+                    "type": "Address"
+                }
+            ]
+        },
+        {
+            "name": "pause",
+            "onlyOwner": true,
+            "mutability": "mutable",
+            "inputs": [],
+            "outputs": []
+        },
+        {
+            "name": "unpause",
+            "onlyOwner": true,
+            "mutability": "mutable",
+            "inputs": [],
+            "outputs": []
+        },
+        {
+            "name": "isPaused",
+            "mutability": "readonly",
+            "inputs": [],
+            "outputs": [
+                {
+                    "type": "bool"
+                }
+            ]
+        }
+    ],
+    "events": [
+        {
+            "identifier": "roles_proposed_event",
+            "inputs": [
+                {
+                    "name": "from_address",
+                    "type": "Address",
+                    "indexed": true
+                },
+                {
+                    "name": "to_address",
+                    "type": "Address",
+                    "indexed": true
+                },
+                {
+                    "name": "roles",
+                    "type": "u8"
+                }
+            ]
+        },
+        {
+            "identifier": "roles_added_event",
+            "inputs": [
+                {
+                    "name": "address",
+                    "type": "Address",
+                    "indexed": true
+                },
+                {
+                    "name": "roles",
+                    "type": "u8"
+                }
+            ]
+        },
+        {
+            "identifier": "roles_removed_event",
+            "inputs": [
+                {
+                    "name": "address",
+                    "type": "Address",
+                    "indexed": true
+                },
+                {
+                    "name": "roles",
+                    "type": "u8"
+                }
+            ]
+        },
+        {
+            "identifier": "trusted_address_added_event",
+            "inputs": [
+                {
+                    "name": "source_chain",
+                    "type": "bytes",
+                    "indexed": true
+                },
+                {
+                    "name": "source_address",
+                    "type": "bytes"
+                }
+            ]
+        },
+        {
+            "identifier": "trusted_address_removed_event",
+            "inputs": [
+                {
+                    "name": "source_chain",
+                    "type": "bytes",
+                    "indexed": true
+                }
+            ]
+        },
+        {
+            "identifier": "token_manager_deployed_event",
+            "inputs": [
+                {
+                    "name": "token_id",
+                    "type": "array32<u8>",
+                    "indexed": true
+                },
+                {
+                    "name": "data",
+                    "type": "TokenManagerDeployedEventData"
+                }
+            ]
+        },
+        {
+            "identifier": "interchain_token_deployment_started_event",
+            "inputs": [
+                {
+                    "name": "token_id",
+                    "type": "array32<u8>",
+                    "indexed": true
+                },
+                {
+                    "name": "data",
+                    "type": "InterchainTokenDeploymentStartedEventData"
+                }
+            ]
+        },
+        {
+            "identifier": "interchain_token_id_claimed_event",
+            "inputs": [
+                {
+                    "name": "token_id",
+                    "type": "array32<u8>",
+                    "indexed": true
+                },
+                {
+                    "name": "deployer",
+                    "type": "Address",
+                    "indexed": true
+                },
+                {
+                    "name": "data",
+                    "type": "array32<u8>"
+                }
+            ]
+        },
+        {
+            "identifier": "token_manager_deployment_started_event",
+            "inputs": [
+                {
+                    "name": "token_id",
+                    "type": "array32<u8>",
+                    "indexed": true
+                },
+                {
+                    "name": "data",
+                    "type": "TokenManagerDeploymentStartedEventData"
+                }
+            ]
+        },
+        {
+            "identifier": "standardized_token_deployed_event",
+            "inputs": [
+                {
+                    "name": "token_id",
+                    "type": "array32<u8>",
+                    "indexed": true
+                },
+                {
+                    "name": "minter",
+                    "type": "Address",
+                    "indexed": true
+                },
+                {
+                    "name": "data",
+                    "type": "StandardizedTokenDeployedEventData"
+                }
+            ]
+        },
+        {
+            "identifier": "interchain_transfer_event",
+            "inputs": [
+                {
+                    "name": "token_id",
+                    "type": "array32<u8>",
+                    "indexed": true
+                },
+                {
+                    "name": "source_address",
+                    "type": "Address",
+                    "indexed": true
+                },
+                {
+                    "name": "data_hash",
+                    "type": "array32<u8>",
+                    "indexed": true
+                },
+                {
+                    "name": "data",
+                    "type": "InterchainTransferEventData"
+                }
+            ]
+        },
+        {
+            "identifier": "interchain_transfer_received_event",
+            "inputs": [
+                {
+                    "name": "command_id",
+                    "type": "array32<u8>",
+                    "indexed": true
+                },
+                {
+                    "name": "token_id",
+                    "type": "array32<u8>",
+                    "indexed": true
+                },
+                {
+                    "name": "source_chain",
+                    "type": "bytes",
+                    "indexed": true
+                },
+                {
+                    "name": "source_address",
+                    "type": "bytes",
+                    "indexed": true
+                },
+                {
+                    "name": "destination_address",
+                    "type": "Address",
+                    "indexed": true
+                },
+                {
+                    "name": "data_hash",
+                    "type": "array32<u8>",
+                    "indexed": true
+                },
+                {
+                    "name": "amount",
+                    "type": "BigUint"
+                }
+            ]
+        },
+        {
+            "identifier": "execute_with_interchain_token_success_event",
+            "inputs": [
+                {
+                    "name": "command_id",
+                    "type": "array32<u8>",
+                    "indexed": true
+                }
+            ]
+        },
+        {
+            "identifier": "execute_with_interchain_token_failed_event",
+            "inputs": [
+                {
+                    "name": "command_id",
+                    "type": "array32<u8>",
+                    "indexed": true
+                }
+            ]
+        },
+        {
+            "identifier": "express_executed_event",
+            "inputs": [
+                {
+                    "name": "command_id",
+                    "type": "array32<u8>",
+                    "indexed": true
+                },
+                {
+                    "name": "source_chain",
+                    "type": "bytes",
+                    "indexed": true
+                },
+                {
+                    "name": "source_address",
+                    "type": "bytes",
+                    "indexed": true
+                },
+                {
+                    "name": "payload_hash",
+                    "type": "array32<u8>",
+                    "indexed": true
+                },
+                {
+                    "name": "express_executor",
+                    "type": "Address"
+                }
+            ]
+        },
+        {
+            "identifier": "express_execution_fulfilled_event",
+            "inputs": [
+                {
+                    "name": "command_id",
+                    "type": "array32<u8>",
+                    "indexed": true
+                },
+                {
+                    "name": "source_chain",
+                    "type": "bytes",
+                    "indexed": true
+                },
+                {
+                    "name": "source_address",
+                    "type": "bytes",
+                    "indexed": true
+                },
+                {
+                    "name": "payload_hash",
+                    "type": "array32<u8>",
+                    "indexed": true
+                },
+                {
+                    "name": "express_executor",
+                    "type": "Address"
+                }
+            ]
+        },
+        {
+            "identifier": "express_execute_with_interchain_token_success_event",
+            "inputs": [
+                {
+                    "name": "command_id",
+                    "type": "array32<u8>",
+                    "indexed": true
+                },
+                {
+                    "name": "express_executor",
+                    "type": "Address",
+                    "indexed": true
+                }
+            ]
+        },
+        {
+            "identifier": "express_execute_with_interchain_token_failed_event",
+            "inputs": [
+                {
+                    "name": "command_id",
+                    "type": "array32<u8>",
+                    "indexed": true
+                },
+                {
+                    "name": "express_executor",
+                    "type": "Address",
+                    "indexed": true
+                }
+            ]
+        }
+    ],
+    "esdtAttributes": [],
+    "hasCallback": true,
+    "types": {
+        "InterchainTokenDeploymentStartedEventData": {
+            "type": "struct",
+            "fields": [
+                {
+                    "name": "name",
+                    "type": "bytes"
+                },
+                {
+                    "name": "symbol",
+                    "type": "bytes"
+                },
+                {
+                    "name": "decimals",
+                    "type": "u8"
+                },
+                {
+                    "name": "minter",
+                    "type": "bytes"
+                },
+                {
+                    "name": "destination_chain",
+                    "type": "bytes"
+                }
+            ]
+        },
+        "InterchainTransferEventData": {
+            "type": "struct",
+            "fields": [
+                {
+                    "name": "destination_chain",
+                    "type": "bytes"
+                },
+                {
+                    "name": "destination_address",
+                    "type": "bytes"
+                },
+                {
+                    "name": "amount",
+                    "type": "BigUint"
+                }
+            ]
+        },
+        "StandardizedTokenDeployedEventData": {
+            "type": "struct",
+            "fields": [
+                {
+                    "name": "name",
+                    "type": "bytes"
+                },
+                {
+                    "name": "symbol",
+                    "type": "bytes"
+                },
+                {
+                    "name": "decimals",
+                    "type": "u8"
+                },
+                {
+                    "name": "mint_amount",
+                    "type": "BigUint"
+                },
+                {
+                    "name": "mint_to",
+                    "type": "Address"
+                }
+            ]
+        },
+        "TokenManagerDeployedEventData": {
+            "type": "struct",
+            "fields": [
+                {
+                    "name": "token_manager",
+                    "type": "Address"
+                },
+                {
+                    "name": "token_manager_type",
+                    "type": "TokenManagerType"
+                },
+                {
+                    "name": "params",
+                    "type": "bytes"
+                }
+            ]
+        },
+        "TokenManagerDeploymentStartedEventData": {
+            "type": "struct",
+            "fields": [
+                {
+                    "name": "destination_chain",
+                    "type": "bytes"
+                },
+                {
+                    "name": "token_manager_type",
+                    "type": "TokenManagerType"
+                },
+                {
+                    "name": "params",
+                    "type": "bytes"
+                }
+            ]
+        },
+        "TokenManagerType": {
+            "type": "enum",
+            "variants": [
+                {
+                    "name": "MintBurn",
+                    "discriminant": 0
+                },
+                {
+                    "name": "MintBurnFrom",
+                    "discriminant": 1
+                },
+                {
+                    "name": "LockUnlock",
+                    "discriminant": 2
+                },
+                {
+                    "name": "LockUnlockFee",
+                    "discriminant": 3
+                }
+            ]
+        }
+    }
+}

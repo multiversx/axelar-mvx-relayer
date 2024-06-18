@@ -1,12 +1,13 @@
-import { Injectable } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
+import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { EVENTS_NOTIFIER_QUEUE } from '../../../../config/configuration';
 
 @Injectable()
 export class ApiConfigService {
-  constructor(private readonly configService: ConfigService) { }
+  constructor(private readonly configService: ConfigService) {}
 
   getApiUrl(): string {
-    const apiUrl = this.configService.get<string>('urls.api');
+    const apiUrl = this.configService.get<string>('API_URL');
     if (!apiUrl) {
       throw new Error('No API url present');
     }
@@ -14,28 +15,22 @@ export class ApiConfigService {
     return apiUrl;
   }
 
-  getSwaggerUrls(): string[] {
-    const swaggerUrls = this.configService.get<string[]>('urls.swagger');
-    if (!swaggerUrls) {
-      throw new Error('No swagger urls present');
+  getGatewayUrl(): string {
+    const gatewayUrl = this.configService.get<string>('GATEWAY_URL');
+    if (!gatewayUrl) {
+      throw new Error('No Gateway url present');
     }
 
-    return swaggerUrls;
+    return gatewayUrl;
   }
 
   getRedisUrl(): string {
-    const redisUrl = this.configService.get<string>('urls.redis');
+    const redisUrl = this.configService.get<string>('REDIS_URL');
     if (!redisUrl) {
       throw new Error('No redisUrl present');
     }
 
     return redisUrl;
-  }
-
-  getRedisHost(): string {
-    const url = this.getRedisUrl();
-
-    return url.split(':')[0];
   }
 
   getRedisPort(): number {
@@ -49,229 +44,104 @@ export class ApiConfigService {
     return 6379;
   }
 
-  getDatabaseHost(): string {
-    const databaseHost = this.configService.get<string>('database.host');
-    if (!databaseHost) {
-      throw new Error('No database.host present');
+  getEventsNotifierUrl(): string {
+    const eventsNotifierUrl = this.configService.get<string>('EVENTS_NOTIFIER_URL');
+    if (!eventsNotifierUrl) {
+      throw new Error('No Events Notifier url present');
     }
 
-    return databaseHost;
+    return eventsNotifierUrl;
   }
 
-  getDatabasePort(): number {
-    const databasePort = this.configService.get<number>('database.port');
-    if (!databasePort) {
-      throw new Error('No database.port present');
+  getEventsNotifierQueue(): string {
+    return EVENTS_NOTIFIER_QUEUE;
+  }
+
+  getContractGateway(): string {
+    const contractGateway = this.configService.get<string>('CONTRACT_GATEWAY');
+    if (!contractGateway) {
+      throw new Error('No Contract Gateway present');
     }
 
-    return databasePort;
+    return contractGateway;
   }
 
-
-  getDatabaseUsername(): string {
-    const databaseUsername = this.configService.get<string>('database.username');
-    if (!databaseUsername) {
-      throw new Error('No database.username present');
+  getContractGasService(): string {
+    const contractGasService = this.configService.get<string>('CONTRACT_GAS_SERVICE');
+    if (!contractGasService) {
+      throw new Error('No Contract Gas Service present');
     }
 
-    return databaseUsername;
+    return contractGasService;
   }
 
-  getDatabasePassword(): string {
-    const databasePassword = this.configService.get<string>('database.password');
-    if (!databasePassword) {
-      throw new Error('No database.password present');
+  getContractIts(): string {
+    const contractIts = this.configService.get<string>('CONTRACT_ITS');
+    if (!contractIts) {
+      throw new Error('No Contract ITS present');
     }
 
-    return databasePassword;
+    return contractIts;
   }
 
-  getDatabaseName(): string {
-    const databaseName = this.configService.get<string>('database.name');
-    if (!databaseName) {
-      throw new Error('No database.name present');
+  getContractWegldSwap(): string {
+    const contractWegldSwap = this.configService.get<string>('CONTRACT_WEGLD_SWAP');
+    if (!contractWegldSwap) {
+      throw new Error('No Contract Wegld Swap present');
     }
 
-    return databaseName;
+    return contractWegldSwap;
   }
 
-  getDatabaseConnection(): { host: string, port: number, username: string, password: string, database: string } {
-    return {
-      host: this.getDatabaseHost(),
-      port: this.getDatabasePort(),
-      username: this.getDatabaseUsername(),
-      password: this.getDatabasePassword(),
-      database: this.getDatabaseName(),
-    };
-  }
-
-
-  getNoSQLDatabaseConnection(): string {
-    return `mongodb://${this.getDatabaseHost()}:27017/${this.getDatabaseName()}`;
-  }
-
-  getIsPublicApiFeatureActive(): boolean {
-    const isApiActive = this.configService.get<boolean>('features.publicApi.enabled');
-    if (isApiActive === undefined) {
-      throw new Error('No public api feature flag present');
+  getAxelarContractVotingVerifier(): string {
+    const axelarContractVotingVerifier = this.configService.get<string>('AXELAR_CONTRACT_VOTING_VERIFIER');
+    if (!axelarContractVotingVerifier) {
+      throw new Error('No Axelar Contract Voting Verifier present');
     }
 
-    return isApiActive;
+    return axelarContractVotingVerifier;
   }
 
-  getPublicApiFeaturePort(): number {
-    const featurePort = this.configService.get<number>('features.publicApi.port');
-    if (featurePort === undefined) {
-      throw new Error('No public api port present');
+  getAxelarApiUrl(): string {
+    const axelarApiUrl = this.configService.get<string>('AXELAR_API_URL');
+    if (!axelarApiUrl) {
+      throw new Error('No Axelar API url present');
     }
 
-    return featurePort;
+    return axelarApiUrl;
   }
 
-  getIsPrivateApiFeatureActive(): boolean {
-    const isApiActive = this.configService.get<boolean>('features.privateApi.enabled');
-    if (isApiActive === undefined) {
-      throw new Error('No private api feature flag present');
+  getChainId(): string {
+    const chainId = this.configService.get<string>('CHAIN_ID');
+    if (!chainId) {
+      throw new Error('No Chain Id present');
     }
 
-    return isApiActive;
+    return chainId;
   }
 
-  getPrivateApiFeaturePort(): number {
-    const featurePort = this.configService.get<number>('features.privateApi.port');
-    if (featurePort === undefined) {
-      throw new Error('No private api port present');
+  getWalletMnemonic(): string {
+    const walletMnemonic = this.configService.get<string>('WALLET_MNEMONIC');
+    if (!walletMnemonic) {
+      throw new Error('No Wallet Mnemonic present');
     }
 
-    return featurePort;
-  }
-
-  getIsCacheWarmerFeatureActive(): boolean {
-    const isCacheWarmerActive = this.configService.get<boolean>('features.cacheWarmer.enabled');
-    if (isCacheWarmerActive === undefined) {
-      throw new Error('No cache warmer feature flag present');
-    }
-
-    return isCacheWarmerActive;
-  }
-
-  getCacheWarmerFeaturePort(): number {
-    const featurePort = this.configService.get<number>('features.cacheWarmer.port');
-    if (featurePort === undefined) {
-      throw new Error('No cache warmer port present');
-    }
-
-    return featurePort;
-  }
-
-  getIsTransactionProcessorFeatureActive(): boolean {
-    const isTransactionProcessorActive = this.configService.get<boolean>('features.transactionProcessor.enabled');
-    if (isTransactionProcessorActive === undefined) {
-      throw new Error('No transaction processor feature flag present');
-    }
-
-    return isTransactionProcessorActive;
-  }
-
-  getTransactionProcessorFeaturePort(): number {
-    const featurePort = this.configService.get<number>('features.transactionProcessor.port');
-    if (featurePort === undefined) {
-      throw new Error('No transaction processor port present');
-    }
-
-    return featurePort;
-  }
-
-  getTransactionProcessorMaxLookBehind(): number {
-    const maxLookBehind = this.configService.get<number>('features.transactionProcessor.maxLookBehind');
-    if (maxLookBehind === undefined) {
-      throw new Error('No transaction processor max look behind present');
-    }
-
-    return maxLookBehind;
-  }
-
-  getIsQueueWorkerFeatureActive(): boolean {
-    const isQueueWorkerActive = this.configService.get<boolean>('features.queueWorker.enabled');
-    if (isQueueWorkerActive === undefined) {
-      throw new Error('No queue worker feature flag present');
-    }
-
-    return isQueueWorkerActive;
-  }
-
-  getQueueWorkerFeaturePort(): number {
-    const featurePort = this.configService.get<number>('features.queueWorker.port');
-    if (featurePort === undefined) {
-      throw new Error('No transaction processor port present');
-    }
-
-    return featurePort;
-  }
-
-  getSecurityAdmins(): string[] {
-    const admins = this.configService.get<string[]>('security.admins');
-    if (admins === undefined) {
-      throw new Error('No security admins value present');
-    }
-
-    return admins;
-  }
-
-  getRateLimiterSecret(): string | undefined {
-    return this.configService.get<string>('rateLimiterSecret');
-  }
-
-  getAxiosTimeout(): number {
-    return this.configService.get<number>('keepAliveTimeout.downstream') ?? 61000;
-  }
-
-  getIsKeepAliveAgentFeatureActive(): boolean {
-    return this.configService.get<boolean>('keepAliveAgent.enabled') ?? true;
-  }
-
-  getServerTimeout(): number {
-    return this.configService.get<number>('keepAliveTimeout.upstream') ?? 60000;
-  }
-
-  getHeadersTimeout(): number {
-    return this.getServerTimeout() + 1000;
-  }
-
-  getUseCachingInterceptor(): boolean {
-    return this.configService.get<boolean>('useCachingInterceptor') ?? false;
-  }
-
-  getElasticUrl(): string {
-    const elasticUrls = this.configService.get<string[]>('urls.elastic');
-    if (!elasticUrls) {
-      throw new Error('No elastic urls present');
-    }
-
-    return elasticUrls[Math.floor(Math.random() * elasticUrls.length)];
+    return walletMnemonic;
   }
 
   getPoolLimit(): number {
-    return this.configService.get<number>('caching.poolLimit') ?? 100;
+    return this.configService.get<number>('CACHING_POOL_LIMIT') ?? 100;
   }
 
   getProcessTtl(): number {
-    return this.configService.get<number>('caching.processTtl') ?? 60;
+    return this.configService.get<number>('CACHING_PROCESS_TTL') ?? 60;
   }
 
-  getUseKeepAliveAgentFlag(): boolean {
-    return this.configService.get<boolean>('flags.useKeepAliveAgent') ?? true;
+  getApiTimeout(): number {
+    return this.configService.get<number>('API_TIMEOUT') ?? 30_000; // 30 seconds default
   }
 
-  getIsAuthActive(): boolean {
-    return this.configService.get<boolean>('api.auth') ?? false;
-  }
-
-  getNativeAuthMaxExpirySeconds(): number {
-    return this.configService.get<number>('nativeAuth.maxExpirySeconds') ?? 86400;
-  }
-
-  getNativeAuthAcceptedOrigins(): string[] {
-    return this.configService.get<string[]>('nativeAuth.acceptedOrigins') ?? [];
+  getGatewayTimeout(): number {
+    return this.configService.get<number>('GATEWAY_TIMEOUT') ?? 30_000; // 30 seconds default
   }
 }

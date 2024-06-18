@@ -1,0 +1,5 @@
+export enum ProviderKeys {
+  AXELAR_GRPC_CLIENT = 'AXELAR_GRPC_CLIENT',
+
+  WALLET_SIGNER = 'WALLET_SIGNER',
+}

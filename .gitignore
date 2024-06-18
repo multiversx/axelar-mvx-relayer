@@ -37,3 +37,7 @@ lerna-debug.log*
 # Configs
 **/*/config/config.yaml
 **/*/config/config.custom.yaml
+
+.db/*
+
+.env

@@ -8,18 +8,11 @@ services:
     environment:
       - REDIS_REPLICATION_MODE=master
 
-  database:
-    image: "mysql:latest"
-    ports:
-      - "3306:3306"
+  postgres:
+    image: postgres:latest
     environment:
-      - MYSQL_ROOT_PASSWORD=root
-      - MYSQL_DATABASE=example
-
-  mongodb:
-    image: mongo:latest
-    environment:
-      - MONGODB_DATABASE="example"
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=relayer
     ports:
-      - 27017:27017
-
+      - 5432:5432
