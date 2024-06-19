@@ -40,7 +40,7 @@ export class ContractCallEventProcessorService {
               contractCallEvent.status = ContractCallEventStatus.FAILED;
 
               this.logger.error(
-                `Verify contract call event ${contractCallEvent.id} was not successful. Got error code ${response.error.errorCode}`,
+                `Verify contract call event ${contractCallEvent.id} was not successful. Got error code ${response.error.errorCode} and error ${response.error.error}`,
               );
             }
           } catch (e) {
