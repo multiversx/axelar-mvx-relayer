@@ -16,6 +16,7 @@ import { MessageApproved, MessageApprovedStatus } from '@prisma/client';
 import { TransactionsHelper } from '@mvx-monorepo/common/contracts/transactions.helper';
 import { ApiConfigService } from '@mvx-monorepo/common';
 import { ItsContract } from '@mvx-monorepo/common/contracts/its.contract';
+import { Locker } from '@multiversx/sdk-nestjs-common';
 
 // Support a max of 3 retries (mainly because some Interchain Token Service endpoints need to be called 2 times)
 const MAX_NUMBER_OF_RETRIES: number = 3;
@@ -41,7 +42,7 @@ export class MessageApprovedProcessorService {
 
   @Cron('*/30 * * * * *')
   async processPendingMessageApproved() {
-    // await Locker.lock('processPendingMessageApproved', async () => {
+    await Locker.lock('processPendingMessageApproved', async () => {
       this.logger.debug('Running processPendingMessageApproved cron');
 
       let accountNonce = null;
@@ -111,7 +112,7 @@ export class MessageApprovedProcessorService {
           await this.messageApprovedRepository.updateManyPartial(entriesToUpdate);
         }
       }
-    // });
+    });
   }
 
   private async buildAndSignExecuteTransaction(

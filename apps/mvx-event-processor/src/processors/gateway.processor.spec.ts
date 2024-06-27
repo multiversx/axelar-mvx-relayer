@@ -129,7 +129,7 @@ describe('ContractCallProcessor', () => {
       expect(gatewayContract.decodeContractCallEvent).toHaveBeenCalledWith(TransactionEvent.fromHttpResponse(rawEvent));
       expect(contractCallEventRepository.create).toHaveBeenCalledTimes(1);
       expect(contractCallEventRepository.create).toHaveBeenCalledWith({
-        id: 'txHash-0',
+        id: '0xtxHash-0',
         txHash: 'txHash',
         eventIndex: 0,
         status: ContractCallEventStatus.PENDING,

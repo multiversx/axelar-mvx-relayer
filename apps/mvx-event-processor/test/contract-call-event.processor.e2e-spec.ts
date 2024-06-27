@@ -54,7 +54,7 @@ describe('ContractCallEventProcessorService', () => {
 
   const createContractCallEvent = async (extraData: Partial<ContractCallEvent> = {}): Promise<ContractCallEvent> => {
     const result = await contractCallEventRepository.create({
-      id: 'multiversx:txHash:0',
+      id: '0xMockTxHash:0',
       eventIndex: 0,
       txHash: 'txHashA',
       status: ContractCallEventStatus.PENDING,

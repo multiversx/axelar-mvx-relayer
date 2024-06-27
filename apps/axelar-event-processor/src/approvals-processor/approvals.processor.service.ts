@@ -47,7 +47,7 @@ export class ApprovalsProcessorService implements OnModuleInit {
 
   async handleNewApprovalsRaw() {
     if (this.approvalsSubscription && !this.approvalsSubscription.closed) {
-      this.logger.log('GRPC approvals stream subscription is already running');
+      this.logger.debug('GRPC approvals stream subscription is already running');
 
       return;
     }
@@ -77,6 +77,8 @@ export class ApprovalsProcessorService implements OnModuleInit {
       complete: onComplete.bind(this),
       error: onError.bind(this),
     });
+
+    this.logger.log('GRPC approvals stream subscription started successfully!');
   }
 
   async handlePendingTransactionsRaw() {

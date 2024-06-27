@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ClientsModule, Transport } from '@nestjs/microservices';
-import { ApiConfigModule, ApiConfigService } from '@mvx-monorepo/common';
+import { ApiConfigModule, ApiConfigService, DatabaseModule } from '@mvx-monorepo/common';
 import { join } from 'path';
 import { ProviderKeys } from '@mvx-monorepo/common/utils/provider.enum';
 import { GrpcService } from '@mvx-monorepo/common/grpc/grpc.service';
@@ -25,6 +25,7 @@ import { protobufPackage } from '@mvx-monorepo/common/grpc/entities/amplifier';
         inject: [ApiConfigService],
       },
     ]),
+    DatabaseModule,
   ],
   providers: [GrpcService],
   exports: [GrpcService],

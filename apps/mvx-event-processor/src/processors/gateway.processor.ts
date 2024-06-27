@@ -3,7 +3,7 @@ import { NotifierEvent } from '../event-processor/types';
 import { GatewayContract } from '@mvx-monorepo/common/contracts/gateway.contract';
 import { TransactionEvent } from '@multiversx/sdk-network-providers/out';
 import { ContractCallEventRepository } from '@mvx-monorepo/common/database/repository/contract-call-event.repository';
-import { MessageApprovedStatus, ContractCallEventStatus } from '@prisma/client';
+import { ContractCallEventStatus, MessageApprovedStatus } from '@prisma/client';
 import { GrpcService } from '@mvx-monorepo/common/grpc/grpc.service';
 import { ProcessorInterface } from './entities/processor.interface';
 import { EventIdentifiers, Events } from '@mvx-monorepo/common/utils/event.enum';
@@ -63,7 +63,8 @@ export class GatewayProcessor implements ProcessorInterface {
   private async handleContractCallEvent(rawEvent: NotifierEvent) {
     const event = this.gatewayContract.decodeContractCallEvent(TransactionEvent.fromHttpResponse(rawEvent));
 
-    const id = `${rawEvent.txHash}-${UNSUPPORTED_LOG_INDEX}`;
+    // The id needs to have `0x` in front of the txHash (hex string)
+    const id = `0x${rawEvent.txHash}-${UNSUPPORTED_LOG_INDEX}`;
     const contractCallEvent = await this.contractCallEventRepository.create({
       id,
       txHash: rawEvent.txHash,
@@ -75,6 +76,7 @@ export class GatewayProcessor implements ProcessorInterface {
       destinationChain: event.destinationChain,
       payloadHash: event.payloadHash,
       payload: event.payload,
+      retry: 0,
     });
 
     // A duplicate might exist in the database, so we can skip creation in this case
@@ -83,22 +85,7 @@ export class GatewayProcessor implements ProcessorInterface {
     }
 
     // TODO: Test if this works correctly
-    this.grpcService.verify(contractCallEvent).subscribe({
-      next: async (response) => {
-        if (!response.error) {
-          contractCallEvent.status = ContractCallEventStatus.APPROVED;
-
-          await this.contractCallEventRepository.updateStatus(contractCallEvent);
-
-          return;
-        }
-
-        this.logger.warn(`Verify contract call event ${id} was not successful. Will be retried.`);
-      },
-      error: () => {
-        this.logger.warn(`Could not verify contract call event ${id}. Will be retried.`);
-      },
-    });
+    this.grpcService.verify(contractCallEvent);
   }
 
   private async handleMessageApprovedEvent(rawEvent: NotifierEvent) {

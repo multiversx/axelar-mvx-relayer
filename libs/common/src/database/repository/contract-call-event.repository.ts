@@ -59,7 +59,6 @@ export class ContractCallEventRepository {
     return this.prisma.contractCallEvent.findMany({
       where: {
         status: ContractCallEventStatus.PENDING,
-
         updatedAt: {
           lt: lastUpdatedAt,
         },
@@ -70,13 +69,24 @@ export class ContractCallEventRepository {
     });
   }
 
-  async updateStatus(data: ContractCallEvent) {
+  async updateStatus(id: string, status: ContractCallEventStatus) {
     await this.prisma.contractCallEvent.update({
       where: {
-        id: data.id,
+        id,
       },
       data: {
-        status: data.status,
+        status,
+      },
+    });
+  }
+
+  async updateRetry(id: string, retry: number) {
+    await this.prisma.contractCallEvent.update({
+      where: {
+        id,
+      },
+      data: {
+        retry,
       },
     });
   }
