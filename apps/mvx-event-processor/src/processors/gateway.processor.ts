@@ -63,10 +63,7 @@ export class GatewayProcessor implements ProcessorInterface {
   private async handleContractCallEvent(rawEvent: NotifierEvent) {
     const event = this.gatewayContract.decodeContractCallEvent(TransactionEvent.fromHttpResponse(rawEvent));
 
-    // The id needs to have `0x` in front of the txHash (hex string)
-    const id = `0x${rawEvent.txHash}-${UNSUPPORTED_LOG_INDEX}`;
     const contractCallEvent = await this.contractCallEventRepository.create({
-      id,
       txHash: rawEvent.txHash,
       eventIndex: UNSUPPORTED_LOG_INDEX,
       status: ContractCallEventStatus.PENDING,
@@ -84,7 +81,6 @@ export class GatewayProcessor implements ProcessorInterface {
       return;
     }
 
-    // TODO: Test if this works correctly
     this.grpcService.verify(contractCallEvent);
   }
 

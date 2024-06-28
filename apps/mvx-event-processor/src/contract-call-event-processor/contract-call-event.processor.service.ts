@@ -19,7 +19,7 @@ export class ContractCallEventProcessorService {
   }
 
   // Offset at second 15 to not run at the same time as processPendingMessageApproved
-  @Cron('*/15 * * * * *')
+  @Cron('15 */2 * * * *')
   async processPendingContractCallEvent() {
     await Locker.lock('processPendingContractCallEvent', async () => {
       this.logger.debug('Running processPendingContractCallEvent cron');
@@ -40,9 +40,11 @@ export class ContractCallEventProcessorService {
             continue;
           }
 
+          contractCallEvent.retry += 1;
+
           this.logger.debug(`Trying to verify ContractCallEvent with id ${contractCallEvent.id}, retry ${contractCallEvent.retry}}`);
 
-          await this.contractCallEventRepository.updateRetry(contractCallEvent.id, contractCallEvent.retry + 1);
+          await this.contractCallEventRepository.updateRetry(contractCallEvent.id, contractCallEvent.retry);
 
           this.grpcService.verify(contractCallEvent);
         }

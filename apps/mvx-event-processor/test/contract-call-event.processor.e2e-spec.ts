@@ -9,8 +9,6 @@ import {
 import { ContractCallEvent, ContractCallEventStatus } from '@prisma/client';
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { GrpcModule, GrpcService } from '@mvx-monorepo/common';
-import { Subject } from 'rxjs';
-import { ErrorCode, VerifyResponse } from '@mvx-monorepo/common/grpc/entities/amplifier';
 import { TestGrpcModule } from './testGrpc.module';
 
 describe('ContractCallEventProcessorService', () => {
@@ -77,20 +75,8 @@ describe('ContractCallEventProcessorService', () => {
     return result;
   };
 
-  it('Should process pending contract call event success', async () => {
+  it('Should process pending contract call event', async () => {
     const originalEntry = await createContractCallEvent();
-
-    const observable = new Subject<VerifyResponse>();
-    grpcService.verify.mockReturnValueOnce(observable);
-
-    // Publish to observable with a delay
-    setTimeout(() => {
-      observable.next({
-        message: undefined,
-        error: undefined,
-      });
-      observable.complete();
-    }, 500);
 
     try {
       await service.processPendingContractCallEvent();
@@ -99,6 +85,7 @@ describe('ContractCallEventProcessorService', () => {
     }
 
     expect(await contractCallEventRepository.findPending()).toEqual([]);
+    expect(grpcService.verify).toHaveBeenCalledTimes(1);
 
     const firstEntry = await prisma.contractCallEvent.findUnique({
       where: {
@@ -107,28 +94,16 @@ describe('ContractCallEventProcessorService', () => {
     });
     expect(firstEntry).toEqual({
       ...originalEntry,
-      status: ContractCallEventStatus.APPROVED,
+      status: ContractCallEventStatus.PENDING,
+      retry: 1,
       updatedAt: expect.any(Date),
     });
   });
 
-  it('Should process pending contract call event not success', async () => {
-    const originalEntry = await createContractCallEvent();
-
-    const observable = new Subject<VerifyResponse>();
-    grpcService.verify.mockReturnValueOnce(observable);
-
-    // Publish to observable with a delay
-    setTimeout(() => {
-      observable.next({
-        message: undefined,
-        error: {
-          error: 'error',
-          errorCode: ErrorCode.VERIFICATION_FAILED,
-        },
-      });
-      observable.complete();
-    }, 500);
+  it('Should process pending contract call event retry', async () => {
+    const originalEntry = await createContractCallEvent({
+      retry: 3,
+    });
 
     try {
       await service.processPendingContractCallEvent();
@@ -137,33 +112,7 @@ describe('ContractCallEventProcessorService', () => {
     }
 
     expect(await contractCallEventRepository.findPending()).toEqual([]);
-
-    const firstEntry = await prisma.contractCallEvent.findUnique({
-      where: {
-        id: originalEntry.id,
-      },
-    });
-    expect(firstEntry).toEqual({
-      ...originalEntry,
-      status: ContractCallEventStatus.FAILED,
-      updatedAt: expect.any(Date),
-    });
-  });
-
-  it('Should process pending contract call event failed', async () => {
-    const originalEntry = await createContractCallEvent();
-
-    const observable = new Subject<VerifyResponse>();
-    grpcService.verify.mockReturnValueOnce(observable);
-    observable.complete();
-
-    try {
-      await service.processPendingContractCallEvent();
-    } catch (e) {
-      // Locker.lock throws error for some reason, ignore
-    }
-
-    expect(await contractCallEventRepository.findPending()).toEqual([]);
+    expect(grpcService.verify).not.toHaveBeenCalled();
 
     const firstEntry = await prisma.contractCallEvent.findUnique({
       where: {

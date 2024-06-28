@@ -7,14 +7,12 @@ import { ContractCallEventRepository } from '@mvx-monorepo/common/database/repos
 import { GatewayProcessor } from './gateway.processor';
 import { NotifierEvent } from '../event-processor/types';
 import { Address } from '@multiversx/sdk-core/out';
-import { MessageApproved, MessageApprovedStatus, ContractCallEventStatus } from '@prisma/client';
+import { ContractCallEventStatus, MessageApproved, MessageApprovedStatus } from '@prisma/client';
 import { GrpcService } from '@mvx-monorepo/common/grpc/grpc.service';
 import { GatewayContract } from '@mvx-monorepo/common/contracts/gateway.contract';
-import { MessageApprovedEvent, ContractCallEvent } from '@mvx-monorepo/common/contracts/entities/gateway-events';
+import { ContractCallEvent, MessageApprovedEvent } from '@mvx-monorepo/common/contracts/entities/gateway-events';
 import { TransactionEvent } from '@multiversx/sdk-network-providers/out';
 import { MessageApprovedRepository } from '@mvx-monorepo/common/database/repository/message-approved.repository';
-import { Subject } from 'rxjs';
-import { ErrorCode, VerifyResponse } from '@mvx-monorepo/common/grpc/entities/amplifier';
 
 describe('ContractCallProcessor', () => {
   let gatewayContract: DeepMocked<GatewayContract>;
@@ -119,17 +117,13 @@ describe('ContractCallProcessor', () => {
       ],
     };
 
-    it('Should handle event success', async () => {
-      const observable = new Subject<VerifyResponse>();
-      grpcService.verify.mockReturnValueOnce(observable);
-
+    it('Should handle event', async () => {
       await service.handleEvent(rawEvent);
 
       expect(gatewayContract.decodeContractCallEvent).toHaveBeenCalledTimes(1);
       expect(gatewayContract.decodeContractCallEvent).toHaveBeenCalledWith(TransactionEvent.fromHttpResponse(rawEvent));
       expect(contractCallEventRepository.create).toHaveBeenCalledTimes(1);
       expect(contractCallEventRepository.create).toHaveBeenCalledWith({
-        id: '0xtxHash-0',
         txHash: 'txHash',
         eventIndex: 0,
         status: ContractCallEventStatus.PENDING,
@@ -139,50 +133,9 @@ describe('ContractCallProcessor', () => {
         destinationChain: 'ethereum',
         payloadHash: 'ebc84cbd75ba5516bf45e7024a9e12bc3c5c880f73e3a5beca7ebba52b2867a7',
         payload: Buffer.from('payload'),
+        retry: 0,
       });
       expect(grpcService.verify).toHaveBeenCalledTimes(1);
-
-      observable.next({
-        message: undefined,
-        error: undefined,
-      });
-      observable.complete();
-
-      expect(contractCallEventRepository.updateStatus).toHaveBeenCalledTimes(1);
-      expect(contractCallEventRepository.updateStatus).toHaveBeenCalledWith({
-        id: 'multiversx_txHash-0',
-        txHash: 'txHash',
-        eventIndex: 0,
-        status: ContractCallEventStatus.APPROVED,
-        sourceAddress: 'erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7',
-        sourceChain: 'multiversx',
-        destinationAddress: 'destinationAddress',
-        destinationChain: 'ethereum',
-        payloadHash: 'ebc84cbd75ba5516bf45e7024a9e12bc3c5c880f73e3a5beca7ebba52b2867a7',
-        payload: Buffer.from('payload'),
-      });
-    });
-
-    it('Should handle error success', async () => {
-      const observable = new Subject<VerifyResponse>();
-      grpcService.verify.mockReturnValueOnce(observable);
-
-      await service.handleEvent(rawEvent);
-
-      expect(gatewayContract.decodeContractCallEvent).toHaveBeenCalledTimes(1);
-      expect(contractCallEventRepository.create).toHaveBeenCalledTimes(1);
-      expect(grpcService.verify).toHaveBeenCalledTimes(1);
-
-      observable.next({
-        message: undefined,
-        error: {
-          error: 'error',
-          errorCode: ErrorCode.VERIFICATION_FAILED,
-        },
-      });
-      observable.complete();
-
-      expect(contractCallEventRepository.updateStatus).not.toHaveBeenCalled();
     });
 
     it('Should not handle duplicate', async () => {

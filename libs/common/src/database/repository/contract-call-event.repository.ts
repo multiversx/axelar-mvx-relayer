@@ -7,10 +7,16 @@ import { ContractCallEventWithGasPaid } from '@mvx-monorepo/common/database/enti
 export class ContractCallEventRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: Prisma.ContractCallEventCreateInput): Promise<ContractCallEvent | null> {
+  async create(data: Omit<Prisma.ContractCallEventCreateInput, 'id'>): Promise<ContractCallEvent | null> {
+    // The id needs to have `0x` in front of the txHash (hex string)
+    const id = `0x${data.txHash}-${data.eventIndex}`;
+
     try {
       return await this.prisma.contractCallEvent.create({
-        data,
+        data: {
+          id,
+          ...data,
+        },
       });
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError) {

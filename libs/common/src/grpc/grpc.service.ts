@@ -3,12 +3,14 @@ import { ProviderKeys } from '@mvx-monorepo/common/utils/provider.enum';
 import { ClientGrpc } from '@nestjs/microservices';
 import { ContractCallEvent, ContractCallEventStatus } from '@prisma/client';
 import { Amplifier, SubscribeToApprovalsResponse, VerifyRequest } from '@mvx-monorepo/common/grpc/entities/amplifier';
-import { Observable, Subject, Subscription } from 'rxjs';
+import { Observable, retry, Subject, Subscription } from 'rxjs';
 import BigNumber from 'bignumber.js';
 import { ApiConfigService } from '@mvx-monorepo/common/config';
 import { ContractCallEventRepository } from '@mvx-monorepo/common/database/repository/contract-call-event.repository';
 
 const AMPLIFIER_SERVICE = 'Amplifier';
+
+const RETRY_DELAY = 5000; // 5 seconds
 
 @Injectable()
 export class GrpcService implements OnModuleInit {
@@ -18,7 +20,7 @@ export class GrpcService implements OnModuleInit {
   private readonly logger: Logger;
 
   private verifySubscription: Subscription | null = null;
-  private requestVerifySubject: Subject<VerifyRequest> | null = null;
+  private requestVerifySubject: Subject<VerifyRequest>;
 
   constructor(
     @Inject(ProviderKeys.AXELAR_GRPC_CLIENT) private readonly client: ClientGrpc,
@@ -27,6 +29,7 @@ export class GrpcService implements OnModuleInit {
   ) {
     this.axelarContractVotingVerifier = apiConfigService.getAxelarContractVotingVerifier();
     this.logger = new Logger(GrpcService.name);
+    this.requestVerifySubject = new Subject<VerifyRequest>();
   }
 
   onModuleInit() {
@@ -34,37 +37,34 @@ export class GrpcService implements OnModuleInit {
   }
 
   verify(contractCallEvent: ContractCallEvent) {
-    if (
-      !this.verifySubscription ||
-      this.verifySubscription.closed ||
-      !this.requestVerifySubject ||
-      this.requestVerifySubject.closed
-    ) {
-      if (this.verifySubscription && !this.verifySubscription.closed) {
-        this.verifySubscription.unsubscribe();
-      }
-
+    if (!this.verifySubscription || this.verifySubscription.closed) {
       this.requestVerifySubject = new Subject<VerifyRequest>();
-      this.verifySubscription = this.amplifierService.verify(this.requestVerifySubject.asObservable()).subscribe({
-        next: async (response) => {
-          if (!response.error && response.message) {
-            this.logger.debug(`Succesfully verified contract call event ${response.message.id}!`);
+      this.verifySubscription = this.amplifierService
+        .verify(this.requestVerifySubject.asObservable())
+        .pipe(
+          retry({
+            delay: RETRY_DELAY,
+          }),
+        )
+        .subscribe({
+          next: async (response) => {
+            if (response.error || !response.message) {
+              this.logger.warn(
+                `Verify contract call event ${response.message?.id} was not successful. Will be retried.`,
+                response,
+              );
+
+              return;
+            }
+
+            this.logger.debug(`Successfully verified contract call event ${response.message.id}!`);
 
             await this.contractCallEventRepository.updateStatus(response.message.id, ContractCallEventStatus.APPROVED);
-
-            return;
-          }
-
-          // TODO: In case of some errors, should we just mark the message directly as failed?
-
-          this.logger.warn(`Verify contract call event ${response.message?.id} was not successful. Will be retried.`, response);
-        },
-        error: (err) => {
-          this.logger.error(`Verify stream ended with error...`, err);
-
-          this.verifySubscription?.unsubscribe();
-        },
-      });
+          },
+          error: (err) => {
+            this.logger.error(`Verify stream ended with error... Will restart`, err);
+          },
+        });
     }
 
     const request = {
@@ -79,6 +79,8 @@ export class GrpcService implements OnModuleInit {
     };
 
     this.requestVerifySubject.next(request);
+
+    this.logger.debug(`Sent contract call event to Amplifier API for verification, id: ${contractCallEvent.id}`);
   }
 
   async getPayload(payloadHash: string): Promise<Buffer> {
