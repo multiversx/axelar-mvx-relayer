@@ -37,7 +37,7 @@ export class GasServiceContract {
       destinationChain: outcome.destination_chain.toString(),
       destinationAddress: outcome.destination_contract_address.toString(),
       data: {
-        payloadHash: DecodingUtils.decodeKeccak256Hash(outcome.data.hash),
+        payloadHash: DecodingUtils.decodeByteArrayToHex(outcome.data.hash),
         gasToken: outcome.data.gas_token.toString(),
         gasFeeAmount: outcome.data.gas_fee_amount,
         refundAddress: outcome.data.refund_address,
@@ -54,7 +54,7 @@ export class GasServiceContract {
       destinationChain: outcome.destination_chain.toString(),
       destinationAddress: outcome.destination_contract_address.toString(),
       data: {
-        payloadHash: DecodingUtils.decodeKeccak256Hash(outcome.data.hash),
+        payloadHash: DecodingUtils.decodeByteArrayToHex(outcome.data.hash),
         gasToken: null,
         gasFeeAmount: outcome.data.value,
         refundAddress: outcome.data.refund_address,

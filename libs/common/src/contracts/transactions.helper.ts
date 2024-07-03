@@ -38,7 +38,7 @@ export class TransactionsHelper {
 
   async signAndSendTransaction(transaction: Transaction, signer: UserSigner) {
     try {
-      // TODO: Check if it is fine to use the same wallet as in the CallContractApprovedProcessor
+      // TODO: Check if it is fine to use the same wallet as in the MessageApprovedProcessor
       // and that no issues happen because of nonce
       const accountNonce = await this.getAccountNonce(signer.getAddress());
 

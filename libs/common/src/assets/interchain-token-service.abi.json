@@ -1,11 +1,11 @@
 {
     "buildInfo": {
         "rustc": {
-            "version": "1.76.0-nightly",
-            "commitHash": "d86d65bbc19b928387f68427fcc3a0da498d8a19",
-            "commitDate": "2023-12-10",
-            "channel": "Nightly",
-            "short": "rustc 1.76.0-nightly (d86d65bbc 2023-12-10)"
+            "version": "1.78.0",
+            "commitHash": "9b00956e56009bab2aa15d7bff10916599e3d6d6",
+            "commitDate": "2024-04-29",
+            "channel": "Stable",
+            "short": "rustc 1.78.0 (9b00956e5 2024-04-29)"
         },
         "contractCrate": {
             "name": "interchain-token-service",
@@ -13,7 +13,7 @@
         },
         "framework": {
             "name": "multiversx-sc",
-            "version": "0.46.1"
+            "version": "0.50.3"
         }
     },
     "name": "InterchainTokenServiceContract",
@@ -52,13 +52,11 @@
         ],
         "outputs": []
     },
+    "upgradeConstructor": {
+        "inputs": [],
+        "outputs": []
+    },
     "endpoints": [
-        {
-            "name": "upgrade",
-            "mutability": "mutable",
-            "inputs": [],
-            "outputs": []
-        },
         {
             "name": "setInterchainTokenFactory",
             "onlyOwner": true,
@@ -73,8 +71,91 @@
         },
         {
             "docs": [
-                "User Functions"
+                "Owner functions"
             ],
+            "name": "setFlowLimits",
+            "mutability": "mutable",
+            "inputs": [
+                {
+                    "name": "token_ids",
+                    "type": "counted-variadic<array32<u8>>",
+                    "multi_arg": true
+                },
+                {
+                    "name": "flow_limits",
+                    "type": "counted-variadic<BigUint>",
+                    "multi_arg": true
+                }
+            ],
+            "outputs": [],
+            "allow_multiple_var_args": true
+        },
+        {
+            "docs": [
+                "Internal Functions"
+            ],
+            "name": "execute",
+            "mutability": "mutable",
+            "payableInTokens": [
+                "EGLD"
+            ],
+            "inputs": [
+                {
+                    "name": "source_chain",
+                    "type": "bytes"
+                },
+                {
+                    "name": "message_id",
+                    "type": "bytes"
+                },
+                {
+                    "name": "source_address",
+                    "type": "bytes"
+                },
+                {
+                    "name": "payload",
+                    "type": "bytes"
+                }
+            ],
+            "outputs": []
+        },
+        {
+            "name": "contractCallValue",
+            "mutability": "readonly",
+            "inputs": [
+                {
+                    "name": "source_chain",
+                    "type": "bytes"
+                },
+                {
+                    "name": "source_address",
+                    "type": "bytes"
+                },
+                {
+                    "name": "payload",
+                    "type": "bytes"
+                }
+            ],
+            "outputs": [
+                {
+                    "type": "EgldOrEsdtTokenIdentifier"
+                },
+                {
+                    "type": "BigUint"
+                }
+            ]
+        },
+        {
+            "name": "chainNameHash",
+            "mutability": "readonly",
+            "inputs": [],
+            "outputs": [
+                {
+                    "type": "array32<u8>"
+                }
+            ]
+        },
+        {
             "name": "deployTokenManager",
             "mutability": "mutable",
             "payableInTokens": [
@@ -150,11 +231,11 @@
             ],
             "inputs": [
                 {
-                    "name": "command_id",
-                    "type": "array32<u8>"
+                    "name": "source_chain",
+                    "type": "bytes"
                 },
                 {
-                    "name": "source_chain",
+                    "name": "message_id",
                     "type": "bytes"
                 },
                 {
@@ -229,56 +310,6 @@
             "outputs": []
         },
         {
-            "docs": [
-                "Owner functions"
-            ],
-            "name": "setFlowLimits",
-            "mutability": "mutable",
-            "inputs": [
-                {
-                    "name": "token_ids",
-                    "type": "counted-variadic<array32<u8>>",
-                    "multi_arg": true
-                },
-                {
-                    "name": "flow_limits",
-                    "type": "counted-variadic<BigUint>",
-                    "multi_arg": true
-                }
-            ],
-            "outputs": [],
-            "allow_multiple_var_args": true
-        },
-        {
-            "docs": [
-                "Internal Functions"
-            ],
-            "name": "execute",
-            "mutability": "mutable",
-            "payableInTokens": [
-                "EGLD"
-            ],
-            "inputs": [
-                {
-                    "name": "command_id",
-                    "type": "array32<u8>"
-                },
-                {
-                    "name": "source_chain",
-                    "type": "bytes"
-                },
-                {
-                    "name": "source_address",
-                    "type": "bytes"
-                },
-                {
-                    "name": "payload",
-                    "type": "bytes"
-                }
-            ],
-            "outputs": []
-        },
-        {
             "name": "interchainTokenId",
             "mutability": "readonly",
             "inputs": [
@@ -298,48 +329,12 @@
             ]
         },
         {
-            "name": "contractCallValue",
-            "mutability": "readonly",
-            "inputs": [
-                {
-                    "name": "source_chain",
-                    "type": "bytes"
-                },
-                {
-                    "name": "source_address",
-                    "type": "bytes"
-                },
-                {
-                    "name": "payload",
-                    "type": "bytes"
-                }
-            ],
-            "outputs": [
-                {
-                    "type": "EgldOrEsdtTokenIdentifier"
-                },
-                {
-                    "type": "BigUint"
-                }
-            ]
-        },
-        {
             "name": "interchainTokenFactory",
             "mutability": "readonly",
             "inputs": [],
             "outputs": [
                 {
                     "type": "Address"
-                }
-            ]
-        },
-        {
-            "name": "chainNameHash",
-            "mutability": "readonly",
-            "inputs": [],
-            "outputs": [
-                {
-                    "type": "array32<u8>"
                 }
             ]
         },
@@ -494,6 +489,26 @@
             ]
         },
         {
+            "name": "gateway",
+            "mutability": "readonly",
+            "inputs": [],
+            "outputs": [
+                {
+                    "type": "Address"
+                }
+            ]
+        },
+        {
+            "name": "gasService",
+            "mutability": "readonly",
+            "inputs": [],
+            "outputs": [
+                {
+                    "type": "Address"
+                }
+            ]
+        },
+        {
             "name": "flowLimit",
             "mutability": "readonly",
             "inputs": [
@@ -577,26 +592,6 @@
                     "type": "array32<u8>"
                 }
             ],
-            "outputs": [
-                {
-                    "type": "Address"
-                }
-            ]
-        },
-        {
-            "name": "gateway",
-            "mutability": "readonly",
-            "inputs": [],
-            "outputs": [
-                {
-                    "type": "Address"
-                }
-            ]
-        },
-        {
-            "name": "gasService",
-            "mutability": "readonly",
-            "inputs": [],
             "outputs": [
                 {
                     "type": "Address"
@@ -833,17 +828,17 @@
             "identifier": "interchain_transfer_received_event",
             "inputs": [
                 {
-                    "name": "command_id",
-                    "type": "array32<u8>",
-                    "indexed": true
-                },
-                {
                     "name": "token_id",
                     "type": "array32<u8>",
                     "indexed": true
                 },
                 {
                     "name": "source_chain",
+                    "type": "bytes",
+                    "indexed": true
+                },
+                {
+                    "name": "message_id",
                     "type": "bytes",
                     "indexed": true
                 },
@@ -872,8 +867,13 @@
             "identifier": "execute_with_interchain_token_success_event",
             "inputs": [
                 {
-                    "name": "command_id",
-                    "type": "array32<u8>",
+                    "name": "source_chain",
+                    "type": "bytes",
+                    "indexed": true
+                },
+                {
+                    "name": "message_id",
+                    "type": "bytes",
                     "indexed": true
                 }
             ]
@@ -882,8 +882,13 @@
             "identifier": "execute_with_interchain_token_failed_event",
             "inputs": [
                 {
-                    "name": "command_id",
-                    "type": "array32<u8>",
+                    "name": "source_chain",
+                    "type": "bytes",
+                    "indexed": true
+                },
+                {
+                    "name": "message_id",
+                    "type": "bytes",
                     "indexed": true
                 }
             ]
@@ -892,12 +897,12 @@
             "identifier": "express_executed_event",
             "inputs": [
                 {
-                    "name": "command_id",
-                    "type": "array32<u8>",
+                    "name": "source_chain",
+                    "type": "bytes",
                     "indexed": true
                 },
                 {
-                    "name": "source_chain",
+                    "name": "message_id",
                     "type": "bytes",
                     "indexed": true
                 },
@@ -921,12 +926,12 @@
             "identifier": "express_execution_fulfilled_event",
             "inputs": [
                 {
-                    "name": "command_id",
-                    "type": "array32<u8>",
+                    "name": "source_chain",
+                    "type": "bytes",
                     "indexed": true
                 },
                 {
-                    "name": "source_chain",
+                    "name": "message_id",
                     "type": "bytes",
                     "indexed": true
                 },
@@ -950,8 +955,13 @@
             "identifier": "express_execute_with_interchain_token_success_event",
             "inputs": [
                 {
-                    "name": "command_id",
-                    "type": "array32<u8>",
+                    "name": "source_chain",
+                    "type": "bytes",
+                    "indexed": true
+                },
+                {
+                    "name": "source_address",
+                    "type": "bytes",
                     "indexed": true
                 },
                 {
@@ -965,8 +975,13 @@
             "identifier": "express_execute_with_interchain_token_failed_event",
             "inputs": [
                 {
-                    "name": "command_id",
-                    "type": "array32<u8>",
+                    "name": "source_chain",
+                    "type": "bytes",
+                    "indexed": true
+                },
+                {
+                    "name": "source_address",
+                    "type": "bytes",
                     "indexed": true
                 },
                 {
@@ -1085,7 +1100,7 @@
             "type": "enum",
             "variants": [
                 {
-                    "name": "MintBurn",
+                    "name": "NativeInterchainToken",
                     "discriminant": 0
                 },
                 {
@@ -1099,6 +1114,10 @@
                 {
                     "name": "LockUnlockFee",
                     "discriminant": 3
+                },
+                {
+                    "name": "MintBurn",
+                    "discriminant": 4
                 }
             ]
         }

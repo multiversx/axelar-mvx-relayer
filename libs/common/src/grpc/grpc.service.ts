@@ -1,27 +1,35 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ProviderKeys } from '@mvx-monorepo/common/utils/provider.enum';
 import { ClientGrpc } from '@nestjs/microservices';
-import { ContractCallEvent } from '@prisma/client';
+import { ContractCallEvent, ContractCallEventStatus } from '@prisma/client';
 import { Amplifier, SubscribeToApprovalsResponse, VerifyRequest } from '@mvx-monorepo/common/grpc/entities/amplifier';
-import { first, Observable, ReplaySubject, timeout } from 'rxjs';
+import { Observable, retry, Subject, Subscription } from 'rxjs';
 import BigNumber from 'bignumber.js';
 import { ApiConfigService } from '@mvx-monorepo/common/config';
+import { ContractCallEventRepository } from '@mvx-monorepo/common/database/repository/contract-call-event.repository';
 
 const AMPLIFIER_SERVICE = 'Amplifier';
 
-const VERIFY_TIMEOUT = 30_000; // TODO: Check if this timeout is enough
+const RETRY_DELAY = 5000; // 5 seconds
 
 @Injectable()
 export class GrpcService implements OnModuleInit {
   // @ts-ignore
   private amplifierService: Amplifier;
   private readonly axelarContractVotingVerifier: string;
+  private readonly logger: Logger;
+
+  private verifySubscription: Subscription | null = null;
+  private requestVerifySubject: Subject<VerifyRequest>;
 
   constructor(
     @Inject(ProviderKeys.AXELAR_GRPC_CLIENT) private readonly client: ClientGrpc,
+    private readonly contractCallEventRepository: ContractCallEventRepository,
     apiConfigService: ApiConfigService,
   ) {
     this.axelarContractVotingVerifier = apiConfigService.getAxelarContractVotingVerifier();
+    this.logger = new Logger(GrpcService.name);
+    this.requestVerifySubject = new Subject<VerifyRequest>();
   }
 
   onModuleInit() {
@@ -29,9 +37,37 @@ export class GrpcService implements OnModuleInit {
   }
 
   verify(contractCallEvent: ContractCallEvent) {
-    const replaySubject = new ReplaySubject<VerifyRequest>();
+    if (!this.verifySubscription || this.verifySubscription.closed) {
+      this.requestVerifySubject = new Subject<VerifyRequest>();
+      this.verifySubscription = this.amplifierService
+        .verify(this.requestVerifySubject.asObservable())
+        .pipe(
+          retry({
+            delay: RETRY_DELAY,
+          }),
+        )
+        .subscribe({
+          next: async (response) => {
+            if (response.error || !response.message) {
+              this.logger.warn(
+                `Verify contract call event ${response.message?.id} was not successful. Will be retried.`,
+                response,
+              );
 
-    replaySubject.next({
+              return;
+            }
+
+            this.logger.debug(`Successfully verified contract call event ${response.message.id}!`);
+
+            await this.contractCallEventRepository.updateStatus(response.message.id, ContractCallEventStatus.APPROVED);
+          },
+          error: (err) => {
+            this.logger.error(`Verify stream ended with error... Will restart`, err);
+          },
+        });
+    }
+
+    const request = {
       message: {
         id: contractCallEvent.id,
         sourceChain: contractCallEvent.sourceChain,
@@ -40,10 +76,11 @@ export class GrpcService implements OnModuleInit {
         destinationAddress: contractCallEvent.destinationAddress,
         payload: contractCallEvent.payload,
       },
-    });
-    replaySubject.complete();
+    };
 
-    return this.amplifierService.verify(replaySubject).pipe(first(), timeout(VERIFY_TIMEOUT));
+    this.requestVerifySubject.next(request);
+
+    this.logger.debug(`Sent contract call event to Amplifier API for verification, id: ${contractCallEvent.id}`);
   }
 
   async getPayload(payloadHash: string): Promise<Buffer> {
@@ -61,21 +98,25 @@ export class GrpcService implements OnModuleInit {
     });
   }
 
-  async verifyWorkerSet(messageId: string, newOperators: string[], newWeights: BigNumber[], newThreshold: BigNumber) {
-    const weightsByAddresses: string[] = newOperators.reduce<any[]>((previousValue, operator, currentIndex) => {
-      previousValue.push([operator, newWeights[currentIndex].toString()]);
-
-      return previousValue;
-    }, []);
-
+  // TODO: This is not right... Wait for Amplifier API to provide more endpoints to do this more easily
+  async verifyVerifierSet(
+    messageId: string,
+    signers: {
+      signer: string;
+      weight: BigNumber;
+    }[],
+    threshold: BigNumber,
+    nonce: string,
+  ) {
     // JSON format is used by CosmWasm contracts running on Axelar
     const payload = Buffer.from(
       JSON.stringify({
-        verify_worker_set: {
-          message_id: messageId,
-          new_operators: {
-            weights_by_addresses: weightsByAddresses,
-            threshold: newThreshold.toString(),
+        verify_verifier_set: {
+          message_id: '0x' + messageId, // TODO: Check that this format is correct for the messageId
+          new_verifier_set: {
+            signers,
+            threshold: threshold.toString(),
+            nonce,
           },
         },
       }),

@@ -6,14 +6,14 @@ import { NotifierBlockEvent } from './types';
 import { GatewayProcessor, GasServiceProcessor } from '../processors';
 
 describe('EventProcessorService', () => {
-  let contractCallProcessor: DeepMocked<GatewayProcessor>;
+  let gatewayProcessor: DeepMocked<GatewayProcessor>;
   let gasServiceProcessor: DeepMocked<GasServiceProcessor>;
   let apiConfigService: DeepMocked<ApiConfigService>;
 
   let service: EventProcessorService;
 
   beforeEach(async () => {
-    contractCallProcessor = createMock();
+    gatewayProcessor = createMock();
     gasServiceProcessor = createMock();
     apiConfigService = createMock();
 
@@ -25,7 +25,7 @@ describe('EventProcessorService', () => {
     })
       .useMocker((token) => {
         if (token === GatewayProcessor) {
-          return contractCallProcessor;
+          return gatewayProcessor;
         }
 
         if (token === GasServiceProcessor) {
@@ -70,7 +70,7 @@ describe('EventProcessorService', () => {
       await service.consumeEvents(blockEvent);
 
       expect(apiConfigService.getContractGateway).toHaveBeenCalledTimes(1);
-      expect(contractCallProcessor.handleEvent).not.toHaveBeenCalled();
+      expect(gatewayProcessor.handleEvent).not.toHaveBeenCalled();
       expect(gasServiceProcessor.handleEvent).not.toHaveBeenCalled();
     });
 
@@ -93,7 +93,7 @@ describe('EventProcessorService', () => {
       await service.consumeEvents(blockEvent);
 
       expect(apiConfigService.getContractGateway).toHaveBeenCalledTimes(1);
-      expect(contractCallProcessor.handleEvent).toHaveBeenCalledTimes(1);
+      expect(gatewayProcessor.handleEvent).toHaveBeenCalledTimes(1);
       expect(gasServiceProcessor.handleEvent).not.toHaveBeenCalled();
     });
 
@@ -117,7 +117,7 @@ describe('EventProcessorService', () => {
 
       expect(apiConfigService.getContractGateway).toHaveBeenCalledTimes(1);
       expect(gasServiceProcessor.handleEvent).toHaveBeenCalledTimes(1);
-      expect(contractCallProcessor.handleEvent).not.toHaveBeenCalled();
+      expect(gatewayProcessor.handleEvent).not.toHaveBeenCalled();
     });
   });
 });

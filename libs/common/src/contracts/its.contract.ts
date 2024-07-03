@@ -1,18 +1,18 @@
-import { BytesValue, Interaction, SmartContract, TokenTransfer } from '@multiversx/sdk-core/out';
+import { Interaction, SmartContract, TokenTransfer } from '@multiversx/sdk-core/out';
 import { Injectable } from '@nestjs/common';
 import { AbiCoder } from 'ethers';
 
 const MESSAGE_TYPE_DEPLOY_INTERCHAIN_TOKEN = 1;
 
-const DEFAULT_ESDT_ISSUE_COST = 50000000000000000; // 0.05 EGLD
+const DEFAULT_ESDT_ISSUE_COST = '50000000000000000'; // 0.05 EGLD
 
 @Injectable()
 export class ItsContract {
   constructor(private readonly smartContract: SmartContract) {}
 
   execute(
-    commandId: Buffer,
     sourceChain: string,
+    messageId: string,
     sourceAddress: string,
     payload: Buffer,
     executedTimes: number,
@@ -20,8 +20,8 @@ export class ItsContract {
     const messageType = this.decodeExecutePayloadMessageType(payload);
 
     const interaction = this.smartContract.methods.execute([
-      new BytesValue(commandId),
       sourceChain,
+      messageId,
       sourceAddress,
       payload,
     ]);

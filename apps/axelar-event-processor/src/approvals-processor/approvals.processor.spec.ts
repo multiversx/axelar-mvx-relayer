@@ -11,6 +11,9 @@ import { Subject } from 'rxjs';
 import { SubscribeToApprovalsResponse } from '@mvx-monorepo/common/grpc/entities/amplifier';
 import { UserAddress } from '@multiversx/sdk-wallet/out/userAddress';
 import { Transaction } from '@multiversx/sdk-core/out';
+import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
+
+const mockExternalData = Buffer.from(BinaryUtils.stringToHex('approveMessages@61726731@61726732'), 'hex');
 
 describe('ApprovalsProcessorService', () => {
   let grpcService: DeepMocked<GrpcService>;
@@ -88,7 +91,7 @@ describe('ApprovalsProcessorService', () => {
       walletSigner.getAddress.mockReturnValueOnce(userAddress);
 
       const transaction: DeepMocked<Transaction> = createMock();
-      gatewayContract.buildExecuteTransaction.mockReturnValueOnce(transaction);
+      gatewayContract.buildTransactionExternalFunction.mockReturnValueOnce(transaction);
 
       transactionsHelper.getTransactionGas.mockReturnValueOnce(Promise.resolve(100_000_000));
       transactionsHelper.signAndSendTransaction.mockReturnValueOnce(Promise.resolve('txHash'));
@@ -96,7 +99,7 @@ describe('ApprovalsProcessorService', () => {
       // Process a message
       const message: SubscribeToApprovalsResponse = {
         chain: 'multiversx',
-        executeData: Uint8Array.of(1, 2, 3, 4),
+        executeData: mockExternalData,
         blockHeight: 1,
       };
       observable.next(message);
@@ -109,8 +112,8 @@ describe('ApprovalsProcessorService', () => {
         setTimeout(resolve, 500);
       });
 
-      expect(gatewayContract.buildExecuteTransaction).toHaveBeenCalledTimes(1);
-      expect(gatewayContract.buildExecuteTransaction).toHaveBeenCalledWith(message.executeData, userAddress);
+      expect(gatewayContract.buildTransactionExternalFunction).toHaveBeenCalledTimes(1);
+      expect(gatewayContract.buildTransactionExternalFunction).toHaveBeenCalledWith('approveMessages@61726731@61726732', userAddress);
       expect(transactionsHelper.getTransactionGas).toHaveBeenCalledTimes(1);
       expect(transactionsHelper.getTransactionGas).toHaveBeenCalledWith(transaction, 0);
       expect(transaction.setGasLimit).toHaveBeenCalledTimes(1);
@@ -123,7 +126,7 @@ describe('ApprovalsProcessorService', () => {
         CacheInfo.PendingTransaction('txHash').key,
         {
           txHash: 'txHash',
-          executeData: message.executeData,
+          externalData: message.executeData,
           retry: 1,
         },
         CacheInfo.PendingTransaction('txHash').ttl,
@@ -143,7 +146,7 @@ describe('ApprovalsProcessorService', () => {
       const userAddress = UserAddress.fromBech32('erd1qqqqqqqqqqqqqpgqhe8t5jewej70zupmh44jurgn29psua5l2jps3ntjj3');
       walletSigner.getAddress.mockReturnValueOnce(userAddress);
       const transaction: DeepMocked<Transaction> = createMock();
-      gatewayContract.buildExecuteTransaction.mockReturnValueOnce(transaction);
+      gatewayContract.buildTransactionExternalFunction.mockReturnValueOnce(transaction);
       transactionsHelper.getTransactionGas.mockRejectedValueOnce(new Error('Network error'));
 
       await service.handleNewApprovalsRaw();
@@ -237,7 +240,7 @@ describe('ApprovalsProcessorService', () => {
       redisCacheService.get.mockReturnValueOnce(
         Promise.resolve({
           txHash: 'txHashComplete',
-          executeData: Uint8Array.of(1, 2, 3, 4),
+          executeData: mockExternalData,
           retry: 1,
         }),
       );
@@ -257,13 +260,13 @@ describe('ApprovalsProcessorService', () => {
 
     it('Should handle retry', async () => {
       const key = CacheInfo.PendingTransaction('txHashComplete').key;
-      const executeData = Uint8Array.of(1, 2, 3, 4);
+      const externalData = mockExternalData;
 
       redisCacheService.scan.mockReturnValueOnce(Promise.resolve([key]));
       redisCacheService.get.mockReturnValueOnce(
         Promise.resolve({
           txHash: 'txHashComplete',
-          executeData,
+          externalData,
           retry: 1,
         }),
       );
@@ -273,7 +276,7 @@ describe('ApprovalsProcessorService', () => {
       walletSigner.getAddress.mockReturnValueOnce(userAddress);
 
       const transaction: DeepMocked<Transaction> = createMock();
-      gatewayContract.buildExecuteTransaction.mockReturnValueOnce(transaction);
+      gatewayContract.buildTransactionExternalFunction.mockReturnValueOnce(transaction);
 
       transactionsHelper.getTransactionGas.mockReturnValueOnce(Promise.resolve(100_000_000));
       transactionsHelper.signAndSendTransaction.mockReturnValueOnce(Promise.resolve('txHash'));
@@ -283,9 +286,9 @@ describe('ApprovalsProcessorService', () => {
       expect(transactionsHelper.awaitSuccess).toHaveBeenCalledTimes(1);
       expect(transactionsHelper.awaitSuccess).toHaveBeenCalledWith('txHashComplete');
 
-      expect(gatewayContract.buildExecuteTransaction).toHaveBeenCalledTimes(1);
-      expect(gatewayContract.buildExecuteTransaction).toHaveBeenCalledWith(
-        executeData,
+      expect(gatewayContract.buildTransactionExternalFunction).toHaveBeenCalledTimes(1);
+      expect(gatewayContract.buildTransactionExternalFunction).toHaveBeenCalledWith(
+        BinaryUtils.hexToString(externalData.toString('hex')),
         userAddress,
       );
       expect(transactionsHelper.getTransactionGas).toHaveBeenCalledTimes(1);
@@ -300,7 +303,7 @@ describe('ApprovalsProcessorService', () => {
         CacheInfo.PendingTransaction('txHash').key,
         {
           txHash: 'txHash',
-          executeData,
+          externalData,
           retry: 2,
         },
         CacheInfo.PendingTransaction('txHash').ttl,
@@ -330,13 +333,13 @@ describe('ApprovalsProcessorService', () => {
 
     it('Should handle retry error', async () => {
       const key = CacheInfo.PendingTransaction('txHashComplete').key;
-      const executeData = Uint8Array.of(1, 2, 3, 4);
+      const externalData = mockExternalData;
 
       redisCacheService.scan.mockReturnValueOnce(Promise.resolve([key]));
       redisCacheService.get.mockReturnValueOnce(
         Promise.resolve({
           txHash: 'txHashComplete',
-          executeData,
+          externalData,
           retry: 1,
         }),
       );
@@ -346,7 +349,7 @@ describe('ApprovalsProcessorService', () => {
       walletSigner.getAddress.mockReturnValueOnce(userAddress);
 
       const transaction: DeepMocked<Transaction> = createMock();
-      gatewayContract.buildExecuteTransaction.mockReturnValueOnce(transaction);
+      gatewayContract.buildTransactionExternalFunction.mockReturnValueOnce(transaction);
 
       transactionsHelper.getTransactionGas.mockRejectedValueOnce(new Error('Network error'));
 
@@ -362,7 +365,7 @@ describe('ApprovalsProcessorService', () => {
         CacheInfo.PendingTransaction('txHashComplete').key,
         {
           txHash: 'txHashComplete',
-          executeData,
+          externalData,
           retry: 1,
         },
         CacheInfo.PendingTransaction('txHashComplete').ttl,

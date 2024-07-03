@@ -49,7 +49,7 @@
       "sourceRoot": "libs/common/src",
       "compilerOptions": {
         "tsConfigPath": "libs/common/tsconfig.lib.json",
-        "assets": ["assets/*.proto", "assets/*.abi.json"]
+        "assets": ["assets/**"]
       }
     }
   }

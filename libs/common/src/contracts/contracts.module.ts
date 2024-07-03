@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { GatewayContract } from './gateway.contract';
 import { ApiNetworkProvider, ProxyNetworkProvider } from '@multiversx/sdk-network-providers/out';
-import { BinaryCodec, ResultsParser, TransactionWatcher } from '@multiversx/sdk-core/out';
+import { ResultsParser, TransactionWatcher } from '@multiversx/sdk-core/out';
 import { ContractLoader } from '@mvx-monorepo/common/contracts/contract.loader';
 import { join } from 'path';
 import { GasServiceContract } from '@mvx-monorepo/common/contracts/gas-service.contract';
@@ -12,7 +12,6 @@ import { WegldSwapContract } from '@mvx-monorepo/common/contracts/wegld-swap.con
 import { ApiConfigService } from '@mvx-monorepo/common/config';
 import { DynamicModuleUtils } from '@mvx-monorepo/common/utils';
 import { ItsContract } from '@mvx-monorepo/common/contracts/its.contract';
-import { AuthContract } from '@mvx-monorepo/common/contracts/auth.contract';
 
 @Module({
   imports: [DynamicModuleUtils.getCacheModule()],
@@ -40,10 +39,6 @@ import { AuthContract } from '@mvx-monorepo/common/contracts/auth.contract';
       useValue: new ResultsParser(),
     },
     {
-      provide: BinaryCodec,
-      useValue: new BinaryCodec(),
-    },
-    {
       provide: TransactionWatcher,
       useFactory: (api: ApiNetworkProvider) => new TransactionWatcher(api), // use api here not proxy since it returns proper transaction status
       inject: [ApiNetworkProvider],
@@ -53,16 +48,15 @@ import { AuthContract } from '@mvx-monorepo/common/contracts/auth.contract';
       useFactory: async (
         apiConfigService: ApiConfigService,
         resultsParser: ResultsParser,
-        authContract: AuthContract,
       ) => {
         const contractLoader = new ContractLoader(join(__dirname, '../assets/gateway.abi.json'));
 
         const smartContract = await contractLoader.getContract(apiConfigService.getContractGateway());
         const abi = await contractLoader.getAbiRegistry();
 
-        return new GatewayContract(smartContract, abi, resultsParser, authContract);
+        return new GatewayContract(smartContract, abi, resultsParser);
       },
-      inject: [ApiConfigService, ResultsParser, AuthContract],
+      inject: [ApiConfigService, ResultsParser],
     },
     {
       provide: GasServiceContract,
@@ -86,17 +80,6 @@ import { AuthContract } from '@mvx-monorepo/common/contracts/auth.contract';
         return new ItsContract(smartContract);
       },
       inject: [ApiConfigService],
-    },
-    {
-      provide: AuthContract,
-      useFactory: async (binaryCodec: BinaryCodec) => {
-        const contractLoader = new ContractLoader(join(__dirname, '../assets/auth.abi.json'));
-
-        const abi = await contractLoader.getAbiRegistry();
-
-        return new AuthContract(abi, binaryCodec);
-      },
-      inject: [ApiConfigService, ResultsParser],
     },
     {
       provide: WegldSwapContract,
@@ -128,7 +111,6 @@ import { AuthContract } from '@mvx-monorepo/common/contracts/auth.contract';
     GatewayContract,
     GasServiceContract,
     ItsContract,
-    AuthContract,
     WegldSwapContract,
     ProviderKeys.WALLET_SIGNER,
     ProxyNetworkProvider,

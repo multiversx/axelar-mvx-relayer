@@ -11,7 +11,7 @@ datasource db {
 }
 
 model ContractCallEvent {
-  id                 String                  @id @db.VarChar(255) // should be formatted as [source_chain]:[unique identifier]:[log index], i.e. Ethereum:0x74ac0205b1f8f51023942856145182f0e6fdd41ccb2c8058bf2d89fc67564d56:0
+  id                 String                  @id @db.VarChar(255) // should be formatted as 0x[unique identifier]-[log index], i.e. 0x389aa521071a3c29a087f0e34f1fa2e4969501648bb403896205da082beb597a-0
   txHash             String                  @db.VarChar(64)
   eventIndex         Int                     @db.SmallInt
   status             ContractCallEventStatus
@@ -24,6 +24,7 @@ model ContractCallEvent {
   executeTxHash      String?                 @db.VarChar(64)
   createdAt          DateTime                @default(now()) @db.Timestamp(6)
   updatedAt          DateTime                @default(now()) @updatedAt @db.Timestamp(6)
+  retry              Int                     @default(0) @db.SmallInt
   gasPaidEntries     GasPaid[]
 
   @@unique([txHash, eventIndex])
@@ -61,23 +62,26 @@ enum GasPaidStatus {
   FAILED
 }
 
-model ContractCallApproved {
-  commandId       String                     @id @db.VarChar(64)
-  txHash          String                     @db.VarChar(64)
-  status          ContractCallApprovedStatus
-  sourceAddress   String                     @db.VarChar(255)
-  sourceChain     String                     @db.VarChar(255)
-  contractAddress String                     @db.VarChar(62)
-  payloadHash     String                     @db.VarChar(64)
+model MessageApproved {
+  commandId       String                @id @db.VarChar(64)
+  txHash          String                @db.VarChar(64)
+  status          MessageApprovedStatus
+  sourceAddress   String                @db.VarChar(255)
+  sourceChain     String                @db.VarChar(255)
+  messageId       String                @db.VarChar(255)
+  contractAddress String                @db.VarChar(62)
+  payloadHash     String                @db.VarChar(64)
   payload         Bytes
-  executeTxHash   String?                    @db.VarChar(64)
-  retry           Int                        @db.SmallInt
-  createdAt       DateTime                   @default(now()) @db.Timestamp(6)
-  updatedAt       DateTime                   @default(now()) @updatedAt @db.Timestamp(6)
-  successTimes    Int?                       @db.SmallInt
+  executeTxHash   String?               @db.VarChar(64)
+  retry           Int                   @db.SmallInt
+  createdAt       DateTime              @default(now()) @db.Timestamp(6)
+  updatedAt       DateTime              @default(now()) @updatedAt @db.Timestamp(6)
+  successTimes    Int?                  @db.SmallInt
+
+  @@unique([sourceChain, messageId])
 }
 
-enum ContractCallApprovedStatus {
+enum MessageApprovedStatus {
   PENDING
   SUCCESS
   FAILED

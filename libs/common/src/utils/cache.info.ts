@@ -4,13 +4,6 @@ export class CacheInfo {
   key: string = "";
   ttl: number = Constants.oneSecond() * 6;
 
-  static ChainId(): CacheInfo {
-    return {
-      key: `chainId`,
-      ttl: Constants.oneWeek(),
-    };
-  }
-
   static StartProcessHeight(): CacheInfo {
     return {
       key: `startProcessHeight`,
