@@ -71,7 +71,6 @@ export class ApprovalsProcessorService implements OnModuleInit {
       this.approvalsSubscription = null;
     };
 
-    // TODO: Test if this works as expected
     this.approvalsSubscription = observable.subscribe({
       next: this.processMessage.bind(this),
       complete: onComplete.bind(this),

@@ -12,7 +12,7 @@ import { MessageApproved, MessageApprovedStatus } from '@prisma/client';
 
 const WALLET_SIGNER_ADDRESS = 'erd1fsk0cnaag2m78gunfddsvg0y042rf0maxxgz6kvm32kxcl25m0yq8s38vt';
 
-describe('CallContractApprovedProcessorService', () => {
+describe('MessageApprovedProcessorService', () => {
   let proxy: DeepMocked<ProxyNetworkProvider>;
   let transactionWatcher: DeepMocked<TransactionWatcher>;
   let prisma: PrismaService;
@@ -51,9 +51,7 @@ describe('CallContractApprovedProcessorService', () => {
     proxy.doPostGeneric.mockImplementation((url: string, _: any): Promise<any> => {
       if (url === 'transaction/cost') {
         return Promise.resolve({
-          data: {
-            txGasUnits: 10_000_000,
-          },
+          txGasUnits: 10_000_000,
         });
       }
 

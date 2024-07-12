@@ -2,7 +2,7 @@ import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { Test } from '@nestjs/testing';
 import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
 import { Events } from '@mvx-monorepo/common/utils/event.enum';
-import { AbiRegistry, Address, BinaryCodec, ResultsParser, SmartContract } from '@multiversx/sdk-core/out';
+import { AbiRegistry, Address, ResultsParser, SmartContract } from '@multiversx/sdk-core/out';
 import { GatewayContract } from '@mvx-monorepo/common/contracts/gateway.contract';
 import { TransactionEvent } from '@multiversx/sdk-network-providers/out';
 import { NotifierEvent } from '../../../../apps/mvx-event-processor/src/event-processor/types';
@@ -39,8 +39,9 @@ describe('GatewayContract', () => {
           return resultsParser;
         }
 
-        if (token === BinaryCodec) {
-          return new BinaryCodec();
+        // chainId
+        if (token === String) {
+          return 'test';
         }
 
         return null;

@@ -87,14 +87,14 @@ describe('ApprovalsProcessorService', () => {
       expect(grpcService.subscribeToApprovals).toHaveBeenCalledTimes(1);
       expect(grpcService.subscribeToApprovals).toHaveBeenCalledWith('multiversx', undefined);
 
-      const userAddress = UserAddress.fromBech32('erd1qqqqqqqqqqqqqpgqhe8t5jewej70zupmh44jurgn29psua5l2jps3ntjj3');
+      const userAddress = UserAddress.newFromBech32('erd1qqqqqqqqqqqqqpgqhe8t5jewej70zupmh44jurgn29psua5l2jps3ntjj3');
       walletSigner.getAddress.mockReturnValueOnce(userAddress);
 
       const transaction: DeepMocked<Transaction> = createMock();
       gatewayContract.buildTransactionExternalFunction.mockReturnValueOnce(transaction);
 
       transactionsHelper.getTransactionGas.mockReturnValueOnce(Promise.resolve(100_000_000));
-      transactionsHelper.signAndSendTransactionAndGetNonce.mockReturnValueOnce(Promise.resolve('txHash'));
+      transactionsHelper.signAndSendTransaction.mockReturnValueOnce(Promise.resolve('txHash'));
 
       // Process a message
       const message: SubscribeToApprovalsResponse = {
@@ -113,13 +113,13 @@ describe('ApprovalsProcessorService', () => {
       });
 
       expect(gatewayContract.buildTransactionExternalFunction).toHaveBeenCalledTimes(1);
-      expect(gatewayContract.buildTransactionExternalFunction).toHaveBeenCalledWith('approveMessages@61726731@61726732', userAddress);
+      expect(gatewayContract.buildTransactionExternalFunction).toHaveBeenCalledWith('approveMessages@61726731@61726732', userAddress, 1);
       expect(transactionsHelper.getTransactionGas).toHaveBeenCalledTimes(1);
       expect(transactionsHelper.getTransactionGas).toHaveBeenCalledWith(transaction, 0);
       expect(transaction.setGasLimit).toHaveBeenCalledTimes(1);
       expect(transaction.setGasLimit).toHaveBeenCalledWith(100_000_000);
-      expect(transactionsHelper.signAndSendTransactionAndGetNonce).toHaveBeenCalledTimes(1);
-      expect(transactionsHelper.signAndSendTransactionAndGetNonce).toHaveBeenCalledWith(transaction, walletSigner);
+      expect(transactionsHelper.signAndSendTransaction).toHaveBeenCalledTimes(1);
+      expect(transactionsHelper.signAndSendTransaction).toHaveBeenCalledWith(transaction, walletSigner);
 
       expect(redisCacheService.set).toHaveBeenCalledTimes(2);
       expect(redisCacheService.set).toHaveBeenCalledWith(
@@ -132,6 +132,7 @@ describe('ApprovalsProcessorService', () => {
         CacheInfo.PendingTransaction('txHash').ttl,
       );
 
+      // Saves current block height if no error
       expect(redisCacheService.set).toHaveBeenCalledWith(
         CacheInfo.StartProcessHeight().key,
         message.blockHeight,
@@ -139,7 +140,7 @@ describe('ApprovalsProcessorService', () => {
       );
     });
 
-    it('Should save current block height for retrying on error', async () => {
+    it('Should save previous block height for retrying on error', async () => {
       const observable = new Subject<SubscribeToApprovalsResponse>();
       grpcService.subscribeToApprovals.mockReturnValueOnce(observable);
 
@@ -169,7 +170,7 @@ describe('ApprovalsProcessorService', () => {
       expect(redisCacheService.set).toHaveBeenCalledTimes(1);
       expect(redisCacheService.set).toHaveBeenCalledWith(
         CacheInfo.StartProcessHeight().key,
-        message.blockHeight, // same block height
+        message.blockHeight - 1,
         CacheInfo.StartProcessHeight().ttl,
       );
 
@@ -279,7 +280,7 @@ describe('ApprovalsProcessorService', () => {
       gatewayContract.buildTransactionExternalFunction.mockReturnValueOnce(transaction);
 
       transactionsHelper.getTransactionGas.mockReturnValueOnce(Promise.resolve(100_000_000));
-      transactionsHelper.signAndSendTransactionAndGetNonce.mockReturnValueOnce(Promise.resolve('txHash'));
+      transactionsHelper.signAndSendTransaction.mockReturnValueOnce(Promise.resolve('txHash'));
 
       await service.handlePendingTransactionsRaw();
 
@@ -290,13 +291,14 @@ describe('ApprovalsProcessorService', () => {
       expect(gatewayContract.buildTransactionExternalFunction).toHaveBeenCalledWith(
         BinaryUtils.hexToString(externalData.toString('hex')),
         userAddress,
+        1,
       );
       expect(transactionsHelper.getTransactionGas).toHaveBeenCalledTimes(1);
       expect(transactionsHelper.getTransactionGas).toHaveBeenCalledWith(transaction, 1);
       expect(transaction.setGasLimit).toHaveBeenCalledTimes(1);
       expect(transaction.setGasLimit).toHaveBeenCalledWith(100_000_000);
-      expect(transactionsHelper.signAndSendTransactionAndGetNonce).toHaveBeenCalledTimes(1);
-      expect(transactionsHelper.signAndSendTransactionAndGetNonce).toHaveBeenCalledWith(transaction, walletSigner);
+      expect(transactionsHelper.signAndSendTransaction).toHaveBeenCalledTimes(1);
+      expect(transactionsHelper.signAndSendTransaction).toHaveBeenCalledWith(transaction, walletSigner);
 
       expect(redisCacheService.set).toHaveBeenCalledTimes(1);
       expect(redisCacheService.set).toHaveBeenCalledWith(
