@@ -94,7 +94,7 @@ describe('ApprovalsProcessorService', () => {
       gatewayContract.buildTransactionExternalFunction.mockReturnValueOnce(transaction);
 
       transactionsHelper.getTransactionGas.mockReturnValueOnce(Promise.resolve(100_000_000));
-      transactionsHelper.signAndSendTransaction.mockReturnValueOnce(Promise.resolve('txHash'));
+      transactionsHelper.signAndSendTransactionAndGetNonce.mockReturnValueOnce(Promise.resolve('txHash'));
 
       // Process a message
       const message: SubscribeToApprovalsResponse = {
@@ -118,8 +118,8 @@ describe('ApprovalsProcessorService', () => {
       expect(transactionsHelper.getTransactionGas).toHaveBeenCalledWith(transaction, 0);
       expect(transaction.setGasLimit).toHaveBeenCalledTimes(1);
       expect(transaction.setGasLimit).toHaveBeenCalledWith(100_000_000);
-      expect(transactionsHelper.signAndSendTransaction).toHaveBeenCalledTimes(1);
-      expect(transactionsHelper.signAndSendTransaction).toHaveBeenCalledWith(transaction, walletSigner);
+      expect(transactionsHelper.signAndSendTransactionAndGetNonce).toHaveBeenCalledTimes(1);
+      expect(transactionsHelper.signAndSendTransactionAndGetNonce).toHaveBeenCalledWith(transaction, walletSigner);
 
       expect(redisCacheService.set).toHaveBeenCalledTimes(2);
       expect(redisCacheService.set).toHaveBeenCalledWith(
@@ -279,7 +279,7 @@ describe('ApprovalsProcessorService', () => {
       gatewayContract.buildTransactionExternalFunction.mockReturnValueOnce(transaction);
 
       transactionsHelper.getTransactionGas.mockReturnValueOnce(Promise.resolve(100_000_000));
-      transactionsHelper.signAndSendTransaction.mockReturnValueOnce(Promise.resolve('txHash'));
+      transactionsHelper.signAndSendTransactionAndGetNonce.mockReturnValueOnce(Promise.resolve('txHash'));
 
       await service.handlePendingTransactionsRaw();
 
@@ -295,8 +295,8 @@ describe('ApprovalsProcessorService', () => {
       expect(transactionsHelper.getTransactionGas).toHaveBeenCalledWith(transaction, 1);
       expect(transaction.setGasLimit).toHaveBeenCalledTimes(1);
       expect(transaction.setGasLimit).toHaveBeenCalledWith(100_000_000);
-      expect(transactionsHelper.signAndSendTransaction).toHaveBeenCalledTimes(1);
-      expect(transactionsHelper.signAndSendTransaction).toHaveBeenCalledWith(transaction, walletSigner);
+      expect(transactionsHelper.signAndSendTransactionAndGetNonce).toHaveBeenCalledTimes(1);
+      expect(transactionsHelper.signAndSendTransactionAndGetNonce).toHaveBeenCalledWith(transaction, walletSigner);
 
       expect(redisCacheService.set).toHaveBeenCalledTimes(1);
       expect(redisCacheService.set).toHaveBeenCalledWith(

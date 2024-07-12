@@ -155,5 +155,7 @@ export class GatewayProcessor implements ProcessorInterface {
     messageApproved.successTimes = (messageApproved.successTimes || 0) + 1;
 
     await this.messageApprovedRepository.updateStatusAndSuccessTimes(messageApproved);
+
+    this.logger.debug(`Successfully executed message with command id ${messageApproved.commandId}`);
   }
 }

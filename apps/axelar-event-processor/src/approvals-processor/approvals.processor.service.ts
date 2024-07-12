@@ -52,10 +52,10 @@ export class ApprovalsProcessorService implements OnModuleInit {
       return;
     }
 
-    this.logger.log('Starting GRPC approvals stream subscription');
-
     const startProcessHeight =
       (await this.redisCacheService.get<number>(CacheInfo.StartProcessHeight().key)) || undefined;
+
+    this.logger.log(`Starting GRPC approvals stream subscription from block ${startProcessHeight}`);
 
     const observable = this.grpcService.subscribeToApprovals(CONSTANTS.SOURCE_CHAIN_NAME, startProcessHeight);
 
@@ -98,6 +98,8 @@ export class ApprovalsProcessorService implements OnModuleInit {
 
       // Nothing to do on success
       if (success) {
+        this.logger.debug(`Transaction with hash ${txHash} was successfully executed!`);
+
         continue;
       }
 
@@ -113,7 +115,7 @@ export class ApprovalsProcessorService implements OnModuleInit {
         this.logger.error('Error while trying to retry Axelar Approvals response transaction...');
         this.logger.error(e);
 
-        // Set value back in cache to be retried again (with same retry number)
+        // Set value back in cache to be retried again (with same retry number if it failed to even be sent to the chain)
         await this.redisCacheService.set<PendingTransaction>(
           CacheInfo.PendingTransaction(txHash).key,
           {
@@ -131,25 +133,30 @@ export class ApprovalsProcessorService implements OnModuleInit {
     this.logger.debug('Received Axelar Approvals response:');
     this.logger.debug(JSON.stringify(response));
 
+    let wasError = false;
     try {
       await this.executeTransaction(response.executeData);
     } catch (e) {
       this.logger.error('Error while processing Axelar Approvals response...');
       this.logger.error(e);
 
+      wasError = true;
+
       // Unsubscribe so processing stops at this event and is retried
       this.approvalsSubscription?.unsubscribe();
     } finally {
-      // Set start process height to this block height to not lose any progress in case of unexpected issues
+      // Set start process height to previous block height to not lose any progress in case of unexpected issues
       // It is safe to retry Gateway execute transaction that were already executed since the contract supports this
       await this.redisCacheService.set(
         CacheInfo.StartProcessHeight().key,
-        response.blockHeight,
+        response.blockHeight - (wasError ? 1 : 0), // If we had an error, save old block height for retry
         CacheInfo.StartProcessHeight().ttl,
       );
     }
   }
 
+  // TODO: Check if it is fine to use the same wallet as in the MessageApprovedProcessor
+  // and that no issues happen because of nonce
   private async executeTransaction(externalData: Uint8Array, retry: number = 0) {
     // The Amplifier for MultiversX encodes the executeData as hex, we need to decode it to string
     // It will have the format `function@arg1HEX@arg2HEX...`
@@ -158,7 +165,12 @@ export class ApprovalsProcessorService implements OnModuleInit {
     this.logger.debug(`Trying to execute Gateway execute transaction with externalData:`);
     this.logger.debug(decodedExecuteData);
 
-    const transaction = this.gatewayContract.buildTransactionExternalFunction(decodedExecuteData, this.walletSigner.getAddress());
+    const nonce = await this.transactionsHelper.getAccountNonce(this.walletSigner.getAddress());
+    const transaction = this.gatewayContract.buildTransactionExternalFunction(
+      decodedExecuteData,
+      this.walletSigner.getAddress(),
+      nonce,
+    );
 
     const gas = await this.transactionsHelper.getTransactionGas(transaction, retry);
     transaction.setGasLimit(gas);

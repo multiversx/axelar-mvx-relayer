@@ -86,7 +86,7 @@ export class GasCheckerService {
       tokensToCollect.map((token) => token.balance),
     );
 
-    const txHash = await this.transactionsHelper.signAndSendTransaction(transaction, this.walletSigner);
+    const txHash = await this.transactionsHelper.signAndSendTransactionAndGetNonce(transaction, this.walletSigner);
 
     const success = await this.transactionsHelper.awaitSuccess(txHash);
 
@@ -111,7 +111,7 @@ export class GasCheckerService {
         this.walletSigner.getAddress(),
       );
 
-      const txHash = await this.transactionsHelper.signAndSendTransaction(transaction, this.walletSigner);
+      const txHash = await this.transactionsHelper.signAndSendTransactionAndGetNonce(transaction, this.walletSigner);
 
       const success = await this.transactionsHelper.awaitSuccess(txHash);
 

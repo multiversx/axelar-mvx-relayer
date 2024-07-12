@@ -10,8 +10,8 @@ import { Injectable } from '@nestjs/common';
 import { Events } from '../utils/event.enum';
 import { TransactionEvent } from '@multiversx/sdk-network-providers/out';
 import {
-  MessageApprovedEvent,
   ContractCallEvent,
+  MessageApprovedEvent,
   WeightedSigners,
 } from '@mvx-monorepo/common/contracts/entities/gateway-events';
 import { DecodingUtils } from '@mvx-monorepo/common/utils/decoding.utils';
@@ -22,15 +22,17 @@ export class GatewayContract {
     private readonly smartContract: SmartContract,
     private readonly abi: AbiRegistry,
     private readonly resultsParser: ResultsParser,
+    private readonly chainId: string,
   ) {}
 
-  buildTransactionExternalFunction(externalData: string, sender: IAddress): Transaction {
+  buildTransactionExternalFunction(externalData: string, sender: IAddress, nonce: number): Transaction {
     return new Transaction({
       sender,
+      nonce,
       receiver: this.smartContract.getAddress(),
       data: new TransactionPayload(externalData),
       gasLimit: 0, // These will actually be set before sending the transaction to the chain
-      chainID: '',
+      chainID: this.chainId,
     });
   }
 

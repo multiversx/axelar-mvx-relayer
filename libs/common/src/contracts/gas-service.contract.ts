@@ -1,4 +1,13 @@
-import { AbiRegistry, IAddress, ResultsParser, SmartContract, Transaction } from '@multiversx/sdk-core/out';
+import {
+  AbiRegistry,
+  BigUIntValue,
+  IAddress,
+  ResultsParser,
+  SmartContract,
+  StringValue,
+  Transaction,
+  VariadicValue,
+} from '@multiversx/sdk-core/out';
 import { Injectable } from '@nestjs/common';
 import { Events } from '../utils/event.enum';
 import { TransactionEvent } from '@multiversx/sdk-network-providers/out';
@@ -22,7 +31,11 @@ export class GasServiceContract {
 
   collectFees(sender: IAddress, tokens: string[], amounts: BigNumber[]): Transaction {
     return this.smartContract.methods
-      .collectFees([sender.bech32(), tokens, amounts])
+      .collectFees([
+        sender.bech32(),
+        VariadicValue.fromItemsCounted(...tokens.map((token) => new StringValue(token))),
+        VariadicValue.fromItemsCounted(...amounts.map((amount) => new BigUIntValue(amount))),
+      ])
       .withGasLimit(GasInfo.CollectFeesBase.value + GasInfo.CollectFeesExtra.value * tokens.length)
       .withSender(sender)
       .buildTransaction();

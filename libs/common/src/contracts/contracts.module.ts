@@ -54,7 +54,7 @@ import { ItsContract } from '@mvx-monorepo/common/contracts/its.contract';
         const smartContract = await contractLoader.getContract(apiConfigService.getContractGateway());
         const abi = await contractLoader.getAbiRegistry();
 
-        return new GatewayContract(smartContract, abi, resultsParser);
+        return new GatewayContract(smartContract, abi, resultsParser, apiConfigService.getChainId());
       },
       inject: [ApiConfigService, ResultsParser],
     },

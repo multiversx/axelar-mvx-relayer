@@ -131,7 +131,7 @@ describe('GasCheckerService', () => {
 
       const transaction: DeepMocked<Transaction> = createMock();
       gasServiceContract.collectFees.mockReturnValueOnce(transaction);
-      transactionsHelper.signAndSendTransaction.mockReturnValueOnce(Promise.resolve('txHash'));
+      transactionsHelper.signAndSendTransactionAndGetNonce.mockReturnValueOnce(Promise.resolve('txHash'));
       transactionsHelper.awaitSuccess.mockReturnValueOnce(Promise.resolve(success));
 
       await service.checkGasServiceAndWalletRaw();
@@ -148,8 +148,8 @@ describe('GasCheckerService', () => {
         ['EGLD'],
         [new BigNumber('200000000000000000')],
       );
-      expect(transactionsHelper.signAndSendTransaction).toHaveBeenCalledTimes(1);
-      expect(transactionsHelper.signAndSendTransaction).toHaveBeenCalledWith(transaction, walletSigner);
+      expect(transactionsHelper.signAndSendTransactionAndGetNonce).toHaveBeenCalledTimes(1);
+      expect(transactionsHelper.signAndSendTransactionAndGetNonce).toHaveBeenCalledWith(transaction, walletSigner);
       expect(transactionsHelper.awaitSuccess).toHaveBeenCalledTimes(1);
       expect(transactionsHelper.awaitSuccess).toHaveBeenCalledWith('txHash');
       expect(wegldSwapContract.unwrapEgld).not.toHaveBeenCalled();
@@ -207,7 +207,7 @@ describe('GasCheckerService', () => {
 
       const transaction: DeepMocked<Transaction> = createMock();
       wegldSwapContract.unwrapEgld.mockReturnValueOnce(transaction);
-      transactionsHelper.signAndSendTransaction.mockReturnValueOnce(Promise.resolve('txHash'));
+      transactionsHelper.signAndSendTransactionAndGetNonce.mockReturnValueOnce(Promise.resolve('txHash'));
       transactionsHelper.awaitSuccess.mockReturnValueOnce(Promise.resolve(complete));
 
       await service.checkGasServiceAndWalletRaw();
@@ -224,8 +224,8 @@ describe('GasCheckerService', () => {
         new BigNumber('200000000000000000'),
         userSignerAddress,
       );
-      expect(transactionsHelper.signAndSendTransaction).toHaveBeenCalledTimes(1);
-      expect(transactionsHelper.signAndSendTransaction).toHaveBeenCalledWith(transaction, walletSigner);
+      expect(transactionsHelper.signAndSendTransactionAndGetNonce).toHaveBeenCalledTimes(1);
+      expect(transactionsHelper.signAndSendTransactionAndGetNonce).toHaveBeenCalledWith(transaction, walletSigner);
       expect(transactionsHelper.awaitSuccess).toHaveBeenCalledTimes(1);
       expect(transactionsHelper.awaitSuccess).toHaveBeenCalledWith('txHash');
       expect(gasServiceContract.collectFees).not.toHaveBeenCalled();

@@ -84,11 +84,23 @@ export class GrpcService implements OnModuleInit {
   }
 
   async getPayload(payloadHash: string): Promise<Buffer> {
-    const result = await this.amplifierService.getPayload({
-      hash: Buffer.from(payloadHash, 'hex'),
-    });
+    try {
+      const result = await this.amplifierService.getPayload({
+        hash: Buffer.from(payloadHash, 'hex'),
+      });
 
-    return Buffer.from(result.payload);
+      if (!result?.payload) {
+        this.logger.warn(`Failed to get payload for payload hash ${payloadHash} ${JSON.stringify(result)}`);
+
+        return Buffer.from('');
+      }
+
+      return Buffer.from(result.payload);
+    } catch (e) {
+      this.logger.error(`Error when trying to get payload for payload hash ${payloadHash}`, e);
+
+      return Buffer.from('');
+    }
   }
 
   subscribeToApprovals(chain: string, startHeight?: number | undefined): Observable<SubscribeToApprovalsResponse> {
