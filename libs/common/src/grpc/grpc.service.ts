@@ -3,7 +3,7 @@ import { ProviderKeys } from '@mvx-monorepo/common/utils/provider.enum';
 import { ClientGrpc } from '@nestjs/microservices';
 import { ContractCallEvent, ContractCallEventStatus } from '@prisma/client';
 import { Amplifier, SubscribeToApprovalsResponse, VerifyRequest } from '@mvx-monorepo/common/grpc/entities/amplifier';
-import { Observable, retry, Subject, Subscription } from 'rxjs';
+import { firstValueFrom, Observable, retry, Subject, Subscription } from 'rxjs';
 import BigNumber from 'bignumber.js';
 import { ApiConfigService } from '@mvx-monorepo/common/config';
 import { ContractCallEventRepository } from '@mvx-monorepo/common/database/repository/contract-call-event.repository';
@@ -85,9 +85,11 @@ export class GrpcService implements OnModuleInit {
 
   async getPayload(payloadHash: string): Promise<Buffer> {
     try {
-      const result = await this.amplifierService.getPayload({
-        hash: Buffer.from(payloadHash, 'hex'),
-      });
+      const result = await firstValueFrom(
+        this.amplifierService.getPayload({
+          hash: Buffer.from(payloadHash, 'hex'),
+        }),
+      );
 
       if (!result?.payload) {
         this.logger.warn(`Failed to get payload for payload hash ${payloadHash} ${JSON.stringify(result)}`);

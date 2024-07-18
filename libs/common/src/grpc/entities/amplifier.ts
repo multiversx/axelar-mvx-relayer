@@ -97,7 +97,7 @@ export interface GetReceiptResponse {
 
 export interface Amplifier {
   verify(request: Observable<VerifyRequest>): Observable<VerifyResponse>;
-  getPayload(request: GetPayloadRequest): Promise<GetPayloadResponse>;
+  getPayload(request: GetPayloadRequest): Observable<GetPayloadResponse>; // This was not generated correctly (had Promise instead of Observable)
   subscribeToApprovals(request: SubscribeToApprovalsRequest): Observable<SubscribeToApprovalsResponse>;
   subscribeToWasmEvents(request: SubscribeToWasmEventsRequest): Observable<SubscribeToWasmEventsResponse>;
   broadcast(request: BroadcastRequest): Promise<BroadcastResponse>;
