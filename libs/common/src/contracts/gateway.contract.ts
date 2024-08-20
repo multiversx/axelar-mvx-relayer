@@ -1,6 +1,7 @@
 import {
   AbiRegistry,
   IAddress,
+  ITransactionEvent,
   ResultsParser,
   SmartContract,
   Transaction,
@@ -36,9 +37,16 @@ export class GatewayContract {
     });
   }
 
-  decodeContractCallEvent(event: TransactionEvent): ContractCallEvent {
+  decodeContractCallEvent(event: ITransactionEvent): ContractCallEvent {
     const eventDefinition = this.abi.getEvent(Events.CONTRACT_CALL_EVENT);
-    const outcome = this.resultsParser.parseEvent(event, eventDefinition);
+    const outcome = this.resultsParser.parseEvent(
+      {
+        topics: event.topics.map((topic) => Buffer.from(topic.hex(), 'hex')),
+        dataPayload: event.dataPayload,
+        additionalData: event.additionalData,
+      },
+      eventDefinition,
+    );
 
     return {
       sender: outcome.sender,
@@ -63,9 +71,16 @@ export class GatewayContract {
     };
   }
 
-  decodeSignersRotatedEvent(event: TransactionEvent): WeightedSigners {
+  decodeSignersRotatedEvent(event: ITransactionEvent): WeightedSigners {
     const eventDefinition = this.abi.getEvent(Events.SIGNERS_ROTATED_EVENT);
-    const outcome = this.resultsParser.parseEvent(event, eventDefinition);
+    const outcome = this.resultsParser.parseEvent(
+      {
+        topics: event.topics.map((topic) => Buffer.from(topic.hex(), 'hex')),
+        dataPayload: event.dataPayload,
+        additionalData: event.additionalData,
+      },
+      eventDefinition,
+    );
 
     const signers = outcome.signers;
 

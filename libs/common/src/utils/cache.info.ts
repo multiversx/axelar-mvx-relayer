@@ -24,4 +24,11 @@ export class CacheInfo {
       ttl: Constants.oneWeek(),
     };
   }
+
+  static CrossChainTransactions(): CacheInfo {
+    return {
+      key: `crossChainTransactions`,
+      ttl: Constants.oneWeek(),
+    };
+  }
 }
