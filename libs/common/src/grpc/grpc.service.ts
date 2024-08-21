@@ -126,7 +126,7 @@ export class GrpcService implements OnModuleInit {
     const payload = Buffer.from(
       JSON.stringify({
         verify_verifier_set: {
-          message_id: '0x' + messageId, // TODO: Check that this format is correct for the messageId
+          message_id: messageId,
           new_verifier_set: {
             signers,
             threshold: threshold.toString(),

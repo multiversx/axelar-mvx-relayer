@@ -29,17 +29,21 @@ export class CrossChainTransactionProcessorService {
 
   // Runs every 15 seconds
   @Cron('*/15 * * * * *')
-  async processCrossChainTransaction() {
-    await Locker.lock('processCrossChainTransaction', async () => {
-      this.logger.debug('Running processCrossChainTransaction cron');
+  async processCrossChainTransactions() {
+    await Locker.lock('processCrossChainTransactions', this.processCrossChainTransactionsRaw.bind(this));
+  }
 
-      const txHashes = await this.redisHelper.smembers(CacheInfo.CrossChainTransactions().key);
+  async processCrossChainTransactionsRaw() {
+    this.logger.debug('Running processCrossChainTransactions cron');
 
-      for (const txHash of txHashes) {
+    const txHashes = await this.redisHelper.smembers(CacheInfo.CrossChainTransactions().key);
+
+    for (const txHash of txHashes) {
+      try {
         const transaction = await this.proxy.getTransaction(txHash);
 
         // Wait for transaction to be finished
-        if (!transaction || transaction.status.isPending()) {
+        if (transaction.status.isPending()) {
           continue;
         }
 
@@ -49,8 +53,10 @@ export class CrossChainTransactionProcessorService {
         }
 
         await this.redisHelper.srem(CacheInfo.CrossChainTransactions().key, txHash);
+      } catch (e) {
+        this.logger.warn(`An error occurred while processing cross chain transaction ${txHash}. Will be retried`, e);
       }
-    });
+    }
   }
 
   private async handleEvents(transaction: ITransactionOnNetwork) {
@@ -59,7 +65,7 @@ export class CrossChainTransactionProcessorService {
         continue;
       }
 
-      const eventName = rawEvent.topics[0].toString();
+      const eventName = rawEvent.topics?.[0]?.toString();
 
       if (rawEvent.identifier === EventIdentifiers.CALL_CONTRACT && eventName === Events.CONTRACT_CALL_EVENT) {
         await this.handleContractCallEvent(rawEvent, transaction.hash, index);
@@ -100,7 +106,8 @@ export class CrossChainTransactionProcessorService {
   private async handleSignersRotatedEvent(rawEvent: ITransactionEvent, txHash: string, index: number) {
     const weightedSigners = this.gatewayContract.decodeSignersRotatedEvent(rawEvent);
 
-    const id = `${txHash}-${index}`;
+    // The id needs to have `0x` in front of the txHash (hex string)
+    const id = `0x${txHash}-${index}`;
 
     // TODO: Test that this works correctly
     const response = await this.grpcService.verifyVerifierSet(
