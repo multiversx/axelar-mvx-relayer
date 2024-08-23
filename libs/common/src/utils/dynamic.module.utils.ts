@@ -1,6 +1,7 @@
 import { CacheModule, RedisCacheModule, RedisCacheModuleOptions } from '@multiversx/sdk-nestjs-cache';
 import { DynamicModule } from '@nestjs/common';
 import { ApiConfigModule, ApiConfigService } from '../config';
+import { RedisModule } from '@multiversx/sdk-nestjs-redis';
 
 export class DynamicModuleUtils {
   static getCacheModule(): DynamicModule {
@@ -35,6 +36,21 @@ export class DynamicModuleUtils {
             processTtl: apiConfigService.getProcessTtl(),
           },
         ),
+      inject: [ApiConfigService],
+    });
+  }
+
+  static getRedisModule(): DynamicModule {
+    return RedisModule.forRootAsync({
+      imports: [ApiConfigModule],
+      useFactory: (apiConfigService: ApiConfigService) => {
+        return {
+          config: {
+            host: apiConfigService.getRedisUrl(),
+            port: apiConfigService.getRedisPort(),
+          },
+        };
+      },
       inject: [ApiConfigService],
     });
   }

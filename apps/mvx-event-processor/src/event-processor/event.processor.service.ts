@@ -1,9 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ApiConfigService } from '@mvx-monorepo/common';
+import { ApiConfigService, CacheInfo } from '@mvx-monorepo/common';
 import { NotifierBlockEvent, NotifierEvent } from './types';
 import { RabbitSubscribe } from '@golevelup/nestjs-rabbitmq';
 import { EVENTS_NOTIFIER_QUEUE } from '../../../../config/configuration';
 import { GatewayProcessor, GasServiceProcessor } from '../processors';
+import { RedisHelper } from '@mvx-monorepo/common/helpers/redis.helper';
 
 @Injectable()
 export class EventProcessorService {
@@ -14,6 +15,7 @@ export class EventProcessorService {
   constructor(
     private readonly gatewayProcessor: GatewayProcessor,
     private readonly gasServiceProcessor: GasServiceProcessor,
+    private readonly redisHelper: RedisHelper,
     apiConfigService: ApiConfigService,
   ) {
     this.contractGateway = apiConfigService.getContractGateway();
@@ -27,8 +29,18 @@ export class EventProcessorService {
   })
   async consumeEvents(blockEvent: NotifierBlockEvent) {
     try {
+      const crossChainTransactions = new Set<string>();
+
       for (const event of blockEvent.events) {
-        await this.handleEvent(event);
+        const txHash = await this.handleEvent(event);
+
+        if (txHash) {
+          crossChainTransactions.add(txHash);
+        }
+      }
+
+      if (crossChainTransactions.size > 0) {
+        await this.redisHelper.sadd(CacheInfo.CrossChainTransactions().key, ...crossChainTransactions);
       }
     } catch (error) {
       this.logger.error(
@@ -56,9 +68,9 @@ export class EventProcessorService {
       this.logger.debug('Received Gateway event from MultiversX:');
       this.logger.debug(JSON.stringify(event));
 
-      await this.gatewayProcessor.handleEvent(event);
-
-      return;
+      return await this.gatewayProcessor.handleEvent(event);
     }
+
+    return undefined;
   }
 }

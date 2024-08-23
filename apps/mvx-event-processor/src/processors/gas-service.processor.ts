@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ProcessorInterface } from './entities/processor.interface';
 import { NotifierEvent } from '../event-processor/types';
 import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
 import { Events } from '@mvx-monorepo/common/utils/event.enum';
@@ -12,7 +11,7 @@ import { GasAddedEvent, GasPaidForContractCallEvent } from '@mvx-monorepo/common
 import BigNumber from 'bignumber.js';
 
 @Injectable()
-export class GasServiceProcessor implements ProcessorInterface {
+export class GasServiceProcessor {
   private logger: Logger;
 
   constructor(

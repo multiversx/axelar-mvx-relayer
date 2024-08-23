@@ -3,11 +3,13 @@ import { ApiConfigService } from '@mvx-monorepo/common';
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { Test } from '@nestjs/testing';
 import { NotifierBlockEvent } from './types';
-import { GatewayProcessor, GasServiceProcessor } from '../processors';
+import { GasServiceProcessor, GatewayProcessor } from '../processors';
+import { RedisHelper } from '@mvx-monorepo/common/helpers/redis.helper';
 
 describe('EventProcessorService', () => {
   let gatewayProcessor: DeepMocked<GatewayProcessor>;
   let gasServiceProcessor: DeepMocked<GasServiceProcessor>;
+  let redisHelper: DeepMocked<RedisHelper>;
   let apiConfigService: DeepMocked<ApiConfigService>;
 
   let service: EventProcessorService;
@@ -15,6 +17,7 @@ describe('EventProcessorService', () => {
   beforeEach(async () => {
     gatewayProcessor = createMock();
     gasServiceProcessor = createMock();
+    redisHelper = createMock();
     apiConfigService = createMock();
 
     apiConfigService.getContractGateway.mockReturnValue('mockGatewayAddress');
@@ -30,6 +33,10 @@ describe('EventProcessorService', () => {
 
         if (token === GasServiceProcessor) {
           return gasServiceProcessor;
+        }
+
+        if (token === RedisHelper) {
+          return redisHelper;
         }
 
         if (token === ApiConfigService) {
@@ -72,16 +79,26 @@ describe('EventProcessorService', () => {
       expect(apiConfigService.getContractGateway).toHaveBeenCalledTimes(1);
       expect(gatewayProcessor.handleEvent).not.toHaveBeenCalled();
       expect(gasServiceProcessor.handleEvent).not.toHaveBeenCalled();
+      expect(redisHelper.sadd).not.toHaveBeenCalled();
     });
 
     it('Should consume gateway event', async () => {
+      gatewayProcessor.handleEvent.mockReturnValue(Promise.resolve('txHash'));
+
       const blockEvent: NotifierBlockEvent = {
         hash: 'test',
         shardId: 1,
         timestamp: 123456,
         events: [
           {
-            txHash: 'test',
+            txHash: 'txHash',
+            address: 'mockGatewayAddress',
+            identifier: 'any',
+            data: '',
+            topics: [],
+          },
+          {
+            txHash: 'txHash',
             address: 'mockGatewayAddress',
             identifier: 'any',
             data: '',
@@ -93,8 +110,10 @@ describe('EventProcessorService', () => {
       await service.consumeEvents(blockEvent);
 
       expect(apiConfigService.getContractGateway).toHaveBeenCalledTimes(1);
-      expect(gatewayProcessor.handleEvent).toHaveBeenCalledTimes(1);
+      expect(gatewayProcessor.handleEvent).toHaveBeenCalledTimes(2);
       expect(gasServiceProcessor.handleEvent).not.toHaveBeenCalled();
+      expect(redisHelper.sadd).toHaveBeenCalledTimes(1);
+      expect(redisHelper.sadd).toHaveBeenCalledWith('crossChainTransactions', 'txHash');
     });
 
     it('Should consume gas contract event', async () => {
@@ -118,6 +137,7 @@ describe('EventProcessorService', () => {
       expect(apiConfigService.getContractGateway).toHaveBeenCalledTimes(1);
       expect(gasServiceProcessor.handleEvent).toHaveBeenCalledTimes(1);
       expect(gatewayProcessor.handleEvent).not.toHaveBeenCalled();
+      expect(redisHelper.sadd).not.toHaveBeenCalled();
     });
   });
 });
