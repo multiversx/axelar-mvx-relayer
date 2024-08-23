@@ -255,7 +255,7 @@ describe('CrossChainTransactionProcessor', () => {
       expect(gatewayContract.decodeSignersRotatedEvent).toHaveBeenCalledWith(transaction.logs.events[2]);
       expect(grpcService.verifyVerifierSet).toHaveBeenCalledTimes(1);
       expect(grpcService.verifyVerifierSet).toHaveBeenCalledWith(
-        'txHash-2',
+        '0xtxHash-2',
         expect.anything(),
         expect.anything(),
         expect.anything(),
