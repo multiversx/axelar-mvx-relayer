@@ -14,7 +14,7 @@ import {
 } from '@multiversx/sdk-core/out';
 import { MessageApproved, MessageApprovedStatus } from '@prisma/client';
 import { TransactionsHelper } from '@mvx-monorepo/common/contracts/transactions.helper';
-import { ApiConfigService, GrpcService } from '@mvx-monorepo/common';
+import { ApiConfigService } from '@mvx-monorepo/common';
 import { ItsContract } from '@mvx-monorepo/common/contracts/its.contract';
 import { Locker } from '@multiversx/sdk-nestjs-common';
 
@@ -33,7 +33,6 @@ export class MessageApprovedProcessorService {
     @Inject(ProviderKeys.WALLET_SIGNER) private readonly walletSigner: UserSigner,
     private readonly transactionsHelper: TransactionsHelper,
     private readonly itsContract: ItsContract,
-    private readonly grpcService: GrpcService,
     apiConfigService: ApiConfigService,
   ) {
     this.logger = new Logger(MessageApprovedProcessorService.name);
@@ -78,15 +77,9 @@ export class MessageApprovedProcessorService {
           );
 
           if (!messageApproved.payload.length) {
-            this.logger.warn(`Retrying to get payload for payload hash ${messageApproved.payloadHash}`);
+            this.logger.error(`Can not send transaction without payload for commandId ${messageApproved.commandId}`);
 
-            messageApproved.payload = await this.grpcService.getPayload(messageApproved.payloadHash);
-          }
-
-          if (!messageApproved.payload.length) {
-            this.logger.warn(`Can not send transaction without payload for commandId ${messageApproved.commandId}`);
-
-            messageApproved.retry += 1;
+            messageApproved.status = MessageApprovedStatus.FAILED;
 
             entriesToUpdate.push(messageApproved);
 

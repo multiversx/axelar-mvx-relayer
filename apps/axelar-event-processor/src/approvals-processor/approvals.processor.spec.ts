@@ -1,14 +1,13 @@
 import { ApiConfigService, CacheInfo, TransactionsHelper } from '@mvx-monorepo/common';
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { Test } from '@nestjs/testing';
-import { GrpcService } from '@mvx-monorepo/common/grpc/grpc.service';
+import { AxelarGmpApi } from '@mvx-monorepo/common/api/axelar.gmp.api';
 import { GatewayContract } from '@mvx-monorepo/common/contracts/gateway.contract';
 import { ApprovalsProcessorService } from './approvals.processor.service';
 import { RedisCacheService } from '@multiversx/sdk-nestjs-cache';
 import { UserSigner } from '@multiversx/sdk-wallet/out';
 import { ProviderKeys } from '@mvx-monorepo/common/utils/provider.enum';
 import { Subject } from 'rxjs';
-import { SubscribeToApprovalsResponse } from '@mvx-monorepo/common/grpc/entities/amplifier';
 import { UserAddress } from '@multiversx/sdk-wallet/out/userAddress';
 import { Transaction } from '@multiversx/sdk-core/out';
 import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
@@ -16,7 +15,7 @@ import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
 const mockExternalData = Buffer.from(BinaryUtils.stringToHex('approveMessages@61726731@61726732'), 'hex');
 
 describe('ApprovalsProcessorService', () => {
-  let grpcService: DeepMocked<GrpcService>;
+  let grpcService: DeepMocked<AxelarGmpApi>;
   let redisCacheService: DeepMocked<RedisCacheService>;
   let walletSigner: DeepMocked<UserSigner>;
   let transactionsHelper: DeepMocked<TransactionsHelper>;
@@ -37,7 +36,7 @@ describe('ApprovalsProcessorService', () => {
       providers: [ApprovalsProcessorService],
     })
       .useMocker((token) => {
-        if (token === GrpcService) {
+        if (token === AxelarGmpApi) {
           return grpcService;
         }
 
@@ -76,7 +75,7 @@ describe('ApprovalsProcessorService', () => {
   describe('handleNewApprovals', () => {
     it('Should process message', async () => {
       const observable = new Subject<SubscribeToApprovalsResponse>();
-      grpcService.subscribeToApprovals.mockReturnValueOnce(observable);
+      grpcService.getTasks.mockReturnValueOnce(observable);
 
       await service.handleNewApprovalsRaw();
 
@@ -84,8 +83,8 @@ describe('ApprovalsProcessorService', () => {
       await service.handleNewApprovalsRaw();
 
       expect(redisCacheService.get).toHaveBeenCalledTimes(1);
-      expect(grpcService.subscribeToApprovals).toHaveBeenCalledTimes(1);
-      expect(grpcService.subscribeToApprovals).toHaveBeenCalledWith('multiversx', undefined);
+      expect(grpcService.getTasks).toHaveBeenCalledTimes(1);
+      expect(grpcService.getTasks).toHaveBeenCalledWith('multiversx', undefined);
 
       const userAddress = UserAddress.newFromBech32('erd1qqqqqqqqqqqqqpgqhe8t5jewej70zupmh44jurgn29psua5l2jps3ntjj3');
       walletSigner.getAddress.mockReturnValueOnce(userAddress);
@@ -134,15 +133,15 @@ describe('ApprovalsProcessorService', () => {
 
       // Saves current block height if no error
       expect(redisCacheService.set).toHaveBeenCalledWith(
-        CacheInfo.StartProcessHeight().key,
+        CacheInfo.LastTaskUUID().key,
         message.blockHeight,
-        CacheInfo.StartProcessHeight().ttl,
+        CacheInfo.LastTaskUUID().ttl,
       );
     });
 
     it('Should save previous block height for retrying on error', async () => {
       const observable = new Subject<SubscribeToApprovalsResponse>();
-      grpcService.subscribeToApprovals.mockReturnValueOnce(observable);
+      grpcService.getTasks.mockReturnValueOnce(observable);
 
       const userAddress = UserAddress.fromBech32('erd1qqqqqqqqqqqqqpgqhe8t5jewej70zupmh44jurgn29psua5l2jps3ntjj3');
       walletSigner.getAddress.mockReturnValueOnce(userAddress);
@@ -169,9 +168,9 @@ describe('ApprovalsProcessorService', () => {
 
       expect(redisCacheService.set).toHaveBeenCalledTimes(1);
       expect(redisCacheService.set).toHaveBeenCalledWith(
-        CacheInfo.StartProcessHeight().key,
+        CacheInfo.LastTaskUUID().key,
         message.blockHeight - 1,
-        CacheInfo.StartProcessHeight().ttl,
+        CacheInfo.LastTaskUUID().ttl,
       );
 
       redisCacheService.get.mockImplementation(() => {
@@ -179,41 +178,41 @@ describe('ApprovalsProcessorService', () => {
       });
 
       const newObservable = new Subject<SubscribeToApprovalsResponse>();
-      grpcService.subscribeToApprovals.mockReturnValueOnce(newObservable);
+      grpcService.getTasks.mockReturnValueOnce(newObservable);
 
       // Will re-initialize the subscription with same block height
       await service.handleNewApprovalsRaw();
 
       expect(redisCacheService.get).toHaveBeenCalledTimes(2);
-      expect(grpcService.subscribeToApprovals).toHaveBeenCalledTimes(2);
-      expect(grpcService.subscribeToApprovals).toHaveBeenCalledWith('multiversx', 1);
+      expect(grpcService.getTasks).toHaveBeenCalledTimes(2);
+      expect(grpcService.getTasks).toHaveBeenCalledWith('multiversx', 1);
     });
 
     it('Should reinitialize subscription on complete or on error', async () => {
       const observable = new Subject<SubscribeToApprovalsResponse>();
-      grpcService.subscribeToApprovals.mockReturnValueOnce(observable);
+      grpcService.getTasks.mockReturnValueOnce(observable);
 
       await service.handleNewApprovalsRaw();
 
       observable.complete();
 
       const newObservable = new Subject<SubscribeToApprovalsResponse>();
-      grpcService.subscribeToApprovals.mockReturnValueOnce(newObservable);
+      grpcService.getTasks.mockReturnValueOnce(newObservable);
 
       await service.handleNewApprovalsRaw();
 
       expect(redisCacheService.get).toHaveBeenCalledTimes(2);
-      expect(grpcService.subscribeToApprovals).toHaveBeenCalledTimes(2);
+      expect(grpcService.getTasks).toHaveBeenCalledTimes(2);
 
       newObservable.error(new Error('Network error'));
 
       const newNewObservable = new Subject<SubscribeToApprovalsResponse>();
-      grpcService.subscribeToApprovals.mockReturnValueOnce(newNewObservable);
+      grpcService.getTasks.mockReturnValueOnce(newNewObservable);
 
       await service.handleNewApprovalsRaw();
 
       expect(redisCacheService.get).toHaveBeenCalledTimes(3);
-      expect(grpcService.subscribeToApprovals).toHaveBeenCalledTimes(3);
+      expect(grpcService.getTasks).toHaveBeenCalledTimes(3);
     });
   });
 

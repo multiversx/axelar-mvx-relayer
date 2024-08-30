@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { Locker } from '@multiversx/sdk-nestjs-common';
-import { ApiConfigService, CacheInfo, GatewayContract, GrpcService } from '@mvx-monorepo/common';
+import { ApiConfigService, CacheInfo, GatewayContract, AxelarGmpApi } from '@mvx-monorepo/common';
 import { ContractCallEventRepository } from '@mvx-monorepo/common/database/repository/contract-call-event.repository';
 import { RedisHelper } from '@mvx-monorepo/common/helpers/redis.helper';
 import { ITransactionEvent, ITransactionOnNetwork } from '@multiversx/sdk-core/out';
@@ -17,7 +17,7 @@ export class CrossChainTransactionProcessorService {
 
   constructor(
     private readonly contractCallEventRepository: ContractCallEventRepository,
-    private readonly grpcService: GrpcService,
+    private readonly grpcService: AxelarGmpApi,
     private readonly redisHelper: RedisHelper,
     private readonly proxy: ProxyNetworkProvider,
     private readonly gatewayContract: GatewayContract,
@@ -100,7 +100,7 @@ export class CrossChainTransactionProcessorService {
       return;
     }
 
-    this.grpcService.verify(contractCallEvent);
+    this.grpcService.sendEventCall(contractCallEvent);
   }
 
   private async handleSignersRotatedEvent(rawEvent: ITransactionEvent, txHash: string, index: number) {
@@ -110,6 +110,7 @@ export class CrossChainTransactionProcessorService {
     const id = `0x${txHash}-${index}`;
 
     // TODO: Test that this works correctly
+    // @ts-ignore
     const response = await this.grpcService.verifyVerifierSet(
       id,
       weightedSigners.signers,
@@ -117,23 +118,23 @@ export class CrossChainTransactionProcessorService {
       weightedSigners.nonce,
     );
 
-    if (response.published) {
-      return;
-    }
-
-    this.logger.warn(`Couldn't dispatch verifyWorkerSet ${id} to Amplifier API. Retrying...`);
-
-    setTimeout(async () => {
-      const response = await this.grpcService.verifyVerifierSet(
-        id,
-        weightedSigners.signers,
-        weightedSigners.threshold,
-        weightedSigners.nonce,
-      );
-
-      if (!response.published) {
-        this.logger.error(`Couldn't dispatch verifyWorkerSet ${id} to Amplifier API.`);
-      }
-    }, 60_000);
+    // if (response.published) {
+    //   return;
+    // }
+    //
+    // this.logger.warn(`Couldn't dispatch verifyWorkerSet ${id} to Amplifier API. Retrying...`);
+    //
+    // setTimeout(async () => {
+    //   const response = await this.grpcService.verifyVerifierSet(
+    //     id,
+    //     weightedSigners.signers,
+    //     weightedSigners.threshold,
+    //     weightedSigners.nonce,
+    //   );
+    //
+    //   if (!response.published) {
+    //     this.logger.error(`Couldn't dispatch verifyWorkerSet ${id} to Amplifier API.`);
+    //   }
+    // }, 60_000);
   }
 }

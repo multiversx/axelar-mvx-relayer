@@ -3,7 +3,7 @@ import { NotifierEvent } from '../event-processor/types';
 import { GatewayContract } from '@mvx-monorepo/common/contracts/gateway.contract';
 import { TransactionEvent } from '@multiversx/sdk-network-providers/out';
 import { MessageApprovedStatus } from '@prisma/client';
-import { GrpcService } from '@mvx-monorepo/common/grpc/grpc.service';
+import { AxelarGmpApi } from '@mvx-monorepo/common/api/axelar.gmp.api';
 import { EventIdentifiers, Events } from '@mvx-monorepo/common/utils/event.enum';
 import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
 import { MessageApprovedRepository } from '@mvx-monorepo/common/database/repository/message-approved.repository';
@@ -15,7 +15,8 @@ export class GatewayProcessor {
   constructor(
     private readonly gatewayContract: GatewayContract,
     private readonly messageApprovedRepository: MessageApprovedRepository,
-    private readonly grpcService: GrpcService,
+    // @ts-ignore
+    private readonly grpcService: AxelarGmpApi,
   ) {
     this.logger = new Logger(GatewayProcessor.name);
   }
@@ -45,27 +46,31 @@ export class GatewayProcessor {
     return undefined;
   }
 
-  private async handleMessageApprovedEvent(rawEvent: NotifierEvent) {
+  private handleMessageApprovedEvent(rawEvent: NotifierEvent) {
+    // @ts-ignore
     const event = this.gatewayContract.decodeMessageApprovedEvent(TransactionEvent.fromHttpResponse(rawEvent));
 
-    const payload = await this.grpcService.getPayload(event.payloadHash);
+    // TODO: Call Axelar GMP API instead
 
-    const messageApproved = await this.messageApprovedRepository.create({
-      commandId: event.commandId,
-      txHash: rawEvent.txHash,
-      status: MessageApprovedStatus.PENDING,
-      sourceAddress: event.sourceAddress,
-      sourceChain: event.sourceChain,
-      messageId: event.messageId,
-      contractAddress: event.contractAddress.bech32(),
-      payloadHash: event.payloadHash,
-      payload,
-      retry: 0,
-    });
+    // const payload = await this.grpcService.getPayload(event.payloadHash);
 
-    if (!messageApproved) {
-      throw new Error(`Couldn't save contract call approved to database for hash ${rawEvent.txHash}`);
-    }
+    // TODO: Create this from tasks from GMP API
+    // const messageApproved = await this.messageApprovedRepository.create({
+    //   commandId: event.commandId,
+    //   txHash: rawEvent.txHash,
+    //   status: MessageApprovedStatus.PENDING,
+    //   sourceAddress: event.sourceAddress,
+    //   sourceChain: event.sourceChain,
+    //   messageId: event.messageId,
+    //   contractAddress: event.contractAddress.bech32(),
+    //   payloadHash: event.payloadHash,
+    //   payload,
+    //   retry: 0,
+    // });
+    //
+    // if (!messageApproved) {
+    //   throw new Error(`Couldn't save contract call approved to database for hash ${rawEvent.txHash}`);
+    // }
   }
 
   private async handleMessageExecutedEvent(rawEvent: NotifierEvent) {

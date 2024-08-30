@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { Locker } from '@multiversx/sdk-nestjs-common';
 import { ContractCallEventStatus } from '@prisma/client';
-import { GrpcService } from '@mvx-monorepo/common';
+import { AxelarGmpApi } from '@mvx-monorepo/common';
 import { ContractCallEventRepository } from '@mvx-monorepo/common/database/repository/contract-call-event.repository';
 
 const MAX_NUMBER_OF_RETRIES: number = 3;
@@ -13,7 +13,7 @@ export class ContractCallEventProcessorService {
 
   constructor(
     private readonly contractCallEventRepository: ContractCallEventRepository,
-    private readonly grpcService: GrpcService,
+    private readonly grpcService: AxelarGmpApi,
   ) {
     this.logger = new Logger(ContractCallEventProcessorService.name);
   }
@@ -46,7 +46,7 @@ export class ContractCallEventProcessorService {
 
           await this.contractCallEventRepository.updateRetry(contractCallEvent.id, contractCallEvent.retry);
 
-          this.grpcService.verify(contractCallEvent);
+          this.grpcService.sendEventCall(contractCallEvent);
         }
 
         page++;

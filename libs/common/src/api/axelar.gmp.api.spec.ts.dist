@@ -2,15 +2,8 @@ import { ApiConfigService } from '@mvx-monorepo/common';
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { Test } from '@nestjs/testing';
 import { ContractCallEventRepository } from '@mvx-monorepo/common/database/repository/contract-call-event.repository';
-import { GrpcService } from '@mvx-monorepo/common/grpc/grpc.service';
+import { AxelarGmpApi } from '@mvx-monorepo/common/api/axelar.gmp.api';
 import { Observable } from 'rxjs';
-import {
-  Amplifier,
-  Error,
-  ErrorCode,
-  VerifyRequest,
-  VerifyResponse,
-} from '@mvx-monorepo/common/grpc/entities/amplifier';
 import { ClientGrpc } from '@nestjs/microservices';
 import { ProviderKeys } from '@mvx-monorepo/common/utils/provider.enum';
 import { ContractCallEvent, ContractCallEventStatus } from '@prisma/client';
@@ -22,7 +15,7 @@ describe('ContractCallProcessor', () => {
   let contractCallEventRepository: DeepMocked<ContractCallEventRepository>;
   let apiConfigService: DeepMocked<ApiConfigService>;
 
-  let service: GrpcService;
+  let service: AxelarGmpApi;
 
   const errorQueue: Error[] = [];
 
@@ -55,7 +48,7 @@ describe('ContractCallProcessor', () => {
     client.getService.mockReturnValue(amplifierService);
 
     const moduleRef = await Test.createTestingModule({
-      providers: [GrpcService],
+      providers: [AxelarGmpApi],
     })
       .useMocker((token) => {
         if (token === ProviderKeys.AXELAR_GRPC_CLIENT) {
@@ -75,7 +68,7 @@ describe('ContractCallProcessor', () => {
       .compile();
     await moduleRef.init();
 
-    service = moduleRef.get(GrpcService);
+    service = moduleRef.get(AxelarGmpApi);
   });
 
   describe('verify', () => {

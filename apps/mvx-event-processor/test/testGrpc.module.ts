@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
-import { GrpcService } from '@mvx-monorepo/common';
+import { AxelarGmpApi } from '@mvx-monorepo/common';
 
 @Module({
   imports: [],
-  providers: [GrpcService],
-  exports: [GrpcService],
+  providers: [AxelarGmpApi],
+  exports: [AxelarGmpApi],
 })
 export class TestGrpcModule {}

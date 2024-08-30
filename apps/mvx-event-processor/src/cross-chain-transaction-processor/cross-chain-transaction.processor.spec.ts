@@ -3,7 +3,7 @@ import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { Test } from '@nestjs/testing';
 import { ContractCallEventRepository } from '@mvx-monorepo/common/database/repository/contract-call-event.repository';
 import { Address } from '@multiversx/sdk-core/out';
-import { GrpcService } from '@mvx-monorepo/common/grpc/grpc.service';
+import { AxelarGmpApi } from '@mvx-monorepo/common/api/axelar.gmp.api';
 import { GatewayContract } from '@mvx-monorepo/common/contracts/gateway.contract';
 import { ContractCallEvent } from '@mvx-monorepo/common/contracts/entities/gateway-events';
 import {
@@ -21,7 +21,7 @@ import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
 
 describe('CrossChainTransactionProcessor', () => {
   let contractCallEventRepository: DeepMocked<ContractCallEventRepository>;
-  let grpcService: DeepMocked<GrpcService>;
+  let grpcService: DeepMocked<AxelarGmpApi>;
   let redisHelper: DeepMocked<RedisHelper>;
   let proxy: DeepMocked<ProxyNetworkProvider>;
   let gatewayContract: DeepMocked<GatewayContract>;
@@ -55,7 +55,7 @@ describe('CrossChainTransactionProcessor', () => {
           return contractCallEventRepository;
         }
 
-        if (token === GrpcService) {
+        if (token === AxelarGmpApi) {
           return grpcService;
         }
 
@@ -170,7 +170,7 @@ describe('CrossChainTransactionProcessor', () => {
         payload: Buffer.from('payload'),
         retry: 0,
       });
-      expect(grpcService.verify).toHaveBeenCalledTimes(2);
+      expect(grpcService.sendEventCall).toHaveBeenCalledTimes(2);
 
       expect(redisHelper.srem).toHaveBeenCalledTimes(1);
       expect(redisHelper.srem).toHaveBeenCalledWith('crossChainTransactions', 'txHash');
@@ -189,7 +189,7 @@ describe('CrossChainTransactionProcessor', () => {
       expect(gatewayContract.decodeContractCallEvent).toHaveBeenCalledTimes(1);
       expect(gatewayContract.decodeContractCallEvent).toHaveBeenCalledWith(TransactionEvent.fromHttpResponse(rawEvent));
       expect(contractCallEventRepository.create).toHaveBeenCalledTimes(1);
-      expect(grpcService.verify).not.toHaveBeenCalled();
+      expect(grpcService.sendEventCall).not.toHaveBeenCalled();
     });
 
     it('Should handle error can not save in database', async () => {
@@ -205,7 +205,7 @@ describe('CrossChainTransactionProcessor', () => {
       expect(gatewayContract.decodeContractCallEvent).toHaveBeenCalledTimes(1);
       expect(gatewayContract.decodeContractCallEvent).toHaveBeenCalledWith(TransactionEvent.fromHttpResponse(rawEvent));
       expect(contractCallEventRepository.create).toHaveBeenCalledTimes(1);
-      expect(grpcService.verify).not.toHaveBeenCalled();
+      expect(grpcService.sendEventCall).not.toHaveBeenCalled();
     });
   });
 

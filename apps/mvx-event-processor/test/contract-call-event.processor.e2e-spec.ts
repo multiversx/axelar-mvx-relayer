@@ -8,12 +8,12 @@ import {
 } from '../src/contract-call-event-processor';
 import { ContractCallEvent, ContractCallEventStatus } from '@prisma/client';
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
-import { GrpcModule, GrpcService } from '@mvx-monorepo/common';
+import { ApiModule, AxelarGmpApi } from '@mvx-monorepo/common';
 import { TestGrpcModule } from './testGrpc.module';
 
 describe('ContractCallEventProcessorService', () => {
   let prisma: PrismaService;
-  let grpcService: DeepMocked<GrpcService>;
+  let grpcService: DeepMocked<AxelarGmpApi>;
   let contractCallEventRepository: ContractCallEventRepository;
 
   let service: ContractCallEventProcessorService;
@@ -26,9 +26,9 @@ describe('ContractCallEventProcessorService', () => {
     const moduleRef = await Test.createTestingModule({
       imports: [ContractCallEventProcessorModule],
     })
-      .overrideModule(GrpcModule)
+      .overrideModule(ApiModule)
       .useModule(TestGrpcModule)
-      .overrideProvider(GrpcService)
+      .overrideProvider(AxelarGmpApi)
       .useValue(grpcService)
       .compile();
 
@@ -85,7 +85,7 @@ describe('ContractCallEventProcessorService', () => {
     }
 
     expect(await contractCallEventRepository.findPending()).toEqual([]);
-    expect(grpcService.verify).toHaveBeenCalledTimes(1);
+    expect(grpcService.sendEventCall).toHaveBeenCalledTimes(1);
 
     const firstEntry = await prisma.contractCallEvent.findUnique({
       where: {
@@ -112,7 +112,7 @@ describe('ContractCallEventProcessorService', () => {
     }
 
     expect(await contractCallEventRepository.findPending()).toEqual([]);
-    expect(grpcService.verify).not.toHaveBeenCalled();
+    expect(grpcService.sendEventCall).not.toHaveBeenCalled();
 
     const firstEntry = await prisma.contractCallEvent.findUnique({
       where: {

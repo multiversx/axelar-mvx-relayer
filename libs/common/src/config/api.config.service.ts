@@ -102,13 +102,13 @@ export class ApiConfigService {
     return axelarContractVotingVerifier;
   }
 
-  getAxelarApiUrl(): string {
-    const axelarApiUrl = this.configService.get<string>('AXELAR_API_URL');
-    if (!axelarApiUrl) {
-      throw new Error('No Axelar API url present');
+  getAxelarGmpApiUrl(): string {
+    const axelarGmpApiUrl = this.configService.get<string>('AXELAR_GMP_API_URL');
+    if (!axelarGmpApiUrl) {
+      throw new Error('No Axelar GMP API url present');
     }
 
-    return axelarApiUrl;
+    return axelarGmpApiUrl;
   }
 
   getChainId(): string {

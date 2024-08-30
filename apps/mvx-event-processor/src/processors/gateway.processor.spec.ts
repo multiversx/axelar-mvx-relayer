@@ -6,7 +6,7 @@ import { GatewayProcessor } from './gateway.processor';
 import { NotifierEvent } from '../event-processor/types';
 import { Address } from '@multiversx/sdk-core/out';
 import { MessageApproved, MessageApprovedStatus } from '@prisma/client';
-import { GrpcService } from '@mvx-monorepo/common/grpc/grpc.service';
+import { AxelarGmpApi } from '@mvx-monorepo/common/api/axelar.gmp.api';
 import { GatewayContract } from '@mvx-monorepo/common/contracts/gateway.contract';
 import { ContractCallEvent, MessageApprovedEvent } from '@mvx-monorepo/common/contracts/entities/gateway-events';
 import { TransactionEvent } from '@multiversx/sdk-network-providers/out';
@@ -15,7 +15,7 @@ import { MessageApprovedRepository } from '@mvx-monorepo/common/database/reposit
 describe('GatewayProcessor', () => {
   let gatewayContract: DeepMocked<GatewayContract>;
   let messageApprovedRepository: DeepMocked<MessageApprovedRepository>;
-  let grpcService: DeepMocked<GrpcService>;
+  let grpcService: DeepMocked<AxelarGmpApi>;
 
   let service: GatewayProcessor;
 
@@ -52,7 +52,7 @@ describe('GatewayProcessor', () => {
           return messageApprovedRepository;
         }
 
-        if (token === GrpcService) {
+        if (token === AxelarGmpApi) {
           return grpcService;
         }
 
@@ -80,7 +80,7 @@ describe('GatewayProcessor', () => {
     expect(gatewayContract.decodeContractCallEvent).not.toHaveBeenCalled();
     expect(gatewayContract.decodeMessageApprovedEvent).not.toHaveBeenCalled();
     expect(messageApprovedRepository.create).not.toHaveBeenCalled();
-    expect(grpcService.verify).not.toHaveBeenCalled();
+    expect(grpcService.sendEventCall).not.toHaveBeenCalled();
     expect(grpcService.getPayload).not.toHaveBeenCalled();
   });
 
