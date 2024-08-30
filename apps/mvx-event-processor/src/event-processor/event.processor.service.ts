@@ -59,9 +59,7 @@ export class EventProcessorService {
       this.logger.debug('Received Gas Service event from MultiversX:');
       this.logger.debug(JSON.stringify(event));
 
-      await this.gasServiceProcessor.handleEvent(event);
-
-      return;
+      return await this.gasServiceProcessor.handleEvent(event);
     }
 
     if (event.address === this.contractGateway) {

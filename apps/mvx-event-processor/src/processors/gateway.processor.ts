@@ -15,8 +15,7 @@ export class GatewayProcessor {
   constructor(
     private readonly gatewayContract: GatewayContract,
     private readonly messageApprovedRepository: MessageApprovedRepository,
-    // @ts-ignore
-    private readonly grpcService: AxelarGmpApi,
+    private readonly axelarGmpApi: AxelarGmpApi,
   ) {
     this.logger = new Logger(GatewayProcessor.name);
   }
@@ -31,6 +30,7 @@ export class GatewayProcessor {
       return rawEvent.txHash;
     }
 
+    // TODO: Move these to the cron job since we need the log id when sending these to the Axelar GMP API
     if (rawEvent.identifier === EventIdentifiers.APPROVE_MESSAGES && eventName === Events.MESSAGE_APPROVED_EVENT) {
       await this.handleMessageApprovedEvent(rawEvent);
 
@@ -46,31 +46,13 @@ export class GatewayProcessor {
     return undefined;
   }
 
-  private handleMessageApprovedEvent(rawEvent: NotifierEvent) {
+  private async handleMessageApprovedEvent(rawEvent: NotifierEvent) {
     // @ts-ignore
     const event = this.gatewayContract.decodeMessageApprovedEvent(TransactionEvent.fromHttpResponse(rawEvent));
 
-    // TODO: Call Axelar GMP API instead
+    await this.axelarGmpApi.sendMessageApproved(event, rawEvent.txHash);
 
-    // const payload = await this.grpcService.getPayload(event.payloadHash);
-
-    // TODO: Create this from tasks from GMP API
-    // const messageApproved = await this.messageApprovedRepository.create({
-    //   commandId: event.commandId,
-    //   txHash: rawEvent.txHash,
-    //   status: MessageApprovedStatus.PENDING,
-    //   sourceAddress: event.sourceAddress,
-    //   sourceChain: event.sourceChain,
-    //   messageId: event.messageId,
-    //   contractAddress: event.contractAddress.bech32(),
-    //   payloadHash: event.payloadHash,
-    //   payload,
-    //   retry: 0,
-    // });
-    //
-    // if (!messageApproved) {
-    //   throw new Error(`Couldn't save contract call approved to database for hash ${rawEvent.txHash}`);
-    // }
+    this.logger.debug(`Message was approved ${event.commandId}`);
   }
 
   private async handleMessageExecutedEvent(rawEvent: NotifierEvent) {
@@ -86,6 +68,8 @@ export class GatewayProcessor {
     messageApproved.successTimes = (messageApproved.successTimes || 0) + 1;
 
     await this.messageApprovedRepository.updateStatusAndSuccessTimes(messageApproved);
+
+    await this.axelarGmpApi.sendMessageExecuted(messageApproved, rawEvent.txHash);
 
     this.logger.debug(`Successfully executed message with command id ${messageApproved.commandId}`);
   }

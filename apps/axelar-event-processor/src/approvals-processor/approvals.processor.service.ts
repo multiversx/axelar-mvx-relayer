@@ -164,6 +164,8 @@ export class ApprovalsProcessorService {
     }
   }
 
+  // TODO: Check if it is fine to use the same wallet as in the MessageApprovedProcessor
+  // and that no issues happen because of nonce
   private async processGatewayTxTask(externalData: string, retry: number = 0) {
     // The Amplifier for MultiversX encodes the executeData as hex, we need to decode it to string
     // It will have the format `function@arg1HEX@arg2HEX...`

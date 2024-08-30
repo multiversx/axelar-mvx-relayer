@@ -42,11 +42,13 @@ export class ContractCallEventProcessorService {
 
           contractCallEvent.retry += 1;
 
-          this.logger.debug(`Trying to verify ContractCallEvent with id ${contractCallEvent.id}, retry ${contractCallEvent.retry}}`);
+          this.logger.debug(
+            `Trying to verify ContractCallEvent with id ${contractCallEvent.id}, retry ${contractCallEvent.retry}}`,
+          );
 
           await this.contractCallEventRepository.updateRetry(contractCallEvent.id, contractCallEvent.retry);
 
-          this.grpcService.sendEventCall(contractCallEvent);
+          await this.grpcService.sendEventCall(contractCallEvent);
         }
 
         page++;

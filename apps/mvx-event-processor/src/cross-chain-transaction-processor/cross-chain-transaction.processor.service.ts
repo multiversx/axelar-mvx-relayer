@@ -100,7 +100,7 @@ export class CrossChainTransactionProcessorService {
       return;
     }
 
-    this.grpcService.sendEventCall(contractCallEvent);
+    await this.grpcService.sendEventCall(contractCallEvent);
   }
 
   private async handleSignersRotatedEvent(rawEvent: ITransactionEvent, txHash: string, index: number) {
