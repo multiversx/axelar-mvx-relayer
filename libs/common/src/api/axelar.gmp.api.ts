@@ -56,7 +56,10 @@ export class AxelarGmpApi {
     this.logger.debug(`Sending contract call event to Amplifier API for verification, id: ${contractCallEvent.id}`);
 
     try {
-      const res = await this.apiClient.post<PublishEventsResult>(`/chains/${CONSTANTS.SOURCE_CHAIN_NAME}/events`, events);
+      const res = await this.apiClient.post<PublishEventsResult>(
+        `/chains/${CONSTANTS.SOURCE_CHAIN_NAME}/events`,
+        events,
+      );
 
       for (const result of res.data.results) {
         if (result.status === 'ACCEPTED') {
@@ -96,11 +99,11 @@ export class AxelarGmpApi {
     }
   }
 
-  async getTasks(chain: string, lastUUid?: string | undefined) {
+  async getTasks(chain: string, lastUUid?: string | undefined, limit: number = 10) {
     return await this.apiClient.getTasks({
       chain,
       after: lastUUid,
-      limit: 10,
+      limit,
     });
   }
 

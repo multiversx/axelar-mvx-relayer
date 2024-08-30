@@ -13,6 +13,10 @@ import { CONSTANTS } from '@mvx-monorepo/common/utils/constants.enum';
 import { Components } from '@mvx-monorepo/common/api/entities/axelar.gmp.api';
 import TaskItem = Components.Schemas.TaskItem;
 import GatewayTransactionTask = Components.Schemas.GatewayTransactionTask;
+import ExecuteTask = Components.Schemas.ExecuteTask;
+import { MessageApprovedRepository } from '@mvx-monorepo/common/database/repository/message-approved.repository';
+import { MessageApprovedStatus } from '@prisma/client';
+import RefundTask = Components.Schemas.RefundTask;
 
 const MAX_NUMBER_OF_RETRIES = 3;
 
@@ -21,18 +25,19 @@ export class ApprovalsProcessorService {
   private readonly logger: Logger;
 
   constructor(
-    private readonly grpcService: AxelarGmpApi,
+    private readonly axelarGmpApi: AxelarGmpApi,
     private readonly redisCacheService: RedisCacheService,
     @Inject(ProviderKeys.WALLET_SIGNER) private readonly walletSigner: UserSigner,
     private readonly transactionsHelper: TransactionsHelper,
     private readonly gatewayContract: GatewayContract,
+    private readonly messageApprovedRepository: MessageApprovedRepository,
   ) {
     this.logger = new Logger(ApprovalsProcessorService.name);
   }
 
   @Cron('*/30 * * * * *')
-  async handleNewApprovals() {
-    await Locker.lock('handleNewApprovals', this.handleNewApprovalsRaw.bind(this));
+  async handleNewTasks() {
+    await Locker.lock('handleNewTasks', this.handleNewTasksRaw.bind(this));
   }
 
   @Cron('*/6 * * * * *')
@@ -40,25 +45,46 @@ export class ApprovalsProcessorService {
     await Locker.lock('pendingTransactions', this.handlePendingTransactionsRaw.bind(this));
   }
 
-  async handleNewApprovalsRaw() {
-    const lastTaskUUID = (await this.redisCacheService.get<string>(CacheInfo.LastTaskUUID().key)) || undefined;
+  async handleNewTasksRaw() {
+    let lastTaskUUID = (await this.redisCacheService.get<string>(CacheInfo.LastTaskUUID().key)) || undefined;
 
-    this.logger.log(`Starting GRPC approvals stream subscription from block ${lastTaskUUID}`);
+    this.logger.log(`Trying to process tasks for multiversx starting from id: ${lastTaskUUID}`);
 
-    let tasks;
-    while ((tasks = await this.grpcService.getTasks(CONSTANTS.SOURCE_CHAIN_NAME, lastTaskUUID))) {
-      for (const task of tasks.data.tasks) {
-        try {
-          await this.processMessage(task);
-        } catch (e) {
-          this.logger.error(`Could not process task ${task.id}`, task);
+    // Process as many tasks as possible until no tasks are left or there is an error
+    let tasks: TaskItem[] = [];
+    do {
+      try {
+        const response = await this.axelarGmpApi.getTasks(CONSTANTS.SOURCE_CHAIN_NAME, lastTaskUUID);
+
+        if (response.data.tasks.length === 0) {
+          this.logger.log('No tasks left to process for now...');
+
+          return;
         }
+
+        tasks = response.data.tasks;
+
+        for (const task of tasks) {
+          try {
+            await this.processTask(task);
+
+            lastTaskUUID = task.id;
+
+            await this.redisCacheService.set(CacheInfo.LastTaskUUID().key, lastTaskUUID, CacheInfo.LastTaskUUID().ttl);
+          } catch (e) {
+            this.logger.error(`Could not process task ${task.id}`, task);
+
+            return;
+          }
+        }
+
+        this.logger.log(`Successfully processed ${tasks.length}`);
+      } catch (e) {
+        this.logger.error('Error retrieving tasks...', e);
+
+        return;
       }
-
-      this.logger.log(`Successfully processed ${tasks.data.tasks.length}`);
-    }
-
-    this.logger.log('No tasks left to process for now...');
+    } while (tasks.length > 0);
   }
 
   async handlePendingTransactionsRaw() {
@@ -90,9 +116,9 @@ export class ApprovalsProcessorService {
       }
 
       try {
-        await this.executeTransaction(externalData, retry);
+        await this.processGatewayTxTask(externalData, retry);
       } catch (e) {
-        this.logger.error('Error while trying to retry Axelar Approvals response transaction...');
+        this.logger.error('Error while trying to retry transaction...');
         this.logger.error(e);
 
         // Set value back in cache to be retried again (with same retry number if it failed to even be sent to the chain)
@@ -109,27 +135,36 @@ export class ApprovalsProcessorService {
     }
   }
 
-  private async processMessage(task: TaskItem) {
+  private async processTask(task: TaskItem) {
     this.logger.debug('Received Axelar Task response:');
     this.logger.debug(JSON.stringify(task));
 
     if (task.type === 'GATEWAY_TX') {
       const response = task.task as GatewayTransactionTask;
 
-      try {
-        await this.executeTransaction(response.executeData);
+      await this.processGatewayTxTask(response.executeData);
 
-        await this.redisCacheService.set(CacheInfo.LastTaskUUID().key, task.id, CacheInfo.LastTaskUUID().ttl);
-      } catch (e) {
-        this.logger.error('Error while processing Axelar Approvals response...');
-        this.logger.error(e);
-      }
+      return;
     }
 
-    // TODO: Handle other task types
+    if (task.type === 'EXECUTE') {
+      const response = task.task as ExecuteTask;
+
+      await this.processExecuteTask(response);
+
+      return;
+    }
+
+    if (task.type === 'REFUND') {
+      const response = task.task as RefundTask;
+
+      this.processRefundTask(response);
+
+      return;
+    }
   }
 
-  private async executeTransaction(externalData: string, retry: number = 0) {
+  private async processGatewayTxTask(externalData: string, retry: number = 0) {
     // The Amplifier for MultiversX encodes the executeData as hex, we need to decode it to string
     // It will have the format `function@arg1HEX@arg2HEX...`
     const decodedExecuteData = BinaryUtils.hexToString(externalData.slice(2));
@@ -157,6 +192,33 @@ export class ApprovalsProcessorService {
         retry: retry + 1,
       },
       CacheInfo.PendingTransaction(txHash).ttl,
+    );
+  }
+
+  // TODO: Improve this to send transaction from here directly
+  private async processExecuteTask(response: ExecuteTask) {
+    const messageApproved = await this.messageApprovedRepository.create({
+      commandId: response.message.messageID,
+      txHash: response.message.messageID, // TODO: Modify this entity
+      status: MessageApprovedStatus.PENDING,
+      sourceAddress: response.message.sourceAddress,
+      sourceChain: response.message.sourceChain,
+      messageId: response.message.messageID,
+      contractAddress: response.message.destinationAddress,
+      payloadHash: response.message.payloadHash,
+      payload: Buffer.from(response.payload.slice(2), 'hex'),
+      retry: 0,
+    });
+
+    if (!messageApproved) {
+      throw new Error(`Couldn't save message approved to database for message id ${response.message.messageID}`);
+    }
+  }
+
+  private processRefundTask(response: RefundTask) {
+    this.logger.warn(
+      `Received a refund task for ${response.message.messageID}. However refunds are not currently supported`,
+      response,
     );
   }
 }

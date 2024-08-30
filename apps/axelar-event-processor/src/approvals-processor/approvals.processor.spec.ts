@@ -77,10 +77,10 @@ describe('ApprovalsProcessorService', () => {
       const observable = new Subject<SubscribeToApprovalsResponse>();
       grpcService.getTasks.mockReturnValueOnce(observable);
 
-      await service.handleNewApprovalsRaw();
+      await service.handleNewTasksRaw();
 
       // Calling again won't do anything since subscription is already active
-      await service.handleNewApprovalsRaw();
+      await service.handleNewTasksRaw();
 
       expect(redisCacheService.get).toHaveBeenCalledTimes(1);
       expect(grpcService.getTasks).toHaveBeenCalledTimes(1);
@@ -149,7 +149,7 @@ describe('ApprovalsProcessorService', () => {
       gatewayContract.buildTransactionExternalFunction.mockReturnValueOnce(transaction);
       transactionsHelper.getTransactionGas.mockRejectedValueOnce(new Error('Network error'));
 
-      await service.handleNewApprovalsRaw();
+      await service.handleNewTasksRaw();
       // Process a message
       const message: SubscribeToApprovalsResponse = {
         chain: 'multiversx',
@@ -181,7 +181,7 @@ describe('ApprovalsProcessorService', () => {
       grpcService.getTasks.mockReturnValueOnce(newObservable);
 
       // Will re-initialize the subscription with same block height
-      await service.handleNewApprovalsRaw();
+      await service.handleNewTasksRaw();
 
       expect(redisCacheService.get).toHaveBeenCalledTimes(2);
       expect(grpcService.getTasks).toHaveBeenCalledTimes(2);
@@ -192,14 +192,14 @@ describe('ApprovalsProcessorService', () => {
       const observable = new Subject<SubscribeToApprovalsResponse>();
       grpcService.getTasks.mockReturnValueOnce(observable);
 
-      await service.handleNewApprovalsRaw();
+      await service.handleNewTasksRaw();
 
       observable.complete();
 
       const newObservable = new Subject<SubscribeToApprovalsResponse>();
       grpcService.getTasks.mockReturnValueOnce(newObservable);
 
-      await service.handleNewApprovalsRaw();
+      await service.handleNewTasksRaw();
 
       expect(redisCacheService.get).toHaveBeenCalledTimes(2);
       expect(grpcService.getTasks).toHaveBeenCalledTimes(2);
@@ -209,7 +209,7 @@ describe('ApprovalsProcessorService', () => {
       const newNewObservable = new Subject<SubscribeToApprovalsResponse>();
       grpcService.getTasks.mockReturnValueOnce(newNewObservable);
 
-      await service.handleNewApprovalsRaw();
+      await service.handleNewTasksRaw();
 
       expect(redisCacheService.get).toHaveBeenCalledTimes(3);
       expect(grpcService.getTasks).toHaveBeenCalledTimes(3);
