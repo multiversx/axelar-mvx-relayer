@@ -147,7 +147,7 @@ describe('MessageApprovedProcessorService', () => {
     expect(await messageApprovedRepository.findPending()).toEqual([]);
 
     // Expect entries in database updated
-    const firstEntry = await messageApprovedRepository.findByCommandId(originalFirstEntry.commandId);
+    const firstEntry = await messageApprovedRepository.findBySourceChainAndMessageId(originalFirstEntry.commandId);
     expect(firstEntry).toEqual({
       ...originalFirstEntry,
       retry: 1,
@@ -155,7 +155,7 @@ describe('MessageApprovedProcessorService', () => {
       updatedAt: expect.any(Date),
     });
 
-    const secondEntry = await messageApprovedRepository.findByCommandId(originalSecondEntry.commandId);
+    const secondEntry = await messageApprovedRepository.findBySourceChainAndMessageId(originalSecondEntry.commandId);
     expect(secondEntry).toEqual({
       ...originalSecondEntry,
       retry: 1,
@@ -212,7 +212,7 @@ describe('MessageApprovedProcessorService', () => {
     expect(await messageApprovedRepository.findPending()).toEqual([]);
 
     // Expect entries in database updated
-    const firstEntry = await messageApprovedRepository.findByCommandId(originalFirstEntry.commandId);
+    const firstEntry = await messageApprovedRepository.findBySourceChainAndMessageId(originalFirstEntry.commandId);
     expect(firstEntry).toEqual({
       ...originalFirstEntry,
       retry: 2,
@@ -220,7 +220,7 @@ describe('MessageApprovedProcessorService', () => {
       updatedAt: expect.any(Date),
     });
 
-    const secondEntry = await messageApprovedRepository.findByCommandId(originalSecondEntry.commandId);
+    const secondEntry = await messageApprovedRepository.findBySourceChainAndMessageId(originalSecondEntry.commandId);
     expect(secondEntry).toEqual({
       ...originalSecondEntry,
       status: MessageApprovedStatus.FAILED,
@@ -228,7 +228,7 @@ describe('MessageApprovedProcessorService', () => {
     });
 
     // Was not updated
-    const thirdEntry = await messageApprovedRepository.findByCommandId(originalThirdEntry.commandId);
+    const thirdEntry = await messageApprovedRepository.findBySourceChainAndMessageId(originalThirdEntry.commandId);
     expect(thirdEntry).toEqual({
       ...originalThirdEntry,
     });
@@ -268,14 +268,14 @@ describe('MessageApprovedProcessorService', () => {
     expect(await messageApprovedRepository.findPending()).toEqual([]);
 
     // Expect entries in database to NOT be updated
-    const firstEntry = await messageApprovedRepository.findByCommandId(originalFirstEntry.commandId);
+    const firstEntry = await messageApprovedRepository.findBySourceChainAndMessageId(originalFirstEntry.commandId);
     expect(firstEntry).toEqual({
       ...originalFirstEntry,
       retry: 1, // retry is set to 1
       updatedAt: expect.any(Date),
     });
 
-    const secondEntry = await messageApprovedRepository.findByCommandId(originalSecondEntry.commandId);
+    const secondEntry = await messageApprovedRepository.findBySourceChainAndMessageId(originalSecondEntry.commandId);
     expect(secondEntry).toEqual({
       ...originalSecondEntry,
       retry: 2, // retry stays the same
@@ -336,7 +336,7 @@ describe('MessageApprovedProcessorService', () => {
       expect(await messageApprovedRepository.findPending()).toEqual([]);
 
       // Expect entries in database updated
-      const itsExecuteOther = await messageApprovedRepository.findByCommandId(originalItsExecuteOther.commandId);
+      const itsExecuteOther = await messageApprovedRepository.findBySourceChainAndMessageId(originalItsExecuteOther.commandId);
       expect(itsExecuteOther).toEqual({
         ...originalItsExecuteOther,
         retry: 1,
@@ -345,7 +345,7 @@ describe('MessageApprovedProcessorService', () => {
         successTimes: null,
       });
 
-      const itsExecute = await messageApprovedRepository.findByCommandId(originalItsExecute.commandId);
+      const itsExecute = await messageApprovedRepository.findBySourceChainAndMessageId(originalItsExecute.commandId);
       expect(itsExecute).toEqual({
         ...originalItsExecute,
         retry: 1,
@@ -388,7 +388,7 @@ describe('MessageApprovedProcessorService', () => {
       expect(await messageApprovedRepository.findPending()).toEqual([]);
 
       // @ts-ignore
-      let itsExecute: MessageApproved = await messageApprovedRepository.findByCommandId(originalItsExecute.commandId);
+      let itsExecute: MessageApproved = await messageApprovedRepository.findBySourceChainAndMessageId(originalItsExecute.commandId);
       expect(itsExecute).toEqual({
         ...originalItsExecute,
         retry: 1,
@@ -418,7 +418,7 @@ describe('MessageApprovedProcessorService', () => {
       expect(transactions[0].getValue()).toBe(50000000000000000n); // assert sent with value 2nd time
 
       // @ts-ignore
-      itsExecute = await messageApprovedRepository.findByCommandId(originalItsExecute.commandId);
+      itsExecute = await messageApprovedRepository.findBySourceChainAndMessageId(originalItsExecute.commandId);
       expect(itsExecute).toEqual({
         ...originalItsExecute,
         retry: 2,
@@ -441,7 +441,7 @@ describe('MessageApprovedProcessorService', () => {
       expect(transactions[0].getValue()).toBe(50000000000000000n); // assert sent with value
 
       // @ts-ignore
-      itsExecute = await messageApprovedRepository.findByCommandId(originalItsExecute.commandId);
+      itsExecute = await messageApprovedRepository.findBySourceChainAndMessageId(originalItsExecute.commandId);
       expect(itsExecute).toEqual({
         ...originalItsExecute,
         retry: 2,
@@ -464,7 +464,7 @@ describe('MessageApprovedProcessorService', () => {
       expect(transactions[0].getValue()).toBe(50000000000000000n); // assert sent with value
 
       // @ts-ignore
-      itsExecute = await messageApprovedRepository.findByCommandId(originalItsExecute.commandId);
+      itsExecute = await messageApprovedRepository.findBySourceChainAndMessageId(originalItsExecute.commandId);
       expect(itsExecute).toEqual({
         ...originalItsExecute,
         retry: 3,

@@ -21,6 +21,7 @@ export class DecodingUtils {
   }
 
   static getEventId(txHash: string, index: number) {
+    // The id needs to have `0x` in front of the txHash (hex string)
     return `0x${txHash}-${index}`;
   }
 }

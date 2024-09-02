@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { EventProcessorModule } from './event-processor';
 import { MessageApprovedProcessorModule } from './message-approved-processor';
 import { GasCheckerModule } from './gas-checker/gas-checker.module';
-import { ContractCallEventProcessorModule } from './contract-call-event-processor';
 import { CrossChainTransactionProcessorModule } from './cross-chain-transaction-processor';
 
 @Module({
@@ -10,7 +9,6 @@ import { CrossChainTransactionProcessorModule } from './cross-chain-transaction-
     EventProcessorModule,
     MessageApprovedProcessorModule,
     GasCheckerModule,
-    ContractCallEventProcessorModule,
     CrossChainTransactionProcessorModule,
   ],
 })

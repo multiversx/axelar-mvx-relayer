@@ -10,7 +10,7 @@ import { Injectable } from '@nestjs/common';
 import { Events } from '../utils/event.enum';
 import {
   ContractCallEvent,
-  MessageApprovedEvent,
+  MessageApprovedEvent, MessageExecutedEvent,
   WeightedSigners,
 } from '@mvx-monorepo/common/contracts/entities/gateway-events';
 import { DecodingUtils } from '@mvx-monorepo/common/utils/decoding.utils';
@@ -77,10 +77,14 @@ export class GatewayContract {
     };
   }
 
-  decodeMessageExecutedEvent(event: ITransactionEvent): string {
+  decodeMessageExecutedEvent(event: ITransactionEvent): MessageExecutedEvent {
     const eventDefinition = this.abi.getEvent(Events.MESSAGE_EXECUTED_EVENT);
     const outcome = DecodingUtils.parseTransactionEvent(event, eventDefinition);
 
-    return DecodingUtils.decodeByteArrayToHex(outcome.command_id);
+    return {
+      commandId: DecodingUtils.decodeByteArrayToHex(outcome.command_id),
+      sourceChain: outcome.source_chain.toString(),
+      messageId: outcome.message_id.toString(),
+    };
   }
 }

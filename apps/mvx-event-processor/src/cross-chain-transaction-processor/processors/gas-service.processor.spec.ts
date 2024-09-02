@@ -2,8 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { GasServiceProcessor } from './gas-service.processor';
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { GasServiceContract } from '@mvx-monorepo/common/contracts/gas-service.contract';
-import { ContractCallEventRepository } from '@mvx-monorepo/common/database/repository/contract-call-event.repository';
-import { GasPaidRepository } from '@mvx-monorepo/common/database/repository/gas-paid.repository';
 import { NotifierEvent } from '../../event-processor/types';
 import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
 import { Events } from '@mvx-monorepo/common/utils/event.enum';
@@ -19,15 +17,11 @@ import { ContractCallEventWithGasPaid } from '@mvx-monorepo/common/database/enti
 
 describe('GasServiceProcessor', () => {
   let gasServiceContract: DeepMocked<GasServiceContract>;
-  let contractCallEventRepository: DeepMocked<ContractCallEventRepository>;
-  let gasPaidRepository: DeepMocked<GasPaidRepository>;
 
   let service: GasServiceProcessor;
 
   beforeEach(async () => {
     gasServiceContract = createMock();
-    contractCallEventRepository = createMock();
-    gasPaidRepository = createMock();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [GasServiceProcessor],
@@ -35,14 +29,6 @@ describe('GasServiceProcessor', () => {
       .useMocker((token) => {
         if (token === GasServiceContract) {
           return gasServiceContract;
-        }
-
-        if (token === ContractCallEventRepository) {
-          return contractCallEventRepository;
-        }
-
-        if (token === GasPaidRepository) {
-          return gasPaidRepository;
         }
 
         return null;
@@ -62,9 +48,6 @@ describe('GasServiceProcessor', () => {
     };
 
     await service.handleEvent(rawEvent);
-
-    expect(gasPaidRepository.create).not.toHaveBeenCalled();
-    expect(gasPaidRepository.updateRefundedValue).not.toHaveBeenCalled();
   });
 
   const getMockGasPaid = (
@@ -111,15 +94,7 @@ describe('GasServiceProcessor', () => {
     gasPaid: any,
     contractCallEvent: any = null,
   ) {
-    contractCallEventRepository.findWithoutGasPaid.mockReturnValueOnce(Promise.resolve(contractCallEvent));
-
     await service.handleEvent(rawEvent);
-
-    expect(contractCallEventRepository.findWithoutGasPaid).toHaveBeenCalledTimes(1);
-    expect(contractCallEventRepository.findWithoutGasPaid).toHaveBeenCalledWith(gasPaid);
-
-    expect(gasPaidRepository.create).toHaveBeenCalledTimes(1);
-    expect(gasPaidRepository.create).toHaveBeenCalledWith(gasPaid);
   }
 
   describe('Handle event gas paid for contract call', () => {
@@ -182,25 +157,8 @@ describe('GasServiceProcessor', () => {
     return { rawEvent, event };
   };
 
-  async function assertGasAddedEvent(
-    rawEvent: NotifierEvent,
-    event: GasAddedEvent,
-    contractCallEvent: any = null,
-    extraGasPaid: any = null,
-  ) {
-    contractCallEventRepository.findOnePending.mockReturnValueOnce(Promise.resolve(contractCallEvent));
-
+  async function assertGasAddedEvent(rawEvent: NotifierEvent, event: GasAddedEvent, contractCallEvent: any = null) {
     await service.handleEvent(rawEvent);
-
-    expect(contractCallEventRepository.findOnePending).toHaveBeenCalledTimes(1);
-    expect(contractCallEventRepository.findOnePending).toHaveBeenCalledWith(event.txHash, event.logIndex);
-
-    if (!extraGasPaid) {
-      expect(gasPaidRepository.update).not.toHaveBeenCalled();
-    } else {
-      expect(gasPaidRepository.update).toHaveBeenCalledTimes(1);
-      expect(gasPaidRepository.update).toHaveBeenCalledWith(extraGasPaid.id, extraGasPaid);
-    }
   }
 
   describe('Handle event gas added', () => {
@@ -340,15 +298,6 @@ describe('GasServiceProcessor', () => {
       gasServiceContract.decodeRefundedEvent.mockReturnValueOnce(event);
 
       await service.handleEvent(rawEvent);
-
-      expect(gasPaidRepository.updateRefundedValue).toHaveBeenCalledTimes(1);
-      expect(gasPaidRepository.updateRefundedValue).toHaveBeenCalledWith(
-        event.txHash,
-        event.logIndex,
-        event.data.token,
-        event.data.receiver.bech32(),
-        event.data.amount.toString(),
-      );
     });
   });
 });

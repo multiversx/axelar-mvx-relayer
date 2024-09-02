@@ -1,71 +1,85 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Events } from '@mvx-monorepo/common/utils/event.enum';
+import { EventIdentifiers, Events } from '@mvx-monorepo/common/utils/event.enum';
 import { GasServiceContract } from '@mvx-monorepo/common/contracts/gas-service.contract';
-import { GasPaidStatus, Prisma } from '@prisma/client';
-import { ContractCallEventRepository } from '@mvx-monorepo/common/database/repository/contract-call-event.repository';
-import { GasPaidRepository } from '@mvx-monorepo/common/database/repository/gas-paid.repository';
 import { GasAddedEvent, GasPaidForContractCallEvent } from '@mvx-monorepo/common/contracts/entities/gas-service-events';
-import BigNumber from 'bignumber.js';
-import { ITransactionEvent, ITransactionOnNetwork } from '@multiversx/sdk-core/out';
+import { ITransactionEvent } from '@multiversx/sdk-core/out';
 import { DecodingUtils } from '@mvx-monorepo/common/utils/decoding.utils';
 import { Components } from '@mvx-monorepo/common/api/entities/axelar.gmp.api';
+import { ApiConfigService, GatewayContract } from '@mvx-monorepo/common';
+import { TransactionOnNetwork } from '@multiversx/sdk-network-providers/out';
 import GasRefundedEvent = Components.Schemas.GasRefundedEvent;
 import Event = Components.Schemas.Event;
 import GasCreditEvent = Components.Schemas.GasCreditEvent;
 
 @Injectable()
 export class GasServiceProcessor {
+  private readonly contractGateway: string;
   private logger: Logger;
 
   constructor(
     private readonly gasServiceContract: GasServiceContract,
-    private readonly contractCallEventRepository: ContractCallEventRepository,
-    private readonly gasPaidRepository: GasPaidRepository,
+    private readonly gatewayContract: GatewayContract,
+    apiConfigService: ApiConfigService,
   ) {
+    this.contractGateway = apiConfigService.getContractGateway();
     this.logger = new Logger(GasServiceProcessor.name);
   }
 
-  async handleGasServiceEvent(
+  handleGasServiceEvent(
     rawEvent: ITransactionEvent,
-    transaction: ITransactionOnNetwork,
+    transaction: TransactionOnNetwork,
     index: number,
-  ): Promise<Event | undefined> {
+  ): Event | undefined {
     const eventName = rawEvent.topics?.[0]?.toString();
 
     if (eventName === Events.GAS_PAID_FOR_CONTRACT_CALL_EVENT) {
-      const event = this.gasServiceContract.decodeGasPaidForContractCallEvent(rawEvent);
+      const gasEvent = this.gasServiceContract.decodeGasPaidForContractCallEvent(rawEvent);
 
-      return await this.handleGasPaidEvent(event, transaction.hash, index);
+      const callContractIndex = this.findCorrespondingCallContractEvent(transaction, index, rawEvent, gasEvent);
+
+      if (callContractIndex === -1) {
+        this.logger.warn(
+          `Received Gas Paid For Contract Call event but could not find corresponding Call Contract event. Transaction: ${transaction.hash}`,
+          gasEvent,
+        );
+
+        return undefined;
+      }
+
+      return this.handleGasPaidEvent(gasEvent, transaction.hash, index, callContractIndex);
     }
 
     if (eventName === Events.NATIVE_GAS_PAID_FOR_CONTRACT_CALL_EVENT) {
-      const event = this.gasServiceContract.decodeNativeGasPaidForContractCallEvent(rawEvent);
+      const gasEvent = this.gasServiceContract.decodeNativeGasPaidForContractCallEvent(rawEvent);
 
-      return await this.handleGasPaidEvent(event, transaction.hash, index);
+      const callContractIndex = this.findCorrespondingCallContractEvent(transaction, index, rawEvent, gasEvent);
+
+      if (callContractIndex === -1) {
+        this.logger.warn(
+          `Received Native Gas Paid For Contract Call event but could not find corresponding Call Contract event. Transaction: ${transaction.hash}`,
+          gasEvent,
+        );
+
+        return undefined;
+      }
+
+      return this.handleGasPaidEvent(gasEvent, transaction.hash, index, callContractIndex);
     }
 
     if (eventName === Events.GAS_ADDED_EVENT) {
       const event = this.gasServiceContract.decodeGasAddedEvent(rawEvent);
 
-      return await this.handleGasAddedEvent(event, transaction.sender.bech32(), transaction.hash, index);
+      return this.handleGasAddedEvent(event, transaction.sender.bech32(), transaction.hash, index);
     }
 
     if (eventName === Events.NATIVE_GAS_ADDED_EVENT) {
       const event = this.gasServiceContract.decodeNativeGasAddedEvent(rawEvent);
 
-      return await this.handleGasAddedEvent(event, transaction.sender.bech32(), transaction.hash, index);
+      return this.handleGasAddedEvent(event, transaction.sender.bech32(), transaction.hash, index);
     }
 
     if (eventName === Events.REFUNDED_EVENT) {
       const event = this.gasServiceContract.decodeRefundedEvent(rawEvent);
-
-      await this.gasPaidRepository.updateRefundedValue(
-        event.txHash,
-        event.logIndex,
-        event.data.token,
-        event.data.receiver.bech32(),
-        event.data.amount.toString(),
-      );
 
       const gasRefundedEvent: GasRefundedEvent = {
         eventID: DecodingUtils.getEventId(transaction.hash, index),
@@ -94,37 +108,15 @@ export class GasServiceProcessor {
     return undefined;
   }
 
-  private async handleGasPaidEvent(
+  private handleGasPaidEvent(
     event: GasPaidForContractCallEvent,
     txHash: string,
     index: number,
-  ): Promise<Event | undefined> {
-    const gasPaid: Prisma.GasPaidCreateInput = {
-      txHash: txHash,
-      sourceAddress: event.sender.bech32(),
-      destinationAddress: event.destinationAddress,
-      destinationChain: event.destinationChain,
-      payloadHash: event.data.payloadHash,
-      gasToken: event.data.gasToken,
-      gasValue: event.data.gasFeeAmount.toFixed(),
-      refundAddress: event.data.refundAddress.bech32(),
-      status: GasPaidStatus.PENDING,
-    };
-
-    const contractCallEvent = await this.contractCallEventRepository.findWithoutGasPaid(gasPaid);
-
-    // TODO: How to handle this another way?
-    if (!contractCallEvent) {
-      return undefined;
-    }
-
-    gasPaid.ContractCallEvent = { connect: contractCallEvent };
-
-    await this.gasPaidRepository.create(gasPaid);
-
+    contractCallIndex: number,
+  ): Event | undefined {
     const gasCreditEvent: GasCreditEvent = {
       eventID: DecodingUtils.getEventId(txHash, index),
-      messageID: DecodingUtils.getEventId(contractCallEvent.txHash, contractCallEvent.eventIndex),
+      messageID: DecodingUtils.getEventId(txHash, contractCallIndex),
       refundAddress: event.data.refundAddress.bech32(),
       payment: {
         tokenID: event.data.gasToken,
@@ -143,39 +135,15 @@ export class GasServiceProcessor {
     };
   }
 
-  private async handleGasAddedEvent(
+  private handleGasAddedEvent(
     event: GasAddedEvent,
     sender: string,
     txHash: string,
     index: number,
-  ): Promise<Event | undefined> {
-    const contractCallEvent = await this.contractCallEventRepository.findOnePending(event.txHash, event.logIndex);
-
-    if (!contractCallEvent) {
-      this.logger.warn('Received a GasAddedEvent but could find existing contract call entry');
-
-      return undefined;
-    }
-
-    const gasPaid = contractCallEvent.gasPaidEntries.find(
-      (gasPaid) =>
-        gasPaid.gasToken === event.data.gasToken && gasPaid.refundAddress === event.data.refundAddress.bech32(),
-    );
-
-    if (!gasPaid) {
-      this.logger.warn('Received a GasAddedEvent but could find existing gas paid entry');
-
-      return undefined;
-    }
-
-    gasPaid.txHash = txHash;
-    gasPaid.gasValue = new BigNumber(gasPaid.gasValue).plus(event.data.gasFeeAmount).toString();
-
-    await this.gasPaidRepository.update(gasPaid.id, gasPaid);
-
+  ): Event | undefined {
     const gasCreditEvent: GasCreditEvent = {
       eventID: DecodingUtils.getEventId(txHash, index),
-      messageID: DecodingUtils.getEventId(contractCallEvent.txHash, contractCallEvent.eventIndex),
+      messageID: DecodingUtils.getEventId(event.txHash, event.logIndex),
       refundAddress: event.data.refundAddress.bech32(),
       payment: {
         tokenID: event.data.gasToken,
@@ -192,5 +160,34 @@ export class GasServiceProcessor {
       type: 'GAS_CREDIT',
       ...gasCreditEvent,
     };
+  }
+
+  private findCorrespondingCallContractEvent(
+    transaction: TransactionOnNetwork,
+    index: number,
+    rawEvent: ITransactionEvent,
+    gasEvent: GasPaidForContractCallEvent,
+  ) {
+    // Search for the first corresponding callContract event starting from the current gas paid event index
+    return transaction.logs.events.slice(index).findIndex((event) => {
+      const eventName = rawEvent.topics?.[0]?.toString();
+
+      if (
+        event.address.bech32() === this.contractGateway &&
+        event.identifier === EventIdentifiers.CALL_CONTRACT &&
+        eventName === Events.CONTRACT_CALL_EVENT
+      ) {
+        const contractCallEvent = this.gatewayContract.decodeContractCallEvent(rawEvent);
+
+        return (
+          gasEvent.sender === contractCallEvent.sender &&
+          gasEvent.destinationChain === contractCallEvent.destinationChain &&
+          gasEvent.destinationAddress === contractCallEvent.destinationAddress &&
+          gasEvent.data.payloadHash === contractCallEvent.payloadHash
+        );
+      }
+
+      return false;
+    });
   }
 }

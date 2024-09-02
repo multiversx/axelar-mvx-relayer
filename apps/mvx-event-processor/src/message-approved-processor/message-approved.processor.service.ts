@@ -63,7 +63,7 @@ export class MessageApprovedProcessorService {
         for (const messageApproved of entries) {
           if (messageApproved.retry === MAX_NUMBER_OF_RETRIES) {
             this.logger.error(
-              `Could not execute MessageApproved transaction with commandId ${messageApproved.commandId} after ${messageApproved.retry} retries`,
+              `Could not execute MessageApproved from ${messageApproved.sourceChain} with message id ${messageApproved.messageId} after ${messageApproved.retry} retries`,
             );
 
             messageApproved.status = MessageApprovedStatus.FAILED;
@@ -74,11 +74,13 @@ export class MessageApprovedProcessorService {
           }
 
           this.logger.debug(
-            `Trying to execute MessageApproved transaction with commandId ${messageApproved.commandId}`,
+            `Trying to execute MessageApproved transaction from ${messageApproved.sourceChain} with message id ${messageApproved.messageId}`,
           );
 
           if (!messageApproved.payload.length) {
-            this.logger.error(`Can not send transaction without payload for commandId ${messageApproved.commandId}`);
+            this.logger.error(
+              `Can not send transaction without payload from ${messageApproved.sourceChain} with message id ${messageApproved.messageId}`,
+            );
 
             messageApproved.status = MessageApprovedStatus.FAILED;
 
@@ -102,7 +104,7 @@ export class MessageApprovedProcessorService {
         const hashes = await this.transactionsHelper.sendTransactions(transactionsToSend);
 
         if (hashes) {
-          entriesWithTransactions.forEach(entry => {
+          entriesWithTransactions.forEach((entry) => {
             const sent = hashes.includes(entry.executeTxHash as string);
 
             // If not sent revert fields but still save to database so it is retried later and does

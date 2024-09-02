@@ -199,13 +199,12 @@ export class ApprovalsProcessorService {
 
   // TODO: Improve this to send transaction from here directly
   private async processExecuteTask(response: ExecuteTask) {
+    // TODO: Save data in Redis since it is only needed temporarily if refactoring to use queues?
     const messageApproved = await this.messageApprovedRepository.create({
-      commandId: response.message.messageID,
-      txHash: response.message.messageID, // TODO: Modify this entity
-      status: MessageApprovedStatus.PENDING,
-      sourceAddress: response.message.sourceAddress,
       sourceChain: response.message.sourceChain,
       messageId: response.message.messageID,
+      status: MessageApprovedStatus.PENDING,
+      sourceAddress: response.message.sourceAddress,
       contractAddress: response.message.destinationAddress,
       payloadHash: response.message.payloadHash,
       payload: Buffer.from(response.payload.slice(2), 'hex'),

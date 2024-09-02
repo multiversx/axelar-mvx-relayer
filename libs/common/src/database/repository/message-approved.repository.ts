@@ -37,10 +37,13 @@ export class MessageApprovedRepository {
     });
   }
 
-  findByCommandId(commandId: string): Promise<MessageApproved | null> {
+  findBySourceChainAndMessageId(sourceChain: string, messageId: string): Promise<MessageApproved | null> {
     return this.prisma.messageApproved.findUnique({
       where: {
-        commandId: commandId,
+        sourceChain_messageId: {
+          sourceChain,
+          messageId,
+        },
       },
     });
   }
@@ -50,7 +53,10 @@ export class MessageApprovedRepository {
       entries.map((data) => {
         return this.prisma.messageApproved.update({
           where: {
-            commandId: data.commandId,
+            sourceChain_messageId: {
+              sourceChain: data.sourceChain,
+              messageId: data.messageId,
+            },
           },
           data: {
             status: data.status,
@@ -66,7 +72,10 @@ export class MessageApprovedRepository {
   async updateStatusAndSuccessTimes(data: MessageApproved) {
     await this.prisma.messageApproved.update({
       where: {
-        commandId: data.commandId,
+        sourceChain_messageId: {
+          sourceChain: data.sourceChain,
+          messageId: data.messageId,
+        },
       },
       data: {
         status: data.status,

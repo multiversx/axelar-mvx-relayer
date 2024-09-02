@@ -1,7 +1,6 @@
 import { ApiConfigService } from '@mvx-monorepo/common';
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { Test } from '@nestjs/testing';
-import { ContractCallEventRepository } from '@mvx-monorepo/common/database/repository/contract-call-event.repository';
 import { Address } from '@multiversx/sdk-core/out';
 import { AxelarGmpApi } from '@mvx-monorepo/common/api/axelar.gmp.api';
 import { GatewayContract } from '@mvx-monorepo/common/contracts/gateway.contract';
@@ -20,7 +19,6 @@ import { EventIdentifiers, Events } from '@mvx-monorepo/common/utils/event.enum'
 import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
 
 describe('CrossChainTransactionProcessor', () => {
-  let contractCallEventRepository: DeepMocked<ContractCallEventRepository>;
   let grpcService: DeepMocked<AxelarGmpApi>;
   let redisHelper: DeepMocked<RedisHelper>;
   let proxy: DeepMocked<ProxyNetworkProvider>;
@@ -38,7 +36,6 @@ describe('CrossChainTransactionProcessor', () => {
   };
 
   beforeEach(async () => {
-    contractCallEventRepository = createMock();
     grpcService = createMock();
     redisHelper = createMock();
     proxy = createMock();
@@ -51,10 +48,6 @@ describe('CrossChainTransactionProcessor', () => {
       providers: [CrossChainTransactionProcessorService],
     })
       .useMocker((token) => {
-        if (token === ContractCallEventRepository) {
-          return contractCallEventRepository;
-        }
-
         if (token === AxelarGmpApi) {
           return grpcService;
         }

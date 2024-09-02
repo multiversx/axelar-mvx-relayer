@@ -1,13 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EventIdentifiers, Events } from '@mvx-monorepo/common/utils/event.enum';
-import { ContractCallEventStatus, MessageApprovedStatus } from '@prisma/client';
-import { ContractCallEventRepository } from '@mvx-monorepo/common/database/repository/contract-call-event.repository';
-import { ITransactionEvent, ITransactionOnNetwork } from '@multiversx/sdk-core/out';
+import { MessageApprovedStatus } from '@prisma/client';
+import { ITransactionEvent } from '@multiversx/sdk-core/out';
 import { CONSTANTS } from '@mvx-monorepo/common/utils/constants.enum';
 import { DecodingUtils } from '@mvx-monorepo/common/utils/decoding.utils';
 import { GatewayContract } from '@mvx-monorepo/common';
 import { Components } from '@mvx-monorepo/common/api/entities/axelar.gmp.api';
 import { MessageApprovedRepository } from '@mvx-monorepo/common/database/repository/message-approved.repository';
+import { TransactionOnNetwork } from '@multiversx/sdk-network-providers/out';
 import CallEvent = Components.Schemas.CallEvent;
 import MessageApprovedEvent = Components.Schemas.MessageApprovedEvent;
 import Event = Components.Schemas.Event;
@@ -19,7 +19,6 @@ export class GatewayProcessor {
 
   constructor(
     private readonly gatewayContract: GatewayContract,
-    private readonly contractCallEventRepository: ContractCallEventRepository,
     private readonly messageApprovedRepository: MessageApprovedRepository,
   ) {
     this.logger = new Logger(GatewayProcessor.name);
@@ -27,7 +26,7 @@ export class GatewayProcessor {
 
   async handleGatewayEvent(
     rawEvent: ITransactionEvent,
-    transaction: ITransactionOnNetwork,
+    transaction: TransactionOnNetwork,
     index: number,
   ): Promise<Event | undefined> {
     const eventName = rawEvent.topics?.[0]?.toString();
@@ -51,31 +50,12 @@ export class GatewayProcessor {
     return undefined;
   }
 
-  private async handleContractCallEvent(
+  private handleContractCallEvent(
     rawEvent: ITransactionEvent,
     txHash: string,
     index: number,
-  ): Promise<Event | undefined> {
+  ): Event | undefined {
     const contractCallEvent = this.gatewayContract.decodeContractCallEvent(rawEvent);
-
-    // TODO: Remove this?
-    const contractCallEventDb = await this.contractCallEventRepository.create({
-      txHash,
-      eventIndex: index,
-      status: ContractCallEventStatus.PENDING,
-      sourceAddress: contractCallEvent.sender.bech32(),
-      sourceChain: CONSTANTS.SOURCE_CHAIN_NAME,
-      destinationAddress: contractCallEvent.destinationAddress,
-      destinationChain: contractCallEvent.destinationChain,
-      payloadHash: contractCallEvent.payloadHash,
-      payload: contractCallEvent.payload,
-      retry: 0,
-    });
-
-    // A duplicate might exist in the database, so we can skip creation in this case
-    if (!contractCallEventDb) {
-      return undefined;
-    }
 
     const callEvent: CallEvent = {
       eventID: DecodingUtils.getEventId(txHash, index),
@@ -134,9 +114,12 @@ export class GatewayProcessor {
     txHash: string,
     index: number,
   ): Promise<Event | undefined> {
-    const commandId = this.gatewayContract.decodeMessageExecutedEvent(rawEvent);
+    const messageExecutedEvent = this.gatewayContract.decodeMessageExecutedEvent(rawEvent);
 
-    const messageApproved = await this.messageApprovedRepository.findByCommandId(commandId);
+    const messageApproved = await this.messageApprovedRepository.findBySourceChainAndMessageId(
+      messageExecutedEvent.sourceChain,
+      messageExecutedEvent.messageId,
+    );
 
     if (!messageApproved) {
       return undefined;
@@ -167,7 +150,9 @@ export class GatewayProcessor {
       status: 'SUCCESSFUL', // TODO: Handle reverted?
     };
 
-    this.logger.debug(`Successfully executed message with command id ${messageApproved.commandId}`);
+    this.logger.debug(
+      `Successfully executed message from ${messageApproved.sourceChain} with message id ${messageApproved.messageId}`,
+    );
 
     return {
       type: 'MESSAGE_EXECUTED',

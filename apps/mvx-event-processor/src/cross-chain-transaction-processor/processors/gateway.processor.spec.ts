@@ -226,7 +226,7 @@ describe('GatewayProcessor', () => {
         successTimes: null,
       };
 
-      messageApprovedRepository.findByCommandId.mockReturnValueOnce(Promise.resolve(messageApproved));
+      messageApprovedRepository.findBySourceChainAndMessageId.mockReturnValueOnce(Promise.resolve(messageApproved));
 
       await service.handleEvent(rawEvent);
 
@@ -234,8 +234,8 @@ describe('GatewayProcessor', () => {
       expect(gatewayContract.decodeMessageExecutedEvent).toHaveBeenCalledWith(
         TransactionEvent.fromHttpResponse(rawEvent),
       );
-      expect(messageApprovedRepository.findByCommandId).toHaveBeenCalledTimes(1);
-      expect(messageApprovedRepository.findByCommandId).toHaveBeenCalledWith(
+      expect(messageApprovedRepository.findBySourceChainAndMessageId).toHaveBeenCalledTimes(1);
+      expect(messageApprovedRepository.findBySourceChainAndMessageId).toHaveBeenCalledWith(
         '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15da',
       );
       expect(messageApprovedRepository.updateStatusAndSuccessTimes).toHaveBeenCalledTimes(1);
@@ -247,7 +247,7 @@ describe('GatewayProcessor', () => {
     });
 
     it('Should handle event no contract call approved', async () => {
-      messageApprovedRepository.findByCommandId.mockReturnValueOnce(Promise.resolve(null));
+      messageApprovedRepository.findBySourceChainAndMessageId.mockReturnValueOnce(Promise.resolve(null));
 
       await service.handleEvent(rawEvent);
 
@@ -255,8 +255,8 @@ describe('GatewayProcessor', () => {
       expect(gatewayContract.decodeMessageExecutedEvent).toHaveBeenCalledWith(
         TransactionEvent.fromHttpResponse(rawEvent),
       );
-      expect(messageApprovedRepository.findByCommandId).toHaveBeenCalledTimes(1);
-      expect(messageApprovedRepository.findByCommandId).toHaveBeenCalledWith(
+      expect(messageApprovedRepository.findBySourceChainAndMessageId).toHaveBeenCalledTimes(1);
+      expect(messageApprovedRepository.findBySourceChainAndMessageId).toHaveBeenCalledWith(
         '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15da',
       );
       expect(messageApprovedRepository.updateManyPartial).not.toHaveBeenCalled();

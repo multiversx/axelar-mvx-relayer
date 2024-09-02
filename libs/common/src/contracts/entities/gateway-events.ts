@@ -18,6 +18,12 @@ export interface MessageApprovedEvent {
   payloadHash: string;
 }
 
+export interface MessageExecutedEvent {
+  commandId: string;
+  sourceChain: string;
+  messageId: string;
+}
+
 export interface WeightedSigners {
   signers: {
     signer: string, // ed25519 public key

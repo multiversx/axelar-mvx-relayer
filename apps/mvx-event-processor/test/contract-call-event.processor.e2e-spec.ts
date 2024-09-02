@@ -1,7 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import { PrismaService } from '@mvx-monorepo/common/database/prisma.service';
-import { ContractCallEventRepository } from '@mvx-monorepo/common/database/repository/contract-call-event.repository';
 import {
   ContractCallEventProcessorModule,
   ContractCallEventProcessorService,
@@ -14,7 +13,6 @@ import { TestGrpcModule } from './testGrpc.module';
 describe('ContractCallEventProcessorService', () => {
   let prisma: PrismaService;
   let grpcService: DeepMocked<AxelarGmpApi>;
-  let contractCallEventRepository: ContractCallEventRepository;
 
   let service: ContractCallEventProcessorService;
 
@@ -33,7 +31,6 @@ describe('ContractCallEventProcessorService', () => {
       .compile();
 
     prisma = await moduleRef.get(PrismaService);
-    contractCallEventRepository = await moduleRef.get(ContractCallEventRepository);
 
     service = await moduleRef.get(ContractCallEventProcessorService);
 
@@ -84,7 +81,6 @@ describe('ContractCallEventProcessorService', () => {
       // Locker.lock throws error for some reason, ignore
     }
 
-    expect(await contractCallEventRepository.findPending()).toEqual([]);
     expect(grpcService.getCallEvent).toHaveBeenCalledTimes(1);
 
     const firstEntry = await prisma.contractCallEvent.findUnique({
@@ -111,7 +107,6 @@ describe('ContractCallEventProcessorService', () => {
       // Locker.lock throws error for some reason, ignore
     }
 
-    expect(await contractCallEventRepository.findPending()).toEqual([]);
     expect(grpcService.getCallEvent).not.toHaveBeenCalled();
 
     const firstEntry = await prisma.contractCallEvent.findUnique({
