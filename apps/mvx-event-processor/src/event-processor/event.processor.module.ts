@@ -2,7 +2,6 @@ import { RabbitModule, RabbitModuleOptions } from '@multiversx/sdk-nestjs-rabbit
 import { Module } from '@nestjs/common';
 import { EventProcessorService } from './event.processor.service';
 import { ApiConfigModule, ApiConfigService } from '@mvx-monorepo/common';
-import { ProcessorsModule } from '../processors';
 import { HelpersModule } from '@mvx-monorepo/common/helpers/helpers.module';
 
 @Module({
@@ -15,7 +14,6 @@ import { HelpersModule } from '@mvx-monorepo/common/helpers/helpers.module';
         }),
       inject: [ApiConfigService],
     }),
-    ProcessorsModule,
     HelpersModule,
   ],
   providers: [EventProcessorService],

@@ -40,6 +40,7 @@ export class MessageApprovedProcessorService {
     this.contractItsAddress = apiConfigService.getContractIts();
   }
 
+  // TODO: Use queues instead?
   @Cron('*/30 * * * * *')
   async processPendingMessageApproved() {
     await Locker.lock('processPendingMessageApproved', async () => {

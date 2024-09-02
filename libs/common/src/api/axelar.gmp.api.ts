@@ -1,19 +1,14 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { ContractCallEvent, ContractCallEventStatus, MessageApproved } from '@prisma/client';
-import BigNumber from 'bignumber.js';
+import { ContractCallEventStatus } from '@prisma/client';
 import { ApiConfigService } from '@mvx-monorepo/common/config';
 import { ContractCallEventRepository } from '@mvx-monorepo/common/database/repository/contract-call-event.repository';
 import { ProviderKeys } from '@mvx-monorepo/common/utils/provider.enum';
 import { Client as AxelarGmpApiClient, Components } from '@mvx-monorepo/common/api/entities/axelar.gmp.api';
 import { CONSTANTS } from '@mvx-monorepo/common/utils/constants.enum';
-import CallEvent = Components.Schemas.CallEvent;
 import Event = Components.Schemas.Event;
 import PublishEventsResult = Components.Schemas.PublishEventsResult;
 import PublishEventErrorResult = Components.Schemas.PublishEventErrorResult;
 import PublishEventAcceptedResult = Components.Schemas.PublishEventAcceptedResult;
-import { MessageApprovedEvent as MvxMessageApprovedEvent } from '@mvx-monorepo/common/contracts/entities/gateway-events';
-import MessageApprovedEvent = Components.Schemas.MessageApprovedEvent;
-import MessageExecutedEvent = Components.Schemas.MessageExecutedEvent;
 
 @Injectable()
 export class AxelarGmpApi {
@@ -30,33 +25,8 @@ export class AxelarGmpApi {
     this.logger = new Logger(AxelarGmpApi.name);
   }
 
-  async sendEventCall(contractCallEvent: ContractCallEvent) {
-    const callEvent: CallEvent = {
-      eventID: contractCallEvent.id,
-      message: {
-        messageID: contractCallEvent.id,
-        sourceChain: contractCallEvent.sourceChain,
-        sourceAddress: contractCallEvent.sourceAddress,
-        destinationAddress: contractCallEvent.destinationAddress,
-        payloadHash: contractCallEvent.payloadHash,
-      },
-      destinationChain: contractCallEvent.destinationChain,
-      payload: contractCallEvent.payload.toString('hex'),
-      meta: {
-        txID: contractCallEvent.txHash,
-        fromAddress: contractCallEvent.sourceAddress,
-        finalized: true,
-      },
-    };
-
-    const events: Event[] = [
-      {
-        type: 'CALL',
-        ...callEvent,
-      },
-    ];
-
-    this.logger.debug(`Sending contract call event to Amplifier API for verification, id: ${contractCallEvent.id}`);
+  async postEvents(events: Event[]) {
+    this.logger.debug(`Sending events to Amplifier API for verification`);
 
     try {
       const res = await this.apiClient.post<PublishEventsResult>(
@@ -96,90 +66,11 @@ export class AxelarGmpApi {
           `Verify contract call event ${event.eventID} was not successful. Will be retried, error: ${errorResult.error}`,
           result,
         );
+
+        // TODO: Handle retry of some events
       }
     } catch (e) {
       this.logger.error('Could not send event call to Axelar... Will be retried', e);
-    }
-  }
-
-  // TODO: Improve this
-  async sendMessageApproved(event: MvxMessageApprovedEvent, txHash: string) {
-    const messageApproved: MessageApprovedEvent = {
-      eventID: event.messageId,  // TODO: This is not right
-      message: {
-        messageID: event.messageId,
-        sourceChain: event.sourceChain,
-        sourceAddress: event.sourceAddress,
-        destinationAddress: event.contractAddress.bech32(),
-        payloadHash: event.payloadHash,
-      },
-      cost: {
-        amount: '0', // TODO: How to get amount here?
-      },
-      meta: {
-        txID: txHash,
-        fromAddress: event.sourceAddress,
-        finalized: true,
-      },
-    };
-
-    const events: Event[] = [
-      {
-        type: 'MESSAGE_APPROVED',
-        ...messageApproved,
-      },
-    ];
-
-    const res = await this.apiClient.post<PublishEventsResult>(
-      `/chains/${CONSTANTS.SOURCE_CHAIN_NAME}/events`,
-      events,
-    );
-
-    for (const result of res.data.results) {
-      if (result.status !== 'ACCEPTED') {
-        throw new Error('Could not send message approved');
-      }
-    }
-  }
-
-  // TODO: Improve this
-  async sendMessageExecuted(messageApproved: MessageApproved, txHash: string) {
-    const messageExecuted: MessageExecutedEvent = {
-      eventID: messageApproved.messageId, // TODO: This is not right
-      message: {
-        messageID: messageApproved.messageId,
-        sourceChain: messageApproved.sourceChain,
-        sourceAddress: messageApproved.sourceAddress,
-        destinationAddress: messageApproved.contractAddress,
-        payloadHash: messageApproved.payloadHash,
-      },
-      cost: {
-        amount: '0', // TODO: How to get amount here?
-      },
-      meta: {
-        txID: txHash,
-        fromAddress: messageApproved.sourceAddress,
-        finalized: true,
-      },
-      status: 'SUCCESSFUL', // TODO: Handle reverted
-    };
-
-    const events: Event[] = [
-      {
-        type: 'MESSAGE_EXECUTED',
-        ...messageExecuted,
-      },
-    ];
-
-    const res = await this.apiClient.post<PublishEventsResult>(
-      `/chains/${CONSTANTS.SOURCE_CHAIN_NAME}/events`,
-      events,
-    );
-
-    for (const result of res.data.results) {
-      if (result.status !== 'ACCEPTED') {
-        throw new Error('Could not send message approved');
-      }
     }
   }
 
@@ -189,22 +80,5 @@ export class AxelarGmpApi {
       after: lastUUid,
       limit,
     });
-  }
-
-  // TODO: Implement this after the Axelar GMP API Supports it
-  verifyVerifierSet(
-    // @ts-ignore
-    messageId: string,
-    // @ts-ignore
-    signers: {
-      signer: string;
-      weight: BigNumber;
-    }[],
-    // @ts-ignore
-    threshold: BigNumber,
-    // @ts-ignore
-    nonce: string,
-  ) {
-    this.logger.error('Verify Verifier Set is not implemented yet!');
   }
 }

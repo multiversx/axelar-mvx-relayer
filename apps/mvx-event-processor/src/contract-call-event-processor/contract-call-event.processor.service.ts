@@ -13,6 +13,7 @@ export class ContractCallEventProcessorService {
 
   constructor(
     private readonly contractCallEventRepository: ContractCallEventRepository,
+    // @ts-ignore
     private readonly grpcService: AxelarGmpApi,
   ) {
     this.logger = new Logger(ContractCallEventProcessorService.name);
@@ -48,7 +49,8 @@ export class ContractCallEventProcessorService {
 
           await this.contractCallEventRepository.updateRetry(contractCallEvent.id, contractCallEvent.retry);
 
-          await this.grpcService.sendEventCall(contractCallEvent);
+          // TODO:
+          // await this.grpcService.getCallEvent(contractCallEvent);
         }
 
         page++;

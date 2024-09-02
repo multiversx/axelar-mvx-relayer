@@ -47,28 +47,27 @@ import { ItsContract } from '@mvx-monorepo/common/contracts/its.contract';
       provide: GatewayContract,
       useFactory: async (
         apiConfigService: ApiConfigService,
-        resultsParser: ResultsParser,
       ) => {
         const contractLoader = new ContractLoader(join(__dirname, '../assets/gateway.abi.json'));
 
         const smartContract = await contractLoader.getContract(apiConfigService.getContractGateway());
         const abi = await contractLoader.getAbiRegistry();
 
-        return new GatewayContract(smartContract, abi, resultsParser, apiConfigService.getChainId());
+        return new GatewayContract(smartContract, abi, apiConfigService.getChainId());
       },
-      inject: [ApiConfigService, ResultsParser],
+      inject: [ApiConfigService],
     },
     {
       provide: GasServiceContract,
-      useFactory: async (apiConfigService: ApiConfigService, resultsParser: ResultsParser) => {
+      useFactory: async (apiConfigService: ApiConfigService) => {
         const contractLoader = new ContractLoader(join(__dirname, '../assets/gas-service.abi.json'));
 
         const smartContract = await contractLoader.getContract(apiConfigService.getContractGasService());
         const abi = await contractLoader.getAbiRegistry();
 
-        return new GasServiceContract(smartContract, abi, resultsParser);
+        return new GasServiceContract(smartContract, abi);
       },
-      inject: [ApiConfigService, ResultsParser],
+      inject: [ApiConfigService],
     },
     {
       provide: ItsContract,

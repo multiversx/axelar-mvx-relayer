@@ -170,7 +170,7 @@ describe('CrossChainTransactionProcessor', () => {
         payload: Buffer.from('payload'),
         retry: 0,
       });
-      expect(grpcService.sendEventCall).toHaveBeenCalledTimes(2);
+      expect(grpcService.getCallEvent).toHaveBeenCalledTimes(2);
 
       expect(redisHelper.srem).toHaveBeenCalledTimes(1);
       expect(redisHelper.srem).toHaveBeenCalledWith('crossChainTransactions', 'txHash');
@@ -189,7 +189,7 @@ describe('CrossChainTransactionProcessor', () => {
       expect(gatewayContract.decodeContractCallEvent).toHaveBeenCalledTimes(1);
       expect(gatewayContract.decodeContractCallEvent).toHaveBeenCalledWith(TransactionEvent.fromHttpResponse(rawEvent));
       expect(contractCallEventRepository.create).toHaveBeenCalledTimes(1);
-      expect(grpcService.sendEventCall).not.toHaveBeenCalled();
+      expect(grpcService.getCallEvent).not.toHaveBeenCalled();
     });
 
     it('Should handle error can not save in database', async () => {
@@ -205,7 +205,7 @@ describe('CrossChainTransactionProcessor', () => {
       expect(gatewayContract.decodeContractCallEvent).toHaveBeenCalledTimes(1);
       expect(gatewayContract.decodeContractCallEvent).toHaveBeenCalledWith(TransactionEvent.fromHttpResponse(rawEvent));
       expect(contractCallEventRepository.create).toHaveBeenCalledTimes(1);
-      expect(grpcService.sendEventCall).not.toHaveBeenCalled();
+      expect(grpcService.getCallEvent).not.toHaveBeenCalled();
     });
   });
 

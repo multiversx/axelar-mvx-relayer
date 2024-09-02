@@ -3,7 +3,7 @@ import { ApiConfigService } from '@mvx-monorepo/common';
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { Test } from '@nestjs/testing';
 import { NotifierBlockEvent } from './types';
-import { GasServiceProcessor, GatewayProcessor } from '../processors';
+import { GasServiceProcessor, GatewayProcessor } from '../cross-chain-transaction-processor/processors';
 import { RedisHelper } from '@mvx-monorepo/common/helpers/redis.helper';
 
 describe('EventProcessorService', () => {

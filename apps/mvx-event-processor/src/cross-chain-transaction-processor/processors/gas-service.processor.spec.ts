@@ -4,7 +4,7 @@ import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { GasServiceContract } from '@mvx-monorepo/common/contracts/gas-service.contract';
 import { ContractCallEventRepository } from '@mvx-monorepo/common/database/repository/contract-call-event.repository';
 import { GasPaidRepository } from '@mvx-monorepo/common/database/repository/gas-paid.repository';
-import { NotifierEvent } from '../event-processor/types';
+import { NotifierEvent } from '../../event-processor/types';
 import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
 import { Events } from '@mvx-monorepo/common/utils/event.enum';
 import {

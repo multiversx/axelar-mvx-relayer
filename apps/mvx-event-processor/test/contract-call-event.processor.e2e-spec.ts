@@ -85,7 +85,7 @@ describe('ContractCallEventProcessorService', () => {
     }
 
     expect(await contractCallEventRepository.findPending()).toEqual([]);
-    expect(grpcService.sendEventCall).toHaveBeenCalledTimes(1);
+    expect(grpcService.getCallEvent).toHaveBeenCalledTimes(1);
 
     const firstEntry = await prisma.contractCallEvent.findUnique({
       where: {
@@ -112,7 +112,7 @@ describe('ContractCallEventProcessorService', () => {
     }
 
     expect(await contractCallEventRepository.findPending()).toEqual([]);
-    expect(grpcService.sendEventCall).not.toHaveBeenCalled();
+    expect(grpcService.getCallEvent).not.toHaveBeenCalled();
 
     const firstEntry = await prisma.contractCallEvent.findUnique({
       where: {

@@ -3,7 +3,7 @@ import { Test } from '@nestjs/testing';
 import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
 import { EventIdentifiers, Events } from '@mvx-monorepo/common/utils/event.enum';
 import { GatewayProcessor } from './gateway.processor';
-import { NotifierEvent } from '../event-processor/types';
+import { NotifierEvent } from '../../event-processor/types';
 import { Address } from '@multiversx/sdk-core/out';
 import { MessageApproved, MessageApprovedStatus } from '@prisma/client';
 import { AxelarGmpApi } from '@mvx-monorepo/common/api/axelar.gmp.api';
@@ -80,7 +80,7 @@ describe('GatewayProcessor', () => {
     expect(gatewayContract.decodeContractCallEvent).not.toHaveBeenCalled();
     expect(gatewayContract.decodeMessageApprovedEvent).not.toHaveBeenCalled();
     expect(messageApprovedRepository.create).not.toHaveBeenCalled();
-    expect(grpcService.sendEventCall).not.toHaveBeenCalled();
+    expect(grpcService.getCallEvent).not.toHaveBeenCalled();
     expect(grpcService.getPayload).not.toHaveBeenCalled();
   });
 
