@@ -169,7 +169,7 @@ export class ApprovalsProcessorService {
   private async processGatewayTxTask(externalData: string, retry: number = 0) {
     // The Amplifier for MultiversX encodes the executeData as hex, we need to decode it to string
     // It will have the format `function@arg1HEX@arg2HEX...`
-    const decodedExecuteData = BinaryUtils.hexToString(externalData.slice(2));
+    const decodedExecuteData = BinaryUtils.hexToString(externalData);
 
     this.logger.debug(`Trying to execute Gateway execute transaction with externalData:`);
     this.logger.debug(decodedExecuteData);
@@ -197,7 +197,6 @@ export class ApprovalsProcessorService {
     );
   }
 
-  // TODO: Improve this to send transaction from here directly
   private async processExecuteTask(response: ExecuteTask) {
     // TODO: Save data in Redis since it is only needed temporarily if refactoring to use queues?
     const messageApproved = await this.messageApprovedRepository.create({

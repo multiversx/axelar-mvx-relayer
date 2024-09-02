@@ -3,20 +3,15 @@ import { ApiConfigService } from '@mvx-monorepo/common';
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { Test } from '@nestjs/testing';
 import { NotifierBlockEvent } from './types';
-import { GasServiceProcessor, GatewayProcessor } from '../cross-chain-transaction-processor/processors';
 import { RedisHelper } from '@mvx-monorepo/common/helpers/redis.helper';
 
 describe('EventProcessorService', () => {
-  let gatewayProcessor: DeepMocked<GatewayProcessor>;
-  let gasServiceProcessor: DeepMocked<GasServiceProcessor>;
   let redisHelper: DeepMocked<RedisHelper>;
   let apiConfigService: DeepMocked<ApiConfigService>;
 
   let service: EventProcessorService;
 
   beforeEach(async () => {
-    gatewayProcessor = createMock();
-    gasServiceProcessor = createMock();
     redisHelper = createMock();
     apiConfigService = createMock();
 
@@ -27,14 +22,6 @@ describe('EventProcessorService', () => {
       providers: [EventProcessorService],
     })
       .useMocker((token) => {
-        if (token === GatewayProcessor) {
-          return gatewayProcessor;
-        }
-
-        if (token === GasServiceProcessor) {
-          return gasServiceProcessor;
-        }
-
         if (token === RedisHelper) {
           return redisHelper;
         }
@@ -77,8 +64,6 @@ describe('EventProcessorService', () => {
       await service.consumeEvents(blockEvent);
 
       expect(apiConfigService.getContractGateway).toHaveBeenCalledTimes(1);
-      expect(gatewayProcessor.handleEvent).not.toHaveBeenCalled();
-      expect(gasServiceProcessor.handleEvent).not.toHaveBeenCalled();
       expect(redisHelper.sadd).not.toHaveBeenCalled();
     });
 
