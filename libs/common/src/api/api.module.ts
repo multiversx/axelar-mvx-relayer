@@ -16,9 +16,8 @@ import { Document, OpenAPIClientAxios } from 'openapi-client-axios';
     {
       provide: ProviderKeys.AXELAR_GMP_API_CLIENT,
       useFactory: async (apiConfigService: ApiConfigService) => {
-        // TODO: Use proper values here
+        // TODO: Add TLS support
         const httpsAgent = new https.Agent({
-          // TODO: Add TLS support
           // cert: fs.readFileSync('client.crt'),
           // key: fs.readFileSync('client.key'),
           // ca: fs.readFileSync('ca.crt'),

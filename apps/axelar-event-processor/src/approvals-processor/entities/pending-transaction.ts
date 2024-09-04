@@ -1,5 +1,5 @@
 export interface PendingTransaction {
   txHash: string;
-  externalData: string; // hex string in format 0x...
+  externalData: string; // hex string
   retry: number;
 }

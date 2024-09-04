@@ -11,11 +11,11 @@ import { GatewayContract } from '@mvx-monorepo/common/contracts/gateway.contract
 import { PendingTransaction } from './entities/pending-transaction';
 import { CONSTANTS } from '@mvx-monorepo/common/utils/constants.enum';
 import { Components } from '@mvx-monorepo/common/api/entities/axelar.gmp.api';
+import { MessageApprovedRepository } from '@mvx-monorepo/common/database/repository/message-approved.repository';
+import { MessageApprovedStatus } from '@prisma/client';
 import TaskItem = Components.Schemas.TaskItem;
 import GatewayTransactionTask = Components.Schemas.GatewayTransactionTask;
 import ExecuteTask = Components.Schemas.ExecuteTask;
-import { MessageApprovedRepository } from '@mvx-monorepo/common/database/repository/message-approved.repository';
-import { MessageApprovedStatus } from '@prisma/client';
 import RefundTask = Components.Schemas.RefundTask;
 
 const MAX_NUMBER_OF_RETRIES = 3;
@@ -72,8 +72,9 @@ export class ApprovalsProcessorService {
 
             await this.redisCacheService.set(CacheInfo.LastTaskUUID().key, lastTaskUUID, CacheInfo.LastTaskUUID().ttl);
           } catch (e) {
-            this.logger.error(`Could not process task ${task.id}`, task);
+            this.logger.error(`Could not process task ${task.id}`, task, e);
 
+            // Stop processing in case of an error and retry from the sam task
             return;
           }
         }
@@ -206,15 +207,20 @@ export class ApprovalsProcessorService {
       sourceAddress: response.message.sourceAddress,
       contractAddress: response.message.destinationAddress,
       payloadHash: response.message.payloadHash,
-      payload: Buffer.from(response.payload.slice(2), 'hex'),
+      payload: Buffer.from(response.payload, 'hex'),
       retry: 0,
     });
 
     if (!messageApproved) {
-      throw new Error(`Couldn't save message approved to database for message id ${response.message.messageID}`);
+      this.logger.warn(
+        `Couldn't save message approved to database, duplicate exists for source chain ${response.message.sourceChain} and message id ${response.message.messageID}`,
+      );
+
+      return;
     }
   }
 
+  // TODO: Handle refunds
   private processRefundTask(response: RefundTask) {
     this.logger.warn(
       `Received a refund task for ${response.message.messageID}. However refunds are not currently supported`,

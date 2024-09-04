@@ -85,6 +85,10 @@ export class CrossChainTransactionProcessorService {
       }
     }
 
+    if (!eventsToSend.length) {
+      return;
+    }
+
     try {
       await this.axelarGmpApi.postEvents(eventsToSend, transaction.hash);
     } catch (e) {

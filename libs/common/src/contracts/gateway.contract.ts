@@ -61,6 +61,17 @@ export class GatewayContract {
     };
   }
 
+  decodeMessageExecutedEvent(event: ITransactionEvent): MessageExecutedEvent {
+    const eventDefinition = this.abi.getEvent(Events.MESSAGE_EXECUTED_EVENT);
+    const outcome = DecodingUtils.parseTransactionEvent(event, eventDefinition);
+
+    return {
+      commandId: DecodingUtils.decodeByteArrayToHex(outcome.command_id),
+      sourceChain: outcome.source_chain.toString(),
+      messageId: outcome.message_id.toString(),
+    };
+  }
+
   decodeSignersRotatedEvent(event: ITransactionEvent): WeightedSigners {
     const eventDefinition = this.abi.getEvent(Events.SIGNERS_ROTATED_EVENT);
     const outcome = DecodingUtils.parseTransactionEvent(event, eventDefinition);
@@ -74,17 +85,6 @@ export class GatewayContract {
       })),
       threshold: signers.threshold,
       nonce: DecodingUtils.decodeByteArrayToHex(signers.nonce),
-    };
-  }
-
-  decodeMessageExecutedEvent(event: ITransactionEvent): MessageExecutedEvent {
-    const eventDefinition = this.abi.getEvent(Events.MESSAGE_EXECUTED_EVENT);
-    const outcome = DecodingUtils.parseTransactionEvent(event, eventDefinition);
-
-    return {
-      commandId: DecodingUtils.decodeByteArrayToHex(outcome.command_id),
-      sourceChain: outcome.source_chain.toString(),
-      messageId: outcome.message_id.toString(),
     };
   }
 }

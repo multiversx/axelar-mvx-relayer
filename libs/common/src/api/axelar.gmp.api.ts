@@ -53,14 +53,14 @@ export class AxelarGmpApi {
         result,
       );
 
-      throw new Error('Received retriable event error');
+      throw new Error(`Received retriable event error`);
     }
   }
 
-  async getTasks(chain: string, lastUUid?: string | undefined, limit: number = 10) {
+  async getTasks(chain: string, lastUUID?: string | undefined, limit: number = 10) {
     return await this.apiClient.getTasks({
       chain,
-      after: lastUUid,
+      after: lastUUID,
       limit,
     });
   }

@@ -6,10 +6,21 @@ import { MessageApproved, MessageApprovedStatus, Prisma } from '@prisma/client';
 export class MessageApprovedRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  create(data: Prisma.MessageApprovedCreateInput): Promise<MessageApproved | null> {
-    return this.prisma.messageApproved.create({
-      data,
-    });
+  async create(data: Prisma.MessageApprovedCreateInput): Promise<MessageApproved | null> {
+    try {
+      return await this.prisma.messageApproved.create({
+        data,
+      });
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError) {
+        // Unique constraint fails
+        if (e.code === 'P2002') {
+          return null;
+        }
+      }
+
+      throw e;
+    }
   }
 
   findPending(page: number = 0, take: number = 10): Promise<MessageApproved[] | null> {

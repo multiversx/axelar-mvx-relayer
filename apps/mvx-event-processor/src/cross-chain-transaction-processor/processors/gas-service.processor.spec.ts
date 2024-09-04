@@ -3,10 +3,18 @@ import { GasServiceProcessor } from './gas-service.processor';
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { GasServiceContract } from '@mvx-monorepo/common/contracts/gas-service.contract';
 import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
-import { Events } from '@mvx-monorepo/common/utils/event.enum';
-import { ITransactionEvent } from '@multiversx/sdk-core/out';
+import { EventIdentifiers, Events } from '@mvx-monorepo/common/utils/event.enum';
+import { Address, ITransactionEvent } from '@multiversx/sdk-core/out';
 import { ApiConfigService, GatewayContract } from '@mvx-monorepo/common';
-import { TransactionEvent } from '@multiversx/sdk-network-providers/out';
+import { TransactionEvent, TransactionOnNetwork } from '@multiversx/sdk-network-providers/out';
+import { GasAddedEvent, GasPaidForContractCallEvent } from '@mvx-monorepo/common/contracts/entities/gas-service-events';
+import BigNumber from 'bignumber.js';
+import { Components } from '@mvx-monorepo/common/api/entities/axelar.gmp.api';
+import { ContractCallEvent } from '@mvx-monorepo/common/contracts/entities/gateway-events';
+import GasCreditEvent = Components.Schemas.GasCreditEvent;
+
+const mockGasServiceContract = 'erd1qqqqqqqqqqqqqqqpqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqplllst77y4l';
+const mockGatewayContract = 'erd1qqqqqqqqqqqqqpgqvc7gdl0p4s97guh498wgz75k8sav6sjfjlwqh679jy';
 
 describe('GasServiceProcessor', () => {
   let gasServiceContract: DeepMocked<GasServiceContract>;
@@ -20,8 +28,7 @@ describe('GasServiceProcessor', () => {
     gatewayContract = createMock();
     apiConfigService = createMock();
 
-    apiConfigService.getContractGateway.mockReturnValue('mockGatewayAddress');
-    apiConfigService.getContractGasService.mockReturnValue('mockGasServiceAddress');
+    apiConfigService.getContractGateway.mockReturnValue(mockGatewayContract);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [GasServiceProcessor],
@@ -46,7 +53,7 @@ describe('GasServiceProcessor', () => {
     service = module.get<GasServiceProcessor>(GasServiceProcessor);
   });
 
-  it('Should not handle event', async () => {
+  it('Should not handle event', () => {
     const rawEvent: ITransactionEvent = TransactionEvent.fromHttpResponse({
       address: 'erd1qqqqqqqqqqqqqqqpqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqplllst77y4l',
       identifier: 'callContract',
@@ -54,257 +61,203 @@ describe('GasServiceProcessor', () => {
       topics: [BinaryUtils.base64Encode(Events.CONTRACT_CALL_EVENT)],
     });
 
-    service.handleGasServiceEvent(rawEvent, createMock(), 0);
+    const result = service.handleGasServiceEvent(rawEvent, createMock(), 0);
+
+    expect(result).toBeUndefined();
+    expect(gasServiceContract.decodeGasPaidForContractCallEvent).not.toHaveBeenCalled();
+    expect(gasServiceContract.decodeNativeGasPaidForContractCallEvent).not.toHaveBeenCalled();
+    expect(gasServiceContract.decodeGasAddedEvent).not.toHaveBeenCalled();
+    expect(gasServiceContract.decodeNativeGasAddedEvent).not.toHaveBeenCalled();
+    expect(gasServiceContract.decodeRefundedEvent).not.toHaveBeenCalled();
   });
 
-  // const getMockGasPaid = (
-  //   eventName: string = Events.GAS_PAID_FOR_CONTRACT_CALL_EVENT,
-  //   gasToken: string | null = 'WEGLD-123456',
-  // ) => {
-  //   const rawEvent: NotifierEvent = {
-  //     txHash: 'txHash',
-  //     address: 'mockGasServiceContract',
-  //     identifier: 'any',
-  //     data: '',
-  //     topics: [BinaryUtils.base64Encode(eventName)],
-  //   };
-  //
-  //   const event: GasPaidForContractCallEvent = {
-  //     sender: Address.fromBech32('erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7'),
-  //     destinationChain: 'ethereum',
-  //     destinationAddress: 'destinationAddress',
-  //     data: {
-  //       payloadHash: 'ebc84cbd75ba5516bf45e7024a9e12bc3c5c880f73e3a5beca7ebba52b2867a7',
-  //       gasToken,
-  //       gasFeeAmount: new BigNumber('654321'),
-  //       refundAddress: Address.fromBech32('erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7'),
-  //     },
-  //   };
-  //
-  //   const gasPaid: any = {
-  //     txHash: rawEvent.txHash,
-  //     sourceAddress: event.sender.bech32(),
-  //     destinationAddress: event.destinationAddress,
-  //     destinationChain: event.destinationChain,
-  //     payloadHash: event.data.payloadHash,
-  //     gasToken: event.data.gasToken,
-  //     gasValue: event.data.gasFeeAmount.toString(),
-  //     refundAddress: event.data.refundAddress.bech32(),
-  //     status: GasPaidStatus.PENDING,
-  //   };
-  //
-  //   return { rawEvent, event, gasPaid };
-  // };
-  //
-  // async function assertEventGasPaidForContractCall(
-  //   rawEvent: NotifierEvent,
-  //   gasPaid: any,
-  //   contractCallEvent: any = null,
-  // ) {
-  //   await service.handleEvent(rawEvent);
-  // }
-  //
-  // describe('Handle event gas paid for contract call', () => {
-  //   const { rawEvent, event, gasPaid } = getMockGasPaid();
-  //
-  //   it('Should handle no existing contract call', async () => {
-  //     gasServiceContract.decodeGasPaidForContractCallEvent.mockReturnValueOnce(event);
-  //
-  //     await assertEventGasPaidForContractCall(rawEvent, gasPaid);
-  //   });
-  //
-  //   it('Should handle with existing contract call', async () => {
-  //     gasServiceContract.decodeGasPaidForContractCallEvent.mockReturnValueOnce(event);
-  //
-  //     const contractCallEvent: DeepMocked<ContractCallEvent> = createMock();
-  //     gasPaid.ContractCallEvent = { connect: contractCallEvent };
-  //
-  //     await assertEventGasPaidForContractCall(rawEvent, gasPaid, contractCallEvent);
-  //   });
-  // });
-  //
-  // describe('Handle event native gas paid for contract call', () => {
-  //   const { rawEvent, event, gasPaid } = getMockGasPaid(Events.NATIVE_GAS_PAID_FOR_CONTRACT_CALL_EVENT, null);
-  //
-  //   it('Should handle no existing contract call', async () => {
-  //     gasServiceContract.decodeNativeGasPaidForContractCallEvent.mockReturnValueOnce(event);
-  //
-  //     await assertEventGasPaidForContractCall(rawEvent, gasPaid);
-  //   });
-  //
-  //   it('Should handle with existing contract call', async () => {
-  //     gasServiceContract.decodeNativeGasPaidForContractCallEvent.mockReturnValueOnce(event);
-  //
-  //     const contractCallEvent: DeepMocked<ContractCallEvent> = createMock();
-  //     gasPaid.ContractCallEvent = { connect: contractCallEvent };
-  //
-  //     await assertEventGasPaidForContractCall(rawEvent, gasPaid, contractCallEvent);
-  //   });
-  // });
-  //
-  // const getMockGasAdded = (eventName: string = Events.GAS_ADDED_EVENT, gasToken: string | null = 'WEGLD-123456') => {
-  //   const rawEvent: NotifierEvent = {
-  //     txHash: 'txHash',
-  //     address: 'mockGasServiceContract',
-  //     identifier: 'any',
-  //     data: '',
-  //     topics: [BinaryUtils.base64Encode(eventName)],
-  //   };
-  //
-  //   const event: GasAddedEvent = {
-  //     txHash: 'txHash',
-  //     logIndex: 1,
-  //     data: {
-  //       gasToken,
-  //       gasFeeAmount: new BigNumber('1000'),
-  //       refundAddress: Address.fromBech32('erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7'),
-  //     },
-  //   };
-  //
-  //   return { rawEvent, event };
-  // };
-  //
-  // async function assertGasAddedEvent(rawEvent: NotifierEvent, event: GasAddedEvent, contractCallEvent: any = null) {
-  //   await service.handleEvent(rawEvent);
-  // }
-  //
-  // describe('Handle event gas added', () => {
-  //   const { rawEvent, event } = getMockGasAdded();
-  //
-  //   it('Should handle no existing contract call', async () => {
-  //     gasServiceContract.decodeGasAddedEvent.mockReturnValueOnce(event);
-  //
-  //     await assertGasAddedEvent(rawEvent, event);
-  //   });
-  //
-  //   it('Should handle no gas paid different token', async () => {
-  //     gasServiceContract.decodeGasAddedEvent.mockReturnValueOnce(event);
-  //
-  //     const contractCallEvent: DeepMocked<ContractCallEventWithGasPaid> = createMock();
-  //     contractCallEvent.gasPaidEntries = [
-  //       {
-  //         gasToken: 'other',
-  //         refundAddress: event.data.refundAddress.bech32(),
-  //       },
-  //     ] as any;
-  //
-  //     await assertGasAddedEvent(rawEvent, event, contractCallEvent);
-  //   });
-  //
-  //   it('Should handle no gas paid different refund address', async () => {
-  //     gasServiceContract.decodeGasAddedEvent.mockReturnValueOnce(event);
-  //
-  //     const contractCallEvent: DeepMocked<ContractCallEventWithGasPaid> = createMock();
-  //     contractCallEvent.gasPaidEntries = [
-  //       {
-  //         gasToken: event.data.gasToken,
-  //         refundAddress: 'other address',
-  //       },
-  //     ] as any;
-  //
-  //     await assertGasAddedEvent(rawEvent, event, contractCallEvent);
-  //   });
-  //
-  //   it('Should handle no gas paid update', async () => {
-  //     gasServiceContract.decodeGasAddedEvent.mockReturnValueOnce(event);
-  //
-  //     const contractCallEvent: DeepMocked<ContractCallEventWithGasPaid> = createMock();
-  //     const gasPaid: any = {
-  //       id: 1234,
-  //       gasToken: event.data.gasToken,
-  //       refundAddress: event.data.refundAddress.bech32(),
-  //       gasValue: '2000',
-  //     };
-  //     contractCallEvent.gasPaidEntries = [gasPaid];
-  //
-  //     await assertGasAddedEvent(rawEvent, event, contractCallEvent, {
-  //       ...gasPaid,
-  //       txHash: rawEvent.txHash,
-  //       gasValue: '3000',
-  //     });
-  //   });
-  // });
-  //
-  // describe('Handle event native gas added', () => {
-  //   const { rawEvent, event } = getMockGasAdded(Events.NATIVE_GAS_ADDED_EVENT, null);
-  //
-  //   it('Should handle no existing contract call', async () => {
-  //     gasServiceContract.decodeNativeGasAddedEvent.mockReturnValueOnce(event);
-  //
-  //     await assertGasAddedEvent(rawEvent, event);
-  //   });
-  //
-  //   it('Should handle no gas paid different token', async () => {
-  //     gasServiceContract.decodeNativeGasAddedEvent.mockReturnValueOnce(event);
-  //
-  //     const contractCallEvent: DeepMocked<ContractCallEventWithGasPaid> = createMock();
-  //     contractCallEvent.gasPaidEntries = [
-  //       {
-  //         gasToken: 'other',
-  //         refundAddress: event.data.refundAddress.bech32(),
-  //       },
-  //     ] as any;
-  //
-  //     await assertGasAddedEvent(rawEvent, event, contractCallEvent);
-  //   });
-  //
-  //   it('Should handle no gas paid different refund address', async () => {
-  //     gasServiceContract.decodeNativeGasAddedEvent.mockReturnValueOnce(event);
-  //
-  //     const contractCallEvent: DeepMocked<ContractCallEventWithGasPaid> = createMock();
-  //     contractCallEvent.gasPaidEntries = [
-  //       {
-  //         gasToken: event.data.gasToken,
-  //         refundAddress: 'other address',
-  //       },
-  //     ] as any;
-  //
-  //     await assertGasAddedEvent(rawEvent, event, contractCallEvent);
-  //   });
-  //
-  //   it('Should handle no gas paid update', async () => {
-  //     gasServiceContract.decodeNativeGasAddedEvent.mockReturnValueOnce(event);
-  //
-  //     const contractCallEvent: DeepMocked<ContractCallEventWithGasPaid> = createMock();
-  //     const gasPaid: any = {
-  //       id: 1234,
-  //       gasToken: event.data.gasToken,
-  //       refundAddress: event.data.refundAddress.bech32(),
-  //       gasValue: '2000',
-  //     };
-  //     contractCallEvent.gasPaidEntries = [gasPaid];
-  //
-  //     await assertGasAddedEvent(rawEvent, event, contractCallEvent, {
-  //       ...gasPaid,
-  //       txHash: rawEvent.txHash,
-  //       gasValue: '3000',
-  //     });
-  //   });
-  // });
-  //
-  // describe('Handle event refunded event', () => {
-  //   const rawEvent: NotifierEvent = {
-  //     txHash: 'txHash',
-  //     address: 'mockGasServiceContract',
-  //     identifier: 'any',
-  //     data: '',
-  //     topics: [BinaryUtils.base64Encode(Events.REFUNDED_EVENT)],
-  //   };
-  //
-  //   const event: RefundedEvent = {
-  //     txHash: 'txHash',
-  //     logIndex: 1,
-  //     data: {
-  //       receiver: Address.fromBech32('erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7'),
-  //       token: 'WEGLD-654321',
-  //       amount: new BigNumber('1000'),
-  //     },
-  //   };
-  //
-  //   it('Should handle', async () => {
-  //     gasServiceContract.decodeRefundedEvent.mockReturnValueOnce(event);
-  //
-  //     await service.handleEvent(rawEvent);
-  //   });
-  // });
+  const getMockGasPaid = (
+    eventName: string = Events.GAS_PAID_FOR_CONTRACT_CALL_EVENT,
+    gasToken: string | null = 'WEGLD-123456',
+  ) => {
+    const rawEvent = TransactionEvent.fromHttpResponse({
+      address: mockGasServiceContract,
+      identifier: 'any',
+      data: '',
+      topics: [BinaryUtils.base64Encode(eventName)],
+    });
+
+    const event: GasPaidForContractCallEvent = {
+      sender: Address.newFromBech32('erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7'),
+      destinationChain: 'ethereum',
+      destinationAddress: 'destinationAddress',
+      data: {
+        payloadHash: 'ebc84cbd75ba5516bf45e7024a9e12bc3c5c880f73e3a5beca7ebba52b2867a7',
+        gasToken,
+        gasFeeAmount: new BigNumber('654321'),
+        refundAddress: Address.newFromBech32('erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7'),
+      },
+    };
+
+    return { rawEvent, event };
+  };
+
+  const contractCallEvent: ContractCallEvent = {
+    sender: Address.fromBech32('erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7'),
+    destinationChain: 'ethereum',
+    destinationAddress: 'destinationAddress',
+    payloadHash: 'ebc84cbd75ba5516bf45e7024a9e12bc3c5c880f73e3a5beca7ebba52b2867a7',
+    payload: Buffer.from('payload'),
+  };
+
+  function assertEventGasPaidForContractCall(
+    rawEvent: TransactionEvent,
+    isValid = true,
+    tokenID: string | null = 'WEGLD-123456',
+  ) {
+    const transaction = createMock<TransactionOnNetwork>();
+    transaction.hash = 'txHash';
+
+    if (isValid) {
+      transaction.logs.events = [
+        rawEvent,
+        TransactionEvent.fromHttpResponse({
+          address: mockGatewayContract,
+          identifier: EventIdentifiers.CALL_CONTRACT,
+          data: contractCallEvent.payload.toString('base64'),
+          topics: [
+            BinaryUtils.base64Encode(Events.CONTRACT_CALL_EVENT),
+            Buffer.from((contractCallEvent.sender as Address).hex(), 'hex').toString('base64'),
+            BinaryUtils.base64Encode(contractCallEvent.destinationChain),
+            BinaryUtils.base64Encode(contractCallEvent.destinationAddress),
+            Buffer.from(contractCallEvent.payloadHash, 'hex').toString('base64'),
+          ],
+        }),
+      ];
+    } else {
+      transaction.logs.events = [];
+    }
+
+    const result = service.handleGasServiceEvent(rawEvent, transaction, 0);
+
+    if (!isValid) {
+      expect(result).toBeUndefined();
+
+      return;
+    }
+
+    expect(result).not.toBeUndefined();
+    expect(result?.type).toBe('GAS_CREDIT');
+
+    const event = result as GasCreditEvent;
+
+    expect(event.eventID).toBe('0xtxHash-0');
+    expect(event.messageID).toBe('0xtxHash-1');
+    expect(event.refundAddress).toBe('erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7');
+    expect(event.payment).toEqual({
+      tokenID,
+      amount: '654321',
+    });
+    expect(event.meta).toEqual({
+      txID: 'txHash',
+      fromAddress: 'erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7',
+      finalized: true,
+    });
+  }
+
+  describe('Handle event gas paid for contract call', () => {
+    const { rawEvent, event } = getMockGasPaid();
+
+    it('Should handle', () => {
+      gasServiceContract.decodeGasPaidForContractCallEvent.mockReturnValueOnce(event);
+      gatewayContract.decodeContractCallEvent.mockReturnValueOnce(contractCallEvent);
+
+      assertEventGasPaidForContractCall(rawEvent);
+    });
+
+    it('Should not handle if contract call event not found', () => {
+      gasServiceContract.decodeGasPaidForContractCallEvent.mockReturnValueOnce(event);
+
+      assertEventGasPaidForContractCall(rawEvent, false);
+    });
+  });
+
+  describe('Handle event native gas paid for contract call', () => {
+    const { rawEvent, event } = getMockGasPaid(Events.NATIVE_GAS_PAID_FOR_CONTRACT_CALL_EVENT, null);
+
+    it('Should handle', () => {
+      gasServiceContract.decodeNativeGasPaidForContractCallEvent.mockReturnValueOnce(event);
+      gatewayContract.decodeContractCallEvent.mockReturnValueOnce(contractCallEvent);
+
+      assertEventGasPaidForContractCall(rawEvent, true, null);
+    });
+
+    it('Should not handle if contract call event not found', () => {
+      gasServiceContract.decodeNativeGasPaidForContractCallEvent.mockReturnValueOnce(event);
+
+      assertEventGasPaidForContractCall(rawEvent, false);
+    });
+  });
+
+  const getMockGasAdded = (eventName: string = Events.GAS_ADDED_EVENT, gasToken: string | null = 'WEGLD-123456') => {
+    const rawEvent: TransactionEvent = TransactionEvent.fromHttpResponse({
+      address: mockGasServiceContract,
+      identifier: 'any',
+      data: '',
+      topics: [BinaryUtils.base64Encode(eventName)],
+    });
+
+    const event: GasAddedEvent = {
+      txHash: 'txHash',
+      logIndex: 1,
+      data: {
+        gasToken,
+        gasFeeAmount: new BigNumber('1000'),
+        refundAddress: Address.fromBech32('erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7'),
+      },
+    };
+
+    return { rawEvent, event };
+  };
+
+  function assertGasAddedEvent(rawEvent: TransactionEvent, tokenID: string | null = 'WEGLD-123456') {
+    const transaction = createMock<TransactionOnNetwork>();
+    transaction.hash = 'txHash';
+    transaction.sender = Address.fromBech32('erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7');
+
+    const result = service.handleGasServiceEvent(rawEvent, transaction, 0);
+
+    expect(result).not.toBeUndefined();
+    expect(result?.type).toBe('GAS_CREDIT');
+
+    const event = result as GasCreditEvent;
+
+    expect(event.eventID).toBe('0xtxHash-0');
+    expect(event.messageID).toBe('0xtxHash-1');
+    expect(event.refundAddress).toBe('erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7');
+    expect(event.payment).toEqual({
+      tokenID,
+      amount: '1000',
+    });
+    expect(event.meta).toEqual({
+      txID: 'txHash',
+      fromAddress: 'erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7',
+      finalized: true,
+    });
+  }
+
+  describe('Handle event gas added', () => {
+    const { rawEvent, event } = getMockGasAdded();
+
+    it('Should handle', () => {
+      gasServiceContract.decodeGasAddedEvent.mockReturnValueOnce(event);
+
+      assertGasAddedEvent(rawEvent);
+    });
+  });
+
+  describe('Handle event native gas added', () => {
+    const { rawEvent, event } = getMockGasAdded(Events.NATIVE_GAS_ADDED_EVENT, null);
+
+    it('Should handle', () => {
+      gasServiceContract.decodeNativeGasAddedEvent.mockReturnValueOnce(event);
+
+      assertGasAddedEvent(rawEvent, null);
+    });
+  });
 });

@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { EVENTS_NOTIFIER_QUEUE } from '../../../../config/configuration';
 
 @Injectable()
 export class ApiConfigService {
@@ -51,10 +50,6 @@ export class ApiConfigService {
     }
 
     return eventsNotifierUrl;
-  }
-
-  getEventsNotifierQueue(): string {
-    return EVENTS_NOTIFIER_QUEUE;
   }
 
   getContractGateway(): string {

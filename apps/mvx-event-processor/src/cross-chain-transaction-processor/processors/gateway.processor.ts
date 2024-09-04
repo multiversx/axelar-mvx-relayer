@@ -36,11 +36,11 @@ export class GatewayProcessor {
     }
 
     if (rawEvent.identifier === EventIdentifiers.APPROVE_MESSAGES && eventName === Events.MESSAGE_APPROVED_EVENT) {
-      return this.handleMessageApprovedEvent(rawEvent, transaction.hash, index);
+      return this.handleMessageApprovedEvent(rawEvent, transaction.sender.bech32(), transaction.hash, index);
     }
 
     if (rawEvent.identifier === EventIdentifiers.VALIDATE_MESSAGE && eventName === Events.MESSAGE_EXECUTED_EVENT) {
-      return await this.handleMessageExecutedEvent(rawEvent, transaction.hash, index);
+      return await this.handleMessageExecutedEvent(rawEvent, transaction.sender.bech32(), transaction.hash, index);
     }
 
     if (rawEvent.identifier === EventIdentifiers.ROTATE_SIGNERS && eventName === Events.SIGNERS_ROTATED_EVENT) {
@@ -50,11 +50,7 @@ export class GatewayProcessor {
     return undefined;
   }
 
-  private handleContractCallEvent(
-    rawEvent: ITransactionEvent,
-    txHash: string,
-    index: number,
-  ): Event | undefined {
+  private handleContractCallEvent(rawEvent: ITransactionEvent, txHash: string, index: number): Event | undefined {
     const contractCallEvent = this.gatewayContract.decodeContractCallEvent(rawEvent);
 
     const callEvent: CallEvent = {
@@ -81,7 +77,12 @@ export class GatewayProcessor {
     };
   }
 
-  private handleMessageApprovedEvent(rawEvent: ITransactionEvent, txHash: string, index: number): Event {
+  private handleMessageApprovedEvent(
+    rawEvent: ITransactionEvent,
+    sender: string,
+    txHash: string,
+    index: number,
+  ): Event {
     const event = this.gatewayContract.decodeMessageApprovedEvent(rawEvent);
 
     const messageApproved: MessageApprovedEvent = {
@@ -98,7 +99,7 @@ export class GatewayProcessor {
       },
       meta: {
         txID: txHash,
-        fromAddress: event.sourceAddress,
+        fromAddress: sender,
         finalized: true,
       },
     };
@@ -111,6 +112,7 @@ export class GatewayProcessor {
 
   private async handleMessageExecutedEvent(
     rawEvent: ITransactionEvent,
+    sender: string,
     txHash: string,
     index: number,
   ): Promise<Event | undefined> {
@@ -122,6 +124,10 @@ export class GatewayProcessor {
     );
 
     if (!messageApproved) {
+      this.logger.warn(
+        `Could not find corresponding message approved for message executed event in database from ${messageExecutedEvent.sourceChain} with message id ${messageExecutedEvent.messageId}`,
+      );
+
       return undefined;
     }
 
@@ -144,7 +150,7 @@ export class GatewayProcessor {
       },
       meta: {
         txID: txHash,
-        fromAddress: messageApproved.sourceAddress,
+        fromAddress: sender,
         finalized: true,
       },
       status: 'SUCCESSFUL', // TODO: Handle reverted?
@@ -174,7 +180,7 @@ export class GatewayProcessor {
     // // The id needs to have `0x` in front of the txHash (hex string)
     // const id = `0x${txHash}-${index}`;
     //
-    // // TODO: Test that this works correctly
+    //
     // // @ts-ignore
     // const response = await this.axelarGmpApi.verifyVerifierSet(
     //   id,

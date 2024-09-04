@@ -35,7 +35,7 @@ export class GasServiceProcessor {
     if (eventName === Events.GAS_PAID_FOR_CONTRACT_CALL_EVENT) {
       const gasEvent = this.gasServiceContract.decodeGasPaidForContractCallEvent(rawEvent);
 
-      const callContractIndex = this.findCorrespondingCallContractEvent(transaction, index, rawEvent, gasEvent);
+      const callContractIndex = this.findCorrespondingCallContractEvent(transaction, index, gasEvent);
 
       if (callContractIndex === -1) {
         this.logger.warn(
@@ -52,7 +52,7 @@ export class GasServiceProcessor {
     if (eventName === Events.NATIVE_GAS_PAID_FOR_CONTRACT_CALL_EVENT) {
       const gasEvent = this.gasServiceContract.decodeNativeGasPaidForContractCallEvent(rawEvent);
 
-      const callContractIndex = this.findCorrespondingCallContractEvent(transaction, index, rawEvent, gasEvent);
+      const callContractIndex = this.findCorrespondingCallContractEvent(transaction, index, gasEvent);
 
       if (callContractIndex === -1) {
         this.logger.warn(
@@ -135,12 +135,7 @@ export class GasServiceProcessor {
     };
   }
 
-  private handleGasAddedEvent(
-    event: GasAddedEvent,
-    sender: string,
-    txHash: string,
-    index: number,
-  ): Event | undefined {
+  private handleGasAddedEvent(event: GasAddedEvent, sender: string, txHash: string, index: number): Event | undefined {
     const gasCreditEvent: GasCreditEvent = {
       eventID: DecodingUtils.getEventId(txHash, index),
       messageID: DecodingUtils.getEventId(event.txHash, event.logIndex),
@@ -165,22 +160,21 @@ export class GasServiceProcessor {
   private findCorrespondingCallContractEvent(
     transaction: TransactionOnNetwork,
     index: number,
-    rawEvent: ITransactionEvent,
     gasEvent: GasPaidForContractCallEvent,
   ) {
     // Search for the first corresponding callContract event starting from the current gas paid event index
-    return transaction.logs.events.slice(index).findIndex((event) => {
-      const eventName = rawEvent.topics?.[0]?.toString();
+    const foundIndex = transaction.logs.events.slice(index + 1).findIndex((event) => {
+      const eventName = event.topics?.[0]?.toString();
 
       if (
         event.address.bech32() === this.contractGateway &&
         event.identifier === EventIdentifiers.CALL_CONTRACT &&
         eventName === Events.CONTRACT_CALL_EVENT
       ) {
-        const contractCallEvent = this.gatewayContract.decodeContractCallEvent(rawEvent);
+        const contractCallEvent = this.gatewayContract.decodeContractCallEvent(event);
 
         return (
-          gasEvent.sender === contractCallEvent.sender &&
+          gasEvent.sender.bech32() === contractCallEvent.sender.bech32() &&
           gasEvent.destinationChain === contractCallEvent.destinationChain &&
           gasEvent.destinationAddress === contractCallEvent.destinationAddress &&
           gasEvent.data.payloadHash === contractCallEvent.payloadHash
@@ -189,5 +183,11 @@ export class GasServiceProcessor {
 
       return false;
     });
+
+    if (foundIndex === -1) {
+      return -1;
+    }
+
+    return index + 1 + foundIndex;
   }
 }

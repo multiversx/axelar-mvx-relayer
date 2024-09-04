@@ -30,5 +30,5 @@ export interface WeightedSigners {
     weight: BigNumber,
   }[],
   threshold: BigNumber,
-  nonce: string; // keccak256 hash
+  nonce: string; // uint256 as 32 bytes hex
 }
