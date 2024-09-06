@@ -48,7 +48,7 @@ export class ApprovalsProcessorService {
   async handleNewTasksRaw() {
     let lastTaskUUID = (await this.redisCacheService.get<string>(CacheInfo.LastTaskUUID().key)) || undefined;
 
-    this.logger.log(`Trying to process tasks for multiversx starting from id: ${lastTaskUUID}`);
+    this.logger.debug(`Trying to process tasks for multiversx starting from id: ${lastTaskUUID}`);
 
     // Process as many tasks as possible until no tasks are left or there is an error
     let tasks: TaskItem[] = [];
@@ -57,7 +57,7 @@ export class ApprovalsProcessorService {
         const response = await this.axelarGmpApi.getTasks(CONSTANTS.SOURCE_CHAIN_NAME, lastTaskUUID);
 
         if (response.data.tasks.length === 0) {
-          this.logger.log('No tasks left to process for now...');
+          this.logger.debug('No tasks left to process for now...');
 
           return;
         }
@@ -79,7 +79,7 @@ export class ApprovalsProcessorService {
           }
         }
 
-        this.logger.log(`Successfully processed ${tasks.length}`);
+        this.logger.debug(`Successfully processed ${tasks.length}`);
       } catch (e) {
         this.logger.error('Error retrieving tasks...', e);
 

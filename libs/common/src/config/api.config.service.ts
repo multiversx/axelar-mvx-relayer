@@ -106,6 +106,24 @@ export class ApiConfigService {
     return axelarGmpApiUrl;
   }
 
+  getClientCert(): string {
+    const clientCert = this.configService.get<string>('CLIENT_CERT');
+    if (!clientCert) {
+      throw new Error('No client cert present');
+    }
+
+    return clientCert;
+  }
+
+  getClientKey(): string {
+    const clientKey = this.configService.get<string>('CLIENT_KEY');
+    if (!clientKey) {
+      throw new Error('No client key present');
+    }
+
+    return clientKey;
+  }
+
   getChainId(): string {
     const chainId = this.configService.get<string>('CHAIN_ID');
     if (!chainId) {

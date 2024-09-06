@@ -5,6 +5,7 @@ import { ApiConfigService, AxelarGmpApi, CacheInfo } from '@mvx-monorepo/common'
 import { RedisHelper } from '@mvx-monorepo/common/helpers/redis.helper';
 import { ProxyNetworkProvider, TransactionOnNetwork } from '@multiversx/sdk-network-providers/out';
 import { GasServiceProcessor, GatewayProcessor } from './processors';
+import { AxiosError } from 'axios';
 
 @Injectable()
 export class CrossChainTransactionProcessorService {
@@ -93,6 +94,10 @@ export class CrossChainTransactionProcessorService {
       await this.axelarGmpApi.postEvents(eventsToSend, transaction.hash);
     } catch (e) {
       this.logger.error('Could not send all events to GMP API...', e);
+
+      if (e instanceof AxiosError) {
+        this.logger.error(e.response);
+      }
 
       throw e;
     }

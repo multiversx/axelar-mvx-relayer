@@ -24,7 +24,9 @@ export class AxelarGmpApi {
   async postEvents(events: Event[], txHash: string) {
     this.logger.debug(`Sending events to Amplifier API for verification`);
 
-    const res = await this.apiClient.post<PublishEventsResult>(`/chains/${CONSTANTS.SOURCE_CHAIN_NAME}/events`, events);
+    const res = await this.apiClient.post<PublishEventsResult>(`/chains/${CONSTANTS.SOURCE_CHAIN_NAME}/events`, {
+      events,
+    });
 
     if (res.data.results.length !== events.length) {
       throw new Error('Not all events were sent');

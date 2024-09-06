@@ -16,11 +16,9 @@ import { Document, OpenAPIClientAxios } from 'openapi-client-axios';
     {
       provide: ProviderKeys.AXELAR_GMP_API_CLIENT,
       useFactory: async (apiConfigService: ApiConfigService) => {
-        // TODO: Add TLS support
         const httpsAgent = new https.Agent({
-          // cert: fs.readFileSync('client.crt'),
-          // key: fs.readFileSync('client.key'),
-          // ca: fs.readFileSync('ca.crt'),
+          cert: apiConfigService.getClientCert(),
+          key: apiConfigService.getClientKey(),
         });
 
         const schema = join(__dirname, '../assets/axelar-gmp-api.schema.yaml');
@@ -29,14 +27,15 @@ import { Document, OpenAPIClientAxios } from 'openapi-client-axios';
         const api = new OpenAPIClientAxios({
           definition: doc,
           axiosConfigDefaults: {
-            url: apiConfigService.getAxelarGmpApiUrl(),
             httpsAgent,
             timeout: 30_000,
           },
         });
+        api.withServer({ url: apiConfigService.getAxelarGmpApiUrl() });
+
         await api.init();
 
-        return api.getClient<AxelarGmpApiClient>();
+        return await api.getClient<AxelarGmpApiClient>();
       },
       inject: [ApiConfigService],
     },

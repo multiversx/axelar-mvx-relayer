@@ -53,6 +53,11 @@ export class GatewayProcessor {
   private handleContractCallEvent(rawEvent: ITransactionEvent, txHash: string, index: number): Event | undefined {
     const contractCallEvent = this.gatewayContract.decodeContractCallEvent(rawEvent);
 
+    this.logger.debug(
+      `Successfully handled contract call event from transaction ${txHash}, log index ${index}`,
+      contractCallEvent,
+    );
+
     const callEvent: CallEvent = {
       eventID: DecodingUtils.getEventId(txHash, index),
       message: {
@@ -84,6 +89,11 @@ export class GatewayProcessor {
     index: number,
   ): Event {
     const event = this.gatewayContract.decodeMessageApprovedEvent(rawEvent);
+
+    this.logger.debug(
+      `Successfully handled message approved event from transaction ${txHash}, log index ${index}`,
+      event,
+    );
 
     const messageApproved: MessageApprovedEvent = {
       eventID: DecodingUtils.getEventId(txHash, index),
