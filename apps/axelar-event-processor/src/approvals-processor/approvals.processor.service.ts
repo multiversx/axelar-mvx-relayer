@@ -170,7 +170,7 @@ export class ApprovalsProcessorService {
   private async processGatewayTxTask(externalData: string, retry: number = 0) {
     // The Amplifier for MultiversX encodes the executeData as hex, we need to decode it to string
     // It will have the format `function@arg1HEX@arg2HEX...`
-    const decodedExecuteData = BinaryUtils.hexToString(externalData);
+    const decodedExecuteData = BinaryUtils.base64Decode(externalData);
 
     this.logger.debug(`Trying to execute Gateway execute transaction with externalData:`);
     this.logger.debug(decodedExecuteData);
@@ -206,8 +206,8 @@ export class ApprovalsProcessorService {
       status: MessageApprovedStatus.PENDING,
       sourceAddress: response.message.sourceAddress,
       contractAddress: response.message.destinationAddress,
-      payloadHash: response.message.payloadHash,
-      payload: Buffer.from(response.payload, 'hex'),
+      payloadHash: BinaryUtils.base64ToHex(response.message.payloadHash),
+      payload: Buffer.from(response.payload, 'base64'),
       retry: 0,
     });
 

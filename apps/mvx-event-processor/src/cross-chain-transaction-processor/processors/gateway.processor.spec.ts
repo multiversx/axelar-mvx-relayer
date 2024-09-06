@@ -138,9 +138,9 @@ describe('GatewayProcessor', () => {
       expect(event.message.sourceChain).toBe('multiversx');
       expect(event.message.sourceAddress).toBe(contractCallEvent.sender.bech32());
       expect(event.message.destinationAddress).toBe(contractCallEvent.destinationAddress);
-      expect(event.message.payloadHash).toBe(contractCallEvent.payloadHash);
+      expect(event.message.payloadHash).toBe(BinaryUtils.hexToBase64(contractCallEvent.payloadHash));
       expect(event.destinationChain).toBe(contractCallEvent.destinationChain);
-      expect(event.payload).toBe(contractCallEvent.payload.toString('hex'));
+      expect(event.payload).toBe(contractCallEvent.payload.toString('base64'));
       expect(event.meta).toEqual({
         txID: 'txHash',
         fromAddress: contractCallEvent.sender.bech32(),
@@ -189,7 +189,7 @@ describe('GatewayProcessor', () => {
       expect(event.message.sourceChain).toBe('ethereum');
       expect(event.message.sourceAddress).toBe('sourceAddress');
       expect(event.message.destinationAddress).toBe('erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7');
-      expect(event.message.payloadHash).toBe(contractCallEvent.payloadHash);
+      expect(event.message.payloadHash).toBe(BinaryUtils.hexToBase64(contractCallEvent.payloadHash));
       expect(event.cost).toEqual({
         amount: '0',
       });
@@ -259,7 +259,7 @@ describe('GatewayProcessor', () => {
       expect(event.message.sourceChain).toBe('ethereum');
       expect(event.message.sourceAddress).toBe('sourceAddress');
       expect(event.message.destinationAddress).toBe('erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7');
-      expect(event.message.payloadHash).toBe(contractCallEvent.payloadHash);
+      expect(event.message.payloadHash).toBe(BinaryUtils.hexToBase64(contractCallEvent.payloadHash));
       expect(event.cost).toEqual({
         amount: '0',
       });

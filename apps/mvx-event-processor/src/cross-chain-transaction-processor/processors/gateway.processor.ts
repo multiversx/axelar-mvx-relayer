@@ -12,6 +12,7 @@ import CallEvent = Components.Schemas.CallEvent;
 import MessageApprovedEvent = Components.Schemas.MessageApprovedEvent;
 import Event = Components.Schemas.Event;
 import MessageExecutedEvent = Components.Schemas.MessageExecutedEvent;
+import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
 
 @Injectable()
 export class GatewayProcessor {
@@ -53,11 +54,6 @@ export class GatewayProcessor {
   private handleContractCallEvent(rawEvent: ITransactionEvent, txHash: string, index: number): Event | undefined {
     const contractCallEvent = this.gatewayContract.decodeContractCallEvent(rawEvent);
 
-    this.logger.debug(
-      `Successfully handled contract call event from transaction ${txHash}, log index ${index}`,
-      contractCallEvent,
-    );
-
     const callEvent: CallEvent = {
       eventID: DecodingUtils.getEventId(txHash, index),
       message: {
@@ -65,16 +61,21 @@ export class GatewayProcessor {
         sourceChain: CONSTANTS.SOURCE_CHAIN_NAME,
         sourceAddress: contractCallEvent.sender.bech32(),
         destinationAddress: contractCallEvent.destinationAddress,
-        payloadHash: contractCallEvent.payloadHash,
+        payloadHash: BinaryUtils.hexToBase64(contractCallEvent.payloadHash),
       },
       destinationChain: contractCallEvent.destinationChain,
-      payload: contractCallEvent.payload.toString('hex'),
+      payload: contractCallEvent.payload.toString('base64'),
       meta: {
         txID: txHash,
         fromAddress: contractCallEvent.sender.bech32(),
         finalized: true,
       },
     };
+
+    this.logger.debug(
+      `Successfully handled contract call event from transaction ${txHash}, log index ${index}`,
+      callEvent,
+    );
 
     return {
       type: 'CALL',
@@ -90,11 +91,6 @@ export class GatewayProcessor {
   ): Event {
     const event = this.gatewayContract.decodeMessageApprovedEvent(rawEvent);
 
-    this.logger.debug(
-      `Successfully handled message approved event from transaction ${txHash}, log index ${index}`,
-      event,
-    );
-
     const messageApproved: MessageApprovedEvent = {
       eventID: DecodingUtils.getEventId(txHash, index),
       message: {
@@ -102,7 +98,7 @@ export class GatewayProcessor {
         sourceChain: event.sourceChain,
         sourceAddress: event.sourceAddress,
         destinationAddress: event.contractAddress.bech32(),
-        payloadHash: event.payloadHash,
+        payloadHash: BinaryUtils.hexToBase64(event.payloadHash),
       },
       cost: {
         amount: '0', // TODO: How to get amount here?
@@ -113,6 +109,11 @@ export class GatewayProcessor {
         finalized: true,
       },
     };
+
+    this.logger.debug(
+      `Successfully handled message approved event from transaction ${txHash}, log index ${index}`,
+      messageApproved,
+    );
 
     return {
       type: 'MESSAGE_APPROVED',
@@ -153,7 +154,7 @@ export class GatewayProcessor {
         sourceChain: messageApproved.sourceChain,
         sourceAddress: messageApproved.sourceAddress,
         destinationAddress: messageApproved.contractAddress,
-        payloadHash: messageApproved.payloadHash,
+        payloadHash: BinaryUtils.hexToBase64(messageApproved.payloadHash),
       },
       cost: {
         amount: '0', // TODO: How to get amount here?

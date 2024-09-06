@@ -18,7 +18,7 @@ import TaskItem = Components.Schemas.TaskItem;
 import RefundTask = Components.Schemas.RefundTask;
 import ExecuteTask = Components.Schemas.ExecuteTask;
 
-const mockExternalData = BinaryUtils.stringToHex('approveMessages@61726731@61726732');
+const mockExternalData = BinaryUtils.base64Encode('approveMessages@61726731@61726732');
 
 describe('ApprovalsProcessorService', () => {
   let axelarGmpApi: DeepMocked<AxelarGmpApi>;
@@ -206,7 +206,7 @@ describe('ApprovalsProcessorService', () => {
               {
                 type: 'EXECUTE',
                 task: {
-                  payload: '0123',
+                  payload: BinaryUtils.hexToBase64('0123'),
                   availableGasBalance: {
                     amount: '0',
                   },
@@ -215,7 +215,7 @@ describe('ApprovalsProcessorService', () => {
                     destinationAddress: 'destinationAddress',
                     sourceAddress: 'sourceAddress',
                     sourceChain: 'ethereum',
-                    payloadHash: '0234',
+                    payloadHash: BinaryUtils.hexToBase64('0234'),
                   },
                 } as ExecuteTask,
                 id: 'UUID',
@@ -431,7 +431,7 @@ describe('ApprovalsProcessorService', () => {
 
       expect(gatewayContract.buildTransactionExternalFunction).toHaveBeenCalledTimes(1);
       expect(gatewayContract.buildTransactionExternalFunction).toHaveBeenCalledWith(
-        BinaryUtils.hexToString(externalData),
+        BinaryUtils.base64Decode(externalData),
         userAddress,
         1,
       );
