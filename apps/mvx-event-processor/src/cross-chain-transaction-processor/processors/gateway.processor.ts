@@ -129,6 +129,7 @@ export class GatewayProcessor {
   ): Promise<Event | undefined> {
     const messageExecutedEvent = this.gatewayContract.decodeMessageExecutedEvent(rawEvent);
 
+    // TODO: Querying the database is not strictly necessary here, if refactoring to use queues this can be removed
     const messageApproved = await this.messageApprovedRepository.findBySourceChainAndMessageId(
       messageExecutedEvent.sourceChain,
       messageExecutedEvent.messageId,
@@ -149,13 +150,8 @@ export class GatewayProcessor {
 
     const messageExecuted: MessageExecutedEvent = {
       eventID: DecodingUtils.getEventId(txHash, index),
-      message: {
-        messageID: messageApproved.messageId,
-        sourceChain: messageApproved.sourceChain,
-        sourceAddress: messageApproved.sourceAddress,
-        destinationAddress: messageApproved.contractAddress,
-        payloadHash: BinaryUtils.hexToBase64(messageApproved.payloadHash),
-      },
+      messageID: messageExecutedEvent.messageId,
+      sourceChain: messageExecutedEvent.sourceChain,
       cost: {
         amount: '0', // TODO: How to get amount here?
       },

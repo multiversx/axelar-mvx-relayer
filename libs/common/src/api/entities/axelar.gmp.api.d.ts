@@ -154,7 +154,8 @@ declare namespace Components {
                 commandID?: string | null;
                 childMessageIDs?: string[] | null;
             } | null;
-            message: GatewayV2Message;
+            messageID: string;
+            sourceChain: string;
             status: MessageExecutionStatus;
             cost: Token;
         }
