@@ -1,44 +1,49 @@
-import { ApiConfigService, CacheInfo, TransactionsHelper } from '@mvx-monorepo/common';
+import { CacheInfo, TransactionsHelper } from '@mvx-monorepo/common';
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { Test } from '@nestjs/testing';
-import { GrpcService } from '@mvx-monorepo/common/grpc/grpc.service';
+import { AxelarGmpApi } from '@mvx-monorepo/common/api/axelar.gmp.api';
 import { GatewayContract } from '@mvx-monorepo/common/contracts/gateway.contract';
 import { ApprovalsProcessorService } from './approvals.processor.service';
 import { RedisCacheService } from '@multiversx/sdk-nestjs-cache';
 import { UserSigner } from '@multiversx/sdk-wallet/out';
 import { ProviderKeys } from '@mvx-monorepo/common/utils/provider.enum';
-import { Subject } from 'rxjs';
-import { SubscribeToApprovalsResponse } from '@mvx-monorepo/common/grpc/entities/amplifier';
 import { UserAddress } from '@multiversx/sdk-wallet/out/userAddress';
 import { Transaction } from '@multiversx/sdk-core/out';
 import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
+import { MessageApprovedRepository } from '@mvx-monorepo/common/database/repository/message-approved.repository';
+import { Components } from '@mvx-monorepo/common/api/entities/axelar.gmp.api';
+import { MessageApprovedStatus } from '@prisma/client';
+import GatewayTransactionTask = Components.Schemas.GatewayTransactionTask;
+import TaskItem = Components.Schemas.TaskItem;
+import RefundTask = Components.Schemas.RefundTask;
+import ExecuteTask = Components.Schemas.ExecuteTask;
 
-const mockExternalData = Buffer.from(BinaryUtils.stringToHex('approveMessages@61726731@61726732'), 'hex');
+const mockExternalData = BinaryUtils.base64Encode('approveMessages@61726731@61726732');
 
 describe('ApprovalsProcessorService', () => {
-  let grpcService: DeepMocked<GrpcService>;
+  let axelarGmpApi: DeepMocked<AxelarGmpApi>;
   let redisCacheService: DeepMocked<RedisCacheService>;
   let walletSigner: DeepMocked<UserSigner>;
   let transactionsHelper: DeepMocked<TransactionsHelper>;
   let gatewayContract: DeepMocked<GatewayContract>;
-  let apiConfigService: DeepMocked<ApiConfigService>;
+  let messageApprovedRepository: DeepMocked<MessageApprovedRepository>;
 
   let service: ApprovalsProcessorService;
 
   beforeEach(async () => {
-    grpcService = createMock();
+    axelarGmpApi = createMock();
     redisCacheService = createMock();
     walletSigner = createMock();
     transactionsHelper = createMock();
     gatewayContract = createMock();
-    apiConfigService = createMock();
+    messageApprovedRepository = createMock();
 
     const moduleRef = await Test.createTestingModule({
       providers: [ApprovalsProcessorService],
     })
       .useMocker((token) => {
-        if (token === GrpcService) {
-          return grpcService;
+        if (token === AxelarGmpApi) {
+          return axelarGmpApi;
         }
 
         if (token === RedisCacheService) {
@@ -57,15 +62,14 @@ describe('ApprovalsProcessorService', () => {
           return gatewayContract;
         }
 
-        if (token === ApiConfigService) {
-          return apiConfigService;
+        if (token === MessageApprovedRepository) {
+          return messageApprovedRepository;
         }
 
         return null;
       })
       .compile();
 
-    apiConfigService.getChainId.mockReturnValue('test');
     redisCacheService.get.mockImplementation(() => {
       return Promise.resolve(undefined);
     });
@@ -73,19 +77,78 @@ describe('ApprovalsProcessorService', () => {
     service = moduleRef.get(ApprovalsProcessorService);
   });
 
-  describe('handleNewApprovals', () => {
-    it('Should process message', async () => {
-      const observable = new Subject<SubscribeToApprovalsResponse>();
-      grpcService.subscribeToApprovals.mockReturnValueOnce(observable);
+  describe('handleNewTasks', () => {
+    it('Should handle get tasks error', async () => {
+      axelarGmpApi.getTasks.mockRejectedValueOnce(new Error('Network error'));
 
-      await service.handleNewApprovalsRaw();
+      await service.handleNewTasksRaw();
 
-      // Calling again won't do anything since subscription is already active
-      await service.handleNewApprovalsRaw();
+      expect(axelarGmpApi.getTasks).toHaveBeenCalledTimes(1);
+    });
 
-      expect(redisCacheService.get).toHaveBeenCalledTimes(1);
-      expect(grpcService.subscribeToApprovals).toHaveBeenCalledTimes(1);
-      expect(grpcService.subscribeToApprovals).toHaveBeenCalledWith('multiversx', undefined);
+    it('Should handle get tasks as long as there are tasks', async () => {
+      // @ts-ignore
+      axelarGmpApi.getTasks.mockImplementation((_, lastTaskUUID) => {
+        let tasks: TaskItem[] = [];
+        if (lastTaskUUID !== 'lastUUID1') {
+          tasks = [
+            {
+              type: 'REFUND',
+              task: {
+                refundRecipientAddress: '',
+                remainingGasBalance: {
+                  amount: '0',
+                },
+                message: {
+                  messageID: '',
+                  payloadHash: '',
+                  sourceChain: '',
+                  sourceAddress: '',
+                  destinationAddress: '',
+                },
+              } as RefundTask,
+              id: 'lastUUID1',
+              timestamp: '1234',
+            },
+          ];
+        }
+
+        return Promise.resolve({
+          data: {
+            tasks,
+          },
+        });
+      });
+
+      await service.handleNewTasksRaw();
+
+      expect(axelarGmpApi.getTasks).toHaveBeenCalledTimes(2);
+      expect(axelarGmpApi.getTasks).toHaveBeenCalledWith('multiversx', undefined);
+      expect(redisCacheService.set).toHaveBeenCalledWith(
+        CacheInfo.LastTaskUUID().key,
+        'lastUUID1',
+        CacheInfo.LastTaskUUID().ttl,
+      );
+    });
+
+    it('Should handle gateway tx task', async () => {
+      axelarGmpApi.getTasks.mockReturnValueOnce(
+        // @ts-ignore
+        Promise.resolve({
+          data: {
+            tasks: [
+              {
+                type: 'GATEWAY_TX',
+                task: {
+                  executeData: mockExternalData,
+                } as GatewayTransactionTask,
+                id: 'UUID',
+                timestamp: '1234',
+              },
+            ],
+          },
+        }),
+      );
 
       const userAddress = UserAddress.newFromBech32('erd1qqqqqqqqqqqqqpgqhe8t5jewej70zupmh44jurgn29psua5l2jps3ntjj3');
       walletSigner.getAddress.mockReturnValueOnce(userAddress);
@@ -96,24 +159,19 @@ describe('ApprovalsProcessorService', () => {
       transactionsHelper.getTransactionGas.mockReturnValueOnce(Promise.resolve(100_000_000));
       transactionsHelper.signAndSendTransaction.mockReturnValueOnce(Promise.resolve('txHash'));
 
-      // Process a message
-      const message: SubscribeToApprovalsResponse = {
-        chain: 'multiversx',
-        executeData: mockExternalData,
-        blockHeight: 1,
-      };
-      observable.next(message);
+      await service.handleNewTasksRaw();
 
-      // Calling this won't do anything
-      observable.complete();
-
-      // Wait a bit so promises finish executing
-      await new Promise((resolve) => {
-        setTimeout(resolve, 500);
-      });
+      expect(redisCacheService.get).toHaveBeenCalledTimes(1);
+      expect(axelarGmpApi.getTasks).toHaveBeenCalledTimes(2);
+      expect(axelarGmpApi.getTasks).toHaveBeenCalledWith('multiversx', undefined);
+      expect(axelarGmpApi.getTasks).toHaveBeenCalledWith('multiversx', 'UUID');
 
       expect(gatewayContract.buildTransactionExternalFunction).toHaveBeenCalledTimes(1);
-      expect(gatewayContract.buildTransactionExternalFunction).toHaveBeenCalledWith('approveMessages@61726731@61726732', userAddress, 1);
+      expect(gatewayContract.buildTransactionExternalFunction).toHaveBeenCalledWith(
+        'approveMessages@61726731@61726732',
+        userAddress,
+        1,
+      );
       expect(transactionsHelper.getTransactionGas).toHaveBeenCalledTimes(1);
       expect(transactionsHelper.getTransactionGas).toHaveBeenCalledWith(transaction, 0);
       expect(transaction.setGasLimit).toHaveBeenCalledTimes(1);
@@ -126,94 +184,178 @@ describe('ApprovalsProcessorService', () => {
         CacheInfo.PendingTransaction('txHash').key,
         {
           txHash: 'txHash',
-          externalData: message.executeData,
+          externalData: mockExternalData,
           retry: 1,
         },
         CacheInfo.PendingTransaction('txHash').ttl,
       );
 
-      // Saves current block height if no error
       expect(redisCacheService.set).toHaveBeenCalledWith(
-        CacheInfo.StartProcessHeight().key,
-        message.blockHeight,
-        CacheInfo.StartProcessHeight().ttl,
+        CacheInfo.LastTaskUUID().key,
+        'UUID',
+        CacheInfo.LastTaskUUID().ttl,
       );
     });
 
-    it('Should save previous block height for retrying on error', async () => {
-      const observable = new Subject<SubscribeToApprovalsResponse>();
-      grpcService.subscribeToApprovals.mockReturnValueOnce(observable);
+    it('Should handle execute task', async () => {
+      axelarGmpApi.getTasks.mockReturnValueOnce(
+        // @ts-ignore
+        Promise.resolve({
+          data: {
+            tasks: [
+              {
+                type: 'EXECUTE',
+                task: {
+                  payload: BinaryUtils.hexToBase64('0123'),
+                  availableGasBalance: {
+                    amount: '0',
+                  },
+                  message: {
+                    messageID: 'messageId',
+                    destinationAddress: 'destinationAddress',
+                    sourceAddress: 'sourceAddress',
+                    sourceChain: 'ethereum',
+                    payloadHash: BinaryUtils.hexToBase64('0234'),
+                  },
+                } as ExecuteTask,
+                id: 'UUID',
+                timestamp: '1234',
+              },
+            ],
+          },
+        }),
+      );
 
-      const userAddress = UserAddress.fromBech32('erd1qqqqqqqqqqqqqpgqhe8t5jewej70zupmh44jurgn29psua5l2jps3ntjj3');
+      await service.handleNewTasksRaw();
+
+      expect(messageApprovedRepository.create).toHaveBeenCalledTimes(1);
+      expect(messageApprovedRepository.create).toHaveBeenCalledWith({
+        sourceChain: 'ethereum',
+        messageId: 'messageId',
+        status: MessageApprovedStatus.PENDING,
+        sourceAddress: 'sourceAddress',
+        contractAddress: 'destinationAddress',
+        payloadHash: '0234',
+        payload: Buffer.from('0123', 'hex'),
+        retry: 0,
+      });
+      expect(redisCacheService.set).toHaveBeenCalledTimes(1);
+    });
+
+    it('Should handle execute task duplicate in database', async () => {
+      axelarGmpApi.getTasks.mockReturnValueOnce(
+        // @ts-ignore
+        Promise.resolve({
+          data: {
+            tasks: [
+              {
+                type: 'EXECUTE',
+                task: {
+                  payload: '0123',
+                  availableGasBalance: {
+                    amount: '0',
+                  },
+                  message: {
+                    messageID: 'messageId',
+                    destinationAddress: 'destinationAddress',
+                    sourceAddress: 'sourceAddress',
+                    sourceChain: 'ethereum',
+                    payloadHash: '0234',
+                  },
+                } as ExecuteTask,
+                id: 'UUID',
+                timestamp: '1234',
+              },
+            ],
+          },
+        }),
+      );
+
+      messageApprovedRepository.create.mockReturnValueOnce(Promise.resolve(null));
+
+      await service.handleNewTasksRaw();
+
+      expect(messageApprovedRepository.create).toHaveBeenCalledTimes(1);
+      expect(redisCacheService.set).toHaveBeenCalledTimes(1);
+    });
+
+    it('Should handle process refund task', async () => {
+      axelarGmpApi.getTasks.mockReturnValueOnce(
+        // @ts-ignore
+        Promise.resolve({
+          data: {
+            tasks: [
+              {
+                type: 'REFUND',
+                task: {
+                  refundRecipientAddress: '',
+                  remainingGasBalance: {
+                    amount: '0',
+                  },
+                  message: {
+                    messageID: '',
+                    payloadHash: '',
+                    sourceChain: '',
+                    sourceAddress: '',
+                    destinationAddress: '',
+                  },
+                } as RefundTask,
+                id: 'lastUUID1',
+                timestamp: '1234',
+              },
+            ],
+          },
+        }),
+      );
+
+      await service.handleNewTasksRaw();
+
+      expect(redisCacheService.set).toHaveBeenCalledTimes(1);
+    });
+
+    it('Should not save last task uuid if error', async () => {
+      axelarGmpApi.getTasks.mockReturnValueOnce(
+        // @ts-ignore
+        Promise.resolve({
+          data: {
+            tasks: [
+              {
+                type: 'GATEWAY_TX',
+                task: {
+                  executeData: mockExternalData,
+                } as GatewayTransactionTask,
+                id: 'UUID',
+                timestamp: '1234',
+              },
+            ],
+          },
+        }),
+      );
+
+      const userAddress = UserAddress.newFromBech32('erd1qqqqqqqqqqqqqpgqhe8t5jewej70zupmh44jurgn29psua5l2jps3ntjj3');
       walletSigner.getAddress.mockReturnValueOnce(userAddress);
       const transaction: DeepMocked<Transaction> = createMock();
       gatewayContract.buildTransactionExternalFunction.mockReturnValueOnce(transaction);
       transactionsHelper.getTransactionGas.mockRejectedValueOnce(new Error('Network error'));
 
-      await service.handleNewApprovalsRaw();
-      // Process a message
-      const message: SubscribeToApprovalsResponse = {
-        chain: 'multiversx',
-        executeData: Uint8Array.of(1, 2, 3, 4),
-        blockHeight: 1,
-      };
-      observable.next(message);
-
-      // Wait a bit so promises finish executing
-      await new Promise((resolve) => {
-        setTimeout(resolve, 500);
-      });
+      await service.handleNewTasksRaw();
 
       expect(transactionsHelper.getTransactionGas).toHaveBeenCalledTimes(1);
       expect(transactionsHelper.getTransactionGas).toHaveBeenCalledWith(transaction, 0);
 
-      expect(redisCacheService.set).toHaveBeenCalledTimes(1);
-      expect(redisCacheService.set).toHaveBeenCalledWith(
-        CacheInfo.StartProcessHeight().key,
-        message.blockHeight - 1,
-        CacheInfo.StartProcessHeight().ttl,
-      );
+      expect(redisCacheService.set).not.toHaveBeenCalled();
 
+      // Mock lastUUID
       redisCacheService.get.mockImplementation(() => {
-        return Promise.resolve(1);
+        return Promise.resolve('lastUUID1');
       });
 
-      const newObservable = new Subject<SubscribeToApprovalsResponse>();
-      grpcService.subscribeToApprovals.mockReturnValueOnce(newObservable);
-
-      // Will re-initialize the subscription with same block height
-      await service.handleNewApprovalsRaw();
+      // Will start processing tasks from lastUUID1
+      await service.handleNewTasksRaw();
 
       expect(redisCacheService.get).toHaveBeenCalledTimes(2);
-      expect(grpcService.subscribeToApprovals).toHaveBeenCalledTimes(2);
-      expect(grpcService.subscribeToApprovals).toHaveBeenCalledWith('multiversx', 1);
-    });
-
-    it('Should reinitialize subscription on complete or on error', async () => {
-      const observable = new Subject<SubscribeToApprovalsResponse>();
-      grpcService.subscribeToApprovals.mockReturnValueOnce(observable);
-
-      await service.handleNewApprovalsRaw();
-
-      observable.complete();
-
-      const newObservable = new Subject<SubscribeToApprovalsResponse>();
-      grpcService.subscribeToApprovals.mockReturnValueOnce(newObservable);
-
-      await service.handleNewApprovalsRaw();
-
-      expect(redisCacheService.get).toHaveBeenCalledTimes(2);
-      expect(grpcService.subscribeToApprovals).toHaveBeenCalledTimes(2);
-
-      newObservable.error(new Error('Network error'));
-
-      const newNewObservable = new Subject<SubscribeToApprovalsResponse>();
-      grpcService.subscribeToApprovals.mockReturnValueOnce(newNewObservable);
-
-      await service.handleNewApprovalsRaw();
-
-      expect(redisCacheService.get).toHaveBeenCalledTimes(3);
-      expect(grpcService.subscribeToApprovals).toHaveBeenCalledTimes(3);
+      expect(axelarGmpApi.getTasks).toHaveBeenCalledTimes(2);
+      expect(axelarGmpApi.getTasks).toHaveBeenCalledWith('multiversx', 'lastUUID1');
     });
   });
 
@@ -289,7 +431,7 @@ describe('ApprovalsProcessorService', () => {
 
       expect(gatewayContract.buildTransactionExternalFunction).toHaveBeenCalledTimes(1);
       expect(gatewayContract.buildTransactionExternalFunction).toHaveBeenCalledWith(
-        BinaryUtils.hexToString(externalData.toString('hex')),
+        BinaryUtils.base64Decode(externalData),
         userAddress,
         1,
       );

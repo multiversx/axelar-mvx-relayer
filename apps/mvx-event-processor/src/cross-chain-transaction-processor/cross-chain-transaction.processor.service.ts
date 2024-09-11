@@ -1,32 +1,32 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { Locker } from '@multiversx/sdk-nestjs-common';
-import { ApiConfigService, CacheInfo, GatewayContract, GrpcService } from '@mvx-monorepo/common';
-import { ContractCallEventRepository } from '@mvx-monorepo/common/database/repository/contract-call-event.repository';
+import { ApiConfigService, AxelarGmpApi, CacheInfo } from '@mvx-monorepo/common';
 import { RedisHelper } from '@mvx-monorepo/common/helpers/redis.helper';
-import { ITransactionEvent, ITransactionOnNetwork } from '@multiversx/sdk-core/out';
-import { ProxyNetworkProvider } from '@multiversx/sdk-network-providers/out';
-import { EventIdentifiers, Events } from '@mvx-monorepo/common/utils/event.enum';
-import { ContractCallEventStatus } from '@prisma/client';
-import { CONSTANTS } from '@mvx-monorepo/common/utils/constants.enum';
+import { ProxyNetworkProvider, TransactionOnNetwork } from '@multiversx/sdk-network-providers/out';
+import { GasServiceProcessor, GatewayProcessor } from './processors';
+import { AxiosError } from 'axios';
 
 @Injectable()
 export class CrossChainTransactionProcessorService {
-  private readonly logger: Logger;
   private readonly contractGateway: string;
+  private readonly contractGasService: string;
+  private readonly logger: Logger;
 
   constructor(
-    private readonly contractCallEventRepository: ContractCallEventRepository,
-    private readonly grpcService: GrpcService,
+    private readonly gatewayProcessor: GatewayProcessor,
+    private readonly gasServiceProcessor: GasServiceProcessor,
+    private readonly axelarGmpApi: AxelarGmpApi,
     private readonly redisHelper: RedisHelper,
     private readonly proxy: ProxyNetworkProvider,
-    private readonly gatewayContract: GatewayContract,
     apiConfigService: ApiConfigService,
   ) {
     this.contractGateway = apiConfigService.getContractGateway();
+    this.contractGasService = apiConfigService.getContractGasService();
     this.logger = new Logger(CrossChainTransactionProcessorService.name);
   }
 
+  // TODO: Change this to use RabbitMQ instead?
   // Runs every 15 seconds
   @Cron('*/15 * * * * *')
   async processCrossChainTransactions() {
@@ -40,6 +40,8 @@ export class CrossChainTransactionProcessorService {
 
     for (const txHash of txHashes) {
       try {
+        // TODO: This does not return the fee, although the gateway returns it
+        // Will need to get the fee in order to send it to the Axelar GMP API
         const transaction = await this.proxy.getTransaction(txHash);
 
         // Wait for transaction to be finished
@@ -59,81 +61,45 @@ export class CrossChainTransactionProcessorService {
     }
   }
 
-  private async handleEvents(transaction: ITransactionOnNetwork) {
+  private async handleEvents(transaction: TransactionOnNetwork) {
+    const eventsToSend = [];
+
     for (const [index, rawEvent] of transaction.logs.events.entries()) {
-      if (rawEvent.address.bech32() !== this.contractGateway) {
+      const address = rawEvent.address.bech32();
+
+      if (address === this.contractGateway) {
+        const event = await this.gatewayProcessor.handleGatewayEvent(rawEvent, transaction, index);
+
+        if (event) {
+          eventsToSend.push(event);
+        }
+
         continue;
       }
 
-      const eventName = rawEvent.topics?.[0]?.toString();
+      if (address === this.contractGasService) {
+        const event = this.gasServiceProcessor.handleGasServiceEvent(rawEvent, transaction, index);
 
-      if (rawEvent.identifier === EventIdentifiers.CALL_CONTRACT && eventName === Events.CONTRACT_CALL_EVENT) {
-        await this.handleContractCallEvent(rawEvent, transaction.hash, index);
-
-        continue;
-      }
-
-      if (rawEvent.identifier === EventIdentifiers.ROTATE_SIGNERS && eventName === Events.SIGNERS_ROTATED_EVENT) {
-        await this.handleSignersRotatedEvent(rawEvent, transaction.hash, index);
+        if (event) {
+          eventsToSend.push(event);
+        }
       }
     }
-  }
 
-  private async handleContractCallEvent(rawEvent: ITransactionEvent, txHash: string, index: number) {
-    const event = this.gatewayContract.decodeContractCallEvent(rawEvent);
-
-    const contractCallEvent = await this.contractCallEventRepository.create({
-      txHash: txHash,
-      eventIndex: index,
-      status: ContractCallEventStatus.PENDING,
-      sourceAddress: event.sender.bech32(),
-      sourceChain: CONSTANTS.SOURCE_CHAIN_NAME,
-      destinationAddress: event.destinationAddress,
-      destinationChain: event.destinationChain,
-      payloadHash: event.payloadHash,
-      payload: event.payload,
-      retry: 0,
-    });
-
-    // A duplicate might exist in the database, so we can skip creation in this case
-    if (!contractCallEvent) {
+    if (!eventsToSend.length) {
       return;
     }
 
-    this.grpcService.verify(contractCallEvent);
-  }
+    try {
+      await this.axelarGmpApi.postEvents(eventsToSend, transaction.hash);
+    } catch (e) {
+      this.logger.error('Could not send all events to GMP API...', e);
 
-  private async handleSignersRotatedEvent(rawEvent: ITransactionEvent, txHash: string, index: number) {
-    const weightedSigners = this.gatewayContract.decodeSignersRotatedEvent(rawEvent);
-
-    // The id needs to have `0x` in front of the txHash (hex string)
-    const id = `0x${txHash}-${index}`;
-
-    // TODO: Test that this works correctly
-    const response = await this.grpcService.verifyVerifierSet(
-      id,
-      weightedSigners.signers,
-      weightedSigners.threshold,
-      weightedSigners.nonce,
-    );
-
-    if (response.published) {
-      return;
-    }
-
-    this.logger.warn(`Couldn't dispatch verifyWorkerSet ${id} to Amplifier API. Retrying...`);
-
-    setTimeout(async () => {
-      const response = await this.grpcService.verifyVerifierSet(
-        id,
-        weightedSigners.signers,
-        weightedSigners.threshold,
-        weightedSigners.nonce,
-      );
-
-      if (!response.published) {
-        this.logger.error(`Couldn't dispatch verifyWorkerSet ${id} to Amplifier API.`);
+      if (e instanceof AxiosError) {
+        this.logger.error(e.response);
       }
-    }, 60_000);
+
+      throw e;
+    }
   }
 }

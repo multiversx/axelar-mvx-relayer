@@ -2,7 +2,7 @@ import {
   AbiRegistry,
   BigUIntValue,
   IAddress,
-  ResultsParser,
+  ITransactionEvent,
   SmartContract,
   StringValue,
   Transaction,
@@ -10,7 +10,6 @@ import {
 } from '@multiversx/sdk-core/out';
 import { Injectable } from '@nestjs/common';
 import { Events } from '../utils/event.enum';
-import { TransactionEvent } from '@multiversx/sdk-network-providers/out';
 import {
   GasAddedEvent,
   GasPaidForContractCallEvent,
@@ -26,7 +25,6 @@ export class GasServiceContract {
   constructor(
     private readonly smartContract: SmartContract,
     private readonly abi: AbiRegistry,
-    private readonly resultsParser: ResultsParser,
   ) {}
 
   collectFees(sender: IAddress, tokens: string[], amounts: BigNumber[]): Transaction {
@@ -41,9 +39,9 @@ export class GasServiceContract {
       .buildTransaction();
   }
 
-  decodeGasPaidForContractCallEvent(event: TransactionEvent): GasPaidForContractCallEvent {
+  decodeGasPaidForContractCallEvent(event: ITransactionEvent): GasPaidForContractCallEvent {
     const eventDefinition = this.abi.getEvent(Events.GAS_PAID_FOR_CONTRACT_CALL_EVENT);
-    const outcome = this.resultsParser.parseEvent(event, eventDefinition);
+    const outcome = DecodingUtils.parseTransactionEvent(event, eventDefinition);
 
     return {
       sender: outcome.sender,
@@ -58,9 +56,9 @@ export class GasServiceContract {
     };
   }
 
-  decodeNativeGasPaidForContractCallEvent(event: TransactionEvent): GasPaidForContractCallEvent {
+  decodeNativeGasPaidForContractCallEvent(event: ITransactionEvent): GasPaidForContractCallEvent {
     const eventDefinition = this.abi.getEvent(Events.NATIVE_GAS_PAID_FOR_CONTRACT_CALL_EVENT);
-    const outcome = this.resultsParser.parseEvent(event, eventDefinition);
+    const outcome = DecodingUtils.parseTransactionEvent(event, eventDefinition);
 
     return {
       sender: outcome.sender,
@@ -75,9 +73,9 @@ export class GasServiceContract {
     };
   }
 
-  decodeGasAddedEvent(event: TransactionEvent): GasAddedEvent {
+  decodeGasAddedEvent(event: ITransactionEvent): GasAddedEvent {
     const eventDefinition = this.abi.getEvent(Events.GAS_ADDED_EVENT);
-    const outcome = this.resultsParser.parseEvent(event, eventDefinition);
+    const outcome = DecodingUtils.parseTransactionEvent(event, eventDefinition);
 
     return {
       txHash: outcome.tx_hash.toString('hex'),
@@ -90,9 +88,9 @@ export class GasServiceContract {
     };
   }
 
-  decodeNativeGasAddedEvent(event: TransactionEvent): GasAddedEvent {
+  decodeNativeGasAddedEvent(event: ITransactionEvent): GasAddedEvent {
     const eventDefinition = this.abi.getEvent(Events.NATIVE_GAS_ADDED_EVENT);
-    const outcome = this.resultsParser.parseEvent(event, eventDefinition);
+    const outcome = DecodingUtils.parseTransactionEvent(event, eventDefinition);
 
     return {
       txHash: outcome.tx_hash.toString('hex'),
@@ -105,9 +103,9 @@ export class GasServiceContract {
     };
   }
 
-  decodeRefundedEvent(event: TransactionEvent): RefundedEvent {
+  decodeRefundedEvent(event: ITransactionEvent): RefundedEvent {
     const eventDefinition = this.abi.getEvent(Events.REFUNDED_EVENT);
-    const outcome = this.resultsParser.parseEvent(event, eventDefinition);
+    const outcome = DecodingUtils.parseTransactionEvent(event, eventDefinition);
 
     const token = outcome.data.token.toString();
 

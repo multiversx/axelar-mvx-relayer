@@ -48,7 +48,7 @@ describe('MessageApprovedProcessorService', () => {
         }),
       ),
     );
-    proxy.doPostGeneric.mockImplementation((url: string, _: any): Promise<any> => {
+    proxy.doPostGeneric.mockImplementation((url: string): Promise<any> => {
       if (url === 'transaction/cost') {
         return Promise.resolve({
           txGasUnits: 10_000_000,
@@ -73,11 +73,9 @@ describe('MessageApprovedProcessorService', () => {
 
   const createMessageApproved = async (extraData: Partial<MessageApproved> = {}): Promise<MessageApproved> => {
     const result = await messageApprovedRepository.create({
-      commandId: '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15aa',
-      txHash: 'txHashA',
-      status: MessageApprovedStatus.PENDING,
       sourceAddress: 'sourceAddress',
       messageId: 'messageId',
+      status: MessageApprovedStatus.PENDING,
       sourceChain: 'ethereum',
       contractAddress: 'erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7',
       payloadHash: 'ebc84cbd75ba5516bf45e7024a9e12bc3c5c880f73e3a5beca7ebba52b2867a7',
@@ -109,10 +107,8 @@ describe('MessageApprovedProcessorService', () => {
   it('Should send execute transaction two initial', async () => {
     const originalFirstEntry = await createMessageApproved();
     const originalSecondEntry = await createMessageApproved({
-      commandId: '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15bb',
-      messageId: 'messageId2',
-      txHash: 'txHashB',
       sourceChain: 'polygon',
+      messageId: 'messageId2',
       sourceAddress: 'otherSourceAddress',
       payload: Buffer.from('otherPayload'),
     });
@@ -147,7 +143,10 @@ describe('MessageApprovedProcessorService', () => {
     expect(await messageApprovedRepository.findPending()).toEqual([]);
 
     // Expect entries in database updated
-    const firstEntry = await messageApprovedRepository.findByCommandId(originalFirstEntry.commandId);
+    const firstEntry = await messageApprovedRepository.findBySourceChainAndMessageId(
+      originalFirstEntry.sourceChain,
+      originalFirstEntry.messageId,
+    );
     expect(firstEntry).toEqual({
       ...originalFirstEntry,
       retry: 1,
@@ -155,7 +154,10 @@ describe('MessageApprovedProcessorService', () => {
       updatedAt: expect.any(Date),
     });
 
-    const secondEntry = await messageApprovedRepository.findByCommandId(originalSecondEntry.commandId);
+    const secondEntry = await messageApprovedRepository.findBySourceChainAndMessageId(
+      originalSecondEntry.sourceChain,
+      originalSecondEntry.messageId,
+    );
     expect(secondEntry).toEqual({
       ...originalSecondEntry,
       retry: 1,
@@ -171,10 +173,8 @@ describe('MessageApprovedProcessorService', () => {
       updatedAt: new Date(new Date().getTime() - 60_500),
     });
     const originalSecondEntry = await createMessageApproved({
-      commandId: '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15bb',
-      messageId: 'messageId2',
-      txHash: 'txHashB',
       sourceChain: 'polygon',
+      messageId: 'messageId2',
       sourceAddress: 'otherSourceAddress',
       payload: Buffer.from('otherPayload'),
       retry: 3,
@@ -182,9 +182,7 @@ describe('MessageApprovedProcessorService', () => {
     });
     // Entry will not be processed (updated too early)
     const originalThirdEntry = await createMessageApproved({
-      commandId: '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15cc',
       messageId: 'messageId3',
-      txHash: 'txHashC',
       retry: 1,
     });
 
@@ -212,7 +210,10 @@ describe('MessageApprovedProcessorService', () => {
     expect(await messageApprovedRepository.findPending()).toEqual([]);
 
     // Expect entries in database updated
-    const firstEntry = await messageApprovedRepository.findByCommandId(originalFirstEntry.commandId);
+    const firstEntry = await messageApprovedRepository.findBySourceChainAndMessageId(
+      originalFirstEntry.sourceChain,
+      originalFirstEntry.messageId,
+    );
     expect(firstEntry).toEqual({
       ...originalFirstEntry,
       retry: 2,
@@ -220,7 +221,10 @@ describe('MessageApprovedProcessorService', () => {
       updatedAt: expect.any(Date),
     });
 
-    const secondEntry = await messageApprovedRepository.findByCommandId(originalSecondEntry.commandId);
+    const secondEntry = await messageApprovedRepository.findBySourceChainAndMessageId(
+      originalSecondEntry.sourceChain,
+      originalSecondEntry.messageId,
+    );
     expect(secondEntry).toEqual({
       ...originalSecondEntry,
       status: MessageApprovedStatus.FAILED,
@@ -228,7 +232,10 @@ describe('MessageApprovedProcessorService', () => {
     });
 
     // Was not updated
-    const thirdEntry = await messageApprovedRepository.findByCommandId(originalThirdEntry.commandId);
+    const thirdEntry = await messageApprovedRepository.findBySourceChainAndMessageId(
+      originalThirdEntry.sourceChain,
+      originalThirdEntry.messageId,
+    );
     expect(thirdEntry).toEqual({
       ...originalThirdEntry,
     });
@@ -237,10 +244,8 @@ describe('MessageApprovedProcessorService', () => {
   it('Should send execute transaction not successfully sent', async () => {
     const originalFirstEntry = await createMessageApproved();
     const originalSecondEntry = await createMessageApproved({
-      commandId: '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15bb',
-      messageId: 'messageId2',
-      txHash: 'txHashB',
       sourceChain: 'polygon',
+      messageId: 'messageId2',
       sourceAddress: 'otherSourceAddress',
       payload: Buffer.from('otherPayload'),
       retry: 2,
@@ -268,14 +273,20 @@ describe('MessageApprovedProcessorService', () => {
     expect(await messageApprovedRepository.findPending()).toEqual([]);
 
     // Expect entries in database to NOT be updated
-    const firstEntry = await messageApprovedRepository.findByCommandId(originalFirstEntry.commandId);
+    const firstEntry = await messageApprovedRepository.findBySourceChainAndMessageId(
+      originalFirstEntry.sourceChain,
+      originalFirstEntry.messageId,
+    );
     expect(firstEntry).toEqual({
       ...originalFirstEntry,
       retry: 1, // retry is set to 1
       updatedAt: expect.any(Date),
     });
 
-    const secondEntry = await messageApprovedRepository.findByCommandId(originalSecondEntry.commandId);
+    const secondEntry = await messageApprovedRepository.findBySourceChainAndMessageId(
+      originalSecondEntry.sourceChain,
+      originalSecondEntry.messageId,
+    );
     expect(secondEntry).toEqual({
       ...originalSecondEntry,
       retry: 2, // retry stays the same
@@ -299,8 +310,6 @@ describe('MessageApprovedProcessorService', () => {
       });
       const originalItsExecute = await createMessageApproved({
         contractAddress,
-        commandId: '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15bb',
-        txHash: 'txHashB',
         sourceChain: 'polygon',
         sourceAddress: 'otherSourceAddress',
         payload: Buffer.from(AbiCoder.defaultAbiCoder().encode(['uint256'], [1]).substring(2), 'hex'),
@@ -336,7 +345,10 @@ describe('MessageApprovedProcessorService', () => {
       expect(await messageApprovedRepository.findPending()).toEqual([]);
 
       // Expect entries in database updated
-      const itsExecuteOther = await messageApprovedRepository.findByCommandId(originalItsExecuteOther.commandId);
+      const itsExecuteOther = await messageApprovedRepository.findBySourceChainAndMessageId(
+        originalItsExecuteOther.sourceChain,
+        originalItsExecuteOther.messageId,
+      );
       expect(itsExecuteOther).toEqual({
         ...originalItsExecuteOther,
         retry: 1,
@@ -345,7 +357,10 @@ describe('MessageApprovedProcessorService', () => {
         successTimes: null,
       });
 
-      const itsExecute = await messageApprovedRepository.findByCommandId(originalItsExecute.commandId);
+      const itsExecute = await messageApprovedRepository.findBySourceChainAndMessageId(
+        originalItsExecute.sourceChain,
+        originalItsExecute.messageId,
+      );
       expect(itsExecute).toEqual({
         ...originalItsExecute,
         retry: 1,
@@ -358,8 +373,6 @@ describe('MessageApprovedProcessorService', () => {
     it('Should send execute transaction deploy interchain token 2 times', async () => {
       const originalItsExecute = await createMessageApproved({
         contractAddress,
-        commandId: '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15bb',
-        txHash: 'txHashB',
         sourceChain: 'polygon',
         sourceAddress: 'otherSourceAddress',
         payload: Buffer.from(AbiCoder.defaultAbiCoder().encode(['uint256'], [1]).substring(2), 'hex'),
@@ -388,7 +401,10 @@ describe('MessageApprovedProcessorService', () => {
       expect(await messageApprovedRepository.findPending()).toEqual([]);
 
       // @ts-ignore
-      let itsExecute: MessageApproved = await messageApprovedRepository.findByCommandId(originalItsExecute.commandId);
+      let itsExecute: MessageApproved = await messageApprovedRepository.findBySourceChainAndMessageId(
+        originalItsExecute.sourceChain,
+        originalItsExecute.messageId,
+      );
       expect(itsExecute).toEqual({
         ...originalItsExecute,
         retry: 1,
@@ -399,7 +415,15 @@ describe('MessageApprovedProcessorService', () => {
 
       // Mark as last updated more than 1 minute ago
       itsExecute.updatedAt = new Date(new Date().getTime() - 60_500);
-      await prisma.messageApproved.update({ where: { commandId: itsExecute.commandId }, data: itsExecute });
+      await prisma.messageApproved.update({
+        where: {
+          sourceChain_messageId: {
+            sourceChain: itsExecute.sourceChain,
+            messageId: itsExecute.messageId,
+          },
+        },
+        data: itsExecute,
+      });
 
       // Mock 1st transaction executed successfully
       transactionWatcher.awaitCompleted.mockReturnValueOnce(
@@ -417,8 +441,10 @@ describe('MessageApprovedProcessorService', () => {
       expect(transactions).toHaveLength(1);
       expect(transactions[0].getValue()).toBe(50000000000000000n); // assert sent with value 2nd time
 
-      // @ts-ignore
-      itsExecute = await messageApprovedRepository.findByCommandId(originalItsExecute.commandId);
+      itsExecute = (await messageApprovedRepository.findBySourceChainAndMessageId(
+        originalItsExecute.sourceChain,
+        originalItsExecute.messageId,
+      )) as MessageApproved;
       expect(itsExecute).toEqual({
         ...originalItsExecute,
         retry: 2,
@@ -429,7 +455,15 @@ describe('MessageApprovedProcessorService', () => {
 
       // Mark as last updated more than 1 minute ago
       itsExecute.updatedAt = new Date(new Date().getTime() - 60_500);
-      await prisma.messageApproved.update({ where: { commandId: itsExecute.commandId }, data: itsExecute });
+      await prisma.messageApproved.update({
+        where: {
+          sourceChain_messageId: {
+            sourceChain: itsExecute.sourceChain,
+            messageId: itsExecute.messageId,
+          },
+        },
+        data: itsExecute,
+      });
 
       // Process transaction 3rd time will retry transaction not sent
       proxy.sendTransactions.mockReturnValueOnce(Promise.resolve([]));
@@ -440,8 +474,10 @@ describe('MessageApprovedProcessorService', () => {
       expect(transactions).toHaveLength(1);
       expect(transactions[0].getValue()).toBe(50000000000000000n); // assert sent with value
 
-      // @ts-ignore
-      itsExecute = await messageApprovedRepository.findByCommandId(originalItsExecute.commandId);
+      itsExecute = (await messageApprovedRepository.findBySourceChainAndMessageId(
+        originalItsExecute.sourceChain,
+        originalItsExecute.messageId,
+      )) as MessageApproved;
       expect(itsExecute).toEqual({
         ...originalItsExecute,
         retry: 2,
@@ -452,7 +488,15 @@ describe('MessageApprovedProcessorService', () => {
 
       // Mark as last updated more than 1 minute ago
       itsExecute.updatedAt = new Date(new Date().getTime() - 60_500);
-      await prisma.messageApproved.update({ where: { commandId: itsExecute.commandId }, data: itsExecute });
+      await prisma.messageApproved.update({
+        where: {
+          sourceChain_messageId: {
+            sourceChain: itsExecute.sourceChain,
+            messageId: itsExecute.messageId,
+          },
+        },
+        data: itsExecute,
+      });
 
       // Process transaction 3rd time will retry transaction sent
       mockProxySendTransactionsSuccess();
@@ -463,8 +507,10 @@ describe('MessageApprovedProcessorService', () => {
       expect(transactions).toHaveLength(1);
       expect(transactions[0].getValue()).toBe(50000000000000000n); // assert sent with value
 
-      // @ts-ignore
-      itsExecute = await messageApprovedRepository.findByCommandId(originalItsExecute.commandId);
+      itsExecute = (await messageApprovedRepository.findBySourceChainAndMessageId(
+        originalItsExecute.sourceChain,
+        originalItsExecute.messageId,
+      )) as MessageApproved;
       expect(itsExecute).toEqual({
         ...originalItsExecute,
         retry: 3,

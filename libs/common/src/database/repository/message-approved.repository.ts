@@ -6,10 +6,21 @@ import { MessageApproved, MessageApprovedStatus, Prisma } from '@prisma/client';
 export class MessageApprovedRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  create(data: Prisma.MessageApprovedCreateInput): Promise<MessageApproved | null> {
-    return this.prisma.messageApproved.create({
-      data,
-    });
+  async create(data: Prisma.MessageApprovedCreateInput): Promise<MessageApproved | null> {
+    try {
+      return await this.prisma.messageApproved.create({
+        data,
+      });
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError) {
+        // Unique constraint fails
+        if (e.code === 'P2002') {
+          return null;
+        }
+      }
+
+      throw e;
+    }
   }
 
   findPending(page: number = 0, take: number = 10): Promise<MessageApproved[] | null> {
@@ -37,10 +48,13 @@ export class MessageApprovedRepository {
     });
   }
 
-  findByCommandId(commandId: string): Promise<MessageApproved | null> {
+  findBySourceChainAndMessageId(sourceChain: string, messageId: string): Promise<MessageApproved | null> {
     return this.prisma.messageApproved.findUnique({
       where: {
-        commandId: commandId,
+        sourceChain_messageId: {
+          sourceChain,
+          messageId,
+        },
       },
     });
   }
@@ -50,7 +64,10 @@ export class MessageApprovedRepository {
       entries.map((data) => {
         return this.prisma.messageApproved.update({
           where: {
-            commandId: data.commandId,
+            sourceChain_messageId: {
+              sourceChain: data.sourceChain,
+              messageId: data.messageId,
+            },
           },
           data: {
             status: data.status,
@@ -66,7 +83,10 @@ export class MessageApprovedRepository {
   async updateStatusAndSuccessTimes(data: MessageApproved) {
     await this.prisma.messageApproved.update({
       where: {
-        commandId: data.commandId,
+        sourceChain_messageId: {
+          sourceChain: data.sourceChain,
+          messageId: data.messageId,
+        },
       },
       data: {
         status: data.status,

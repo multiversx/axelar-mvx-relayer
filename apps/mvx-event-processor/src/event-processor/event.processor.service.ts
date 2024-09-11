@@ -3,8 +3,9 @@ import { ApiConfigService, CacheInfo } from '@mvx-monorepo/common';
 import { NotifierBlockEvent, NotifierEvent } from './types';
 import { RabbitSubscribe } from '@golevelup/nestjs-rabbitmq';
 import { EVENTS_NOTIFIER_QUEUE } from '../../../../config/configuration';
-import { GatewayProcessor, GasServiceProcessor } from '../processors';
 import { RedisHelper } from '@mvx-monorepo/common/helpers/redis.helper';
+import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
+import { EventIdentifiers, Events } from '@mvx-monorepo/common/utils/event.enum';
 
 @Injectable()
 export class EventProcessorService {
@@ -13,8 +14,6 @@ export class EventProcessorService {
   private readonly logger: Logger;
 
   constructor(
-    private readonly gatewayProcessor: GatewayProcessor,
-    private readonly gasServiceProcessor: GasServiceProcessor,
     private readonly redisHelper: RedisHelper,
     apiConfigService: ApiConfigService,
   ) {
@@ -32,13 +31,14 @@ export class EventProcessorService {
       const crossChainTransactions = new Set<string>();
 
       for (const event of blockEvent.events) {
-        const txHash = await this.handleEvent(event);
+        const shouldHandle = this.handleEvent(event);
 
-        if (txHash) {
-          crossChainTransactions.add(txHash);
+        if (shouldHandle) {
+          crossChainTransactions.add(event.txHash);
         }
       }
 
+      // TODO: Change to use queue here?
       if (crossChainTransactions.size > 0) {
         await this.redisHelper.sadd(CacheInfo.CrossChainTransactions().key, ...crossChainTransactions);
       }
@@ -54,23 +54,36 @@ export class EventProcessorService {
     }
   }
 
-  private async handleEvent(event: NotifierEvent) {
+  private handleEvent(event: NotifierEvent): boolean {
     if (event.address === this.contractGasService) {
       this.logger.debug('Received Gas Service event from MultiversX:');
       this.logger.debug(JSON.stringify(event));
 
-      await this.gasServiceProcessor.handleEvent(event);
+      const eventName = BinaryUtils.base64Decode(event.topics[0]);
 
-      return;
+      return (
+        eventName === Events.GAS_PAID_FOR_CONTRACT_CALL_EVENT ||
+        eventName === Events.NATIVE_GAS_PAID_FOR_CONTRACT_CALL_EVENT ||
+        eventName === Events.GAS_ADDED_EVENT ||
+        eventName === Events.NATIVE_GAS_ADDED_EVENT ||
+        eventName === Events.REFUNDED_EVENT
+      );
     }
 
     if (event.address === this.contractGateway) {
       this.logger.debug('Received Gateway event from MultiversX:');
       this.logger.debug(JSON.stringify(event));
 
-      return await this.gatewayProcessor.handleEvent(event);
+      const eventName = BinaryUtils.base64Decode(event.topics[0]);
+
+      return (
+        (event.identifier === EventIdentifiers.CALL_CONTRACT && eventName === Events.CONTRACT_CALL_EVENT) ||
+        (event.identifier === EventIdentifiers.ROTATE_SIGNERS && eventName === Events.SIGNERS_ROTATED_EVENT) ||
+        (event.identifier === EventIdentifiers.APPROVE_MESSAGES && eventName === Events.MESSAGE_APPROVED_EVENT) ||
+        (event.identifier === EventIdentifiers.VALIDATE_MESSAGE && eventName === Events.MESSAGE_EXECUTED_EVENT)
+      );
     }
 
-    return undefined;
+    return false;
   }
 }

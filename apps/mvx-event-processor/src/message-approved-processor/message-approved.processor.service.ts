@@ -14,7 +14,7 @@ import {
 } from '@multiversx/sdk-core/out';
 import { MessageApproved, MessageApprovedStatus } from '@prisma/client';
 import { TransactionsHelper } from '@mvx-monorepo/common/contracts/transactions.helper';
-import { ApiConfigService, GrpcService } from '@mvx-monorepo/common';
+import { ApiConfigService } from '@mvx-monorepo/common';
 import { ItsContract } from '@mvx-monorepo/common/contracts/its.contract';
 import { Locker } from '@multiversx/sdk-nestjs-common';
 
@@ -33,7 +33,6 @@ export class MessageApprovedProcessorService {
     @Inject(ProviderKeys.WALLET_SIGNER) private readonly walletSigner: UserSigner,
     private readonly transactionsHelper: TransactionsHelper,
     private readonly itsContract: ItsContract,
-    private readonly grpcService: GrpcService,
     apiConfigService: ApiConfigService,
   ) {
     this.logger = new Logger(MessageApprovedProcessorService.name);
@@ -41,6 +40,7 @@ export class MessageApprovedProcessorService {
     this.contractItsAddress = apiConfigService.getContractIts();
   }
 
+  // TODO: Use queues instead?
   @Cron('*/30 * * * * *')
   async processPendingMessageApproved() {
     await Locker.lock('processPendingMessageApproved', async () => {
@@ -63,7 +63,7 @@ export class MessageApprovedProcessorService {
         for (const messageApproved of entries) {
           if (messageApproved.retry === MAX_NUMBER_OF_RETRIES) {
             this.logger.error(
-              `Could not execute MessageApproved transaction with commandId ${messageApproved.commandId} after ${messageApproved.retry} retries`,
+              `Could not execute MessageApproved from ${messageApproved.sourceChain} with message id ${messageApproved.messageId} after ${messageApproved.retry} retries`,
             );
 
             messageApproved.status = MessageApprovedStatus.FAILED;
@@ -74,19 +74,15 @@ export class MessageApprovedProcessorService {
           }
 
           this.logger.debug(
-            `Trying to execute MessageApproved transaction with commandId ${messageApproved.commandId}`,
+            `Trying to execute MessageApproved transaction from ${messageApproved.sourceChain} with message id ${messageApproved.messageId}`,
           );
 
           if (!messageApproved.payload.length) {
-            this.logger.warn(`Retrying to get payload for payload hash ${messageApproved.payloadHash}`);
+            this.logger.error(
+              `Can not send transaction without payload from ${messageApproved.sourceChain} with message id ${messageApproved.messageId}`,
+            );
 
-            messageApproved.payload = await this.grpcService.getPayload(messageApproved.payloadHash);
-          }
-
-          if (!messageApproved.payload.length) {
-            this.logger.warn(`Can not send transaction without payload for commandId ${messageApproved.commandId}`);
-
-            messageApproved.retry += 1;
+            messageApproved.status = MessageApprovedStatus.FAILED;
 
             entriesToUpdate.push(messageApproved);
 
@@ -108,7 +104,7 @@ export class MessageApprovedProcessorService {
         const hashes = await this.transactionsHelper.sendTransactions(transactionsToSend);
 
         if (hashes) {
-          entriesWithTransactions.forEach(entry => {
+          entriesWithTransactions.forEach((entry) => {
             const sent = hashes.includes(entry.executeTxHash as string);
 
             // If not sent revert fields but still save to database so it is retried later and does

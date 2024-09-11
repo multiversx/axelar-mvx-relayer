@@ -4,9 +4,9 @@ export class CacheInfo {
   key: string = "";
   ttl: number = Constants.oneSecond() * 6;
 
-  static StartProcessHeight(): CacheInfo {
+  static LastTaskUUID(): CacheInfo {
     return {
-      key: `startProcessHeight`,
+      key: `lastTaskUUID`,
       ttl: Constants.oneWeek(),
     };
   }

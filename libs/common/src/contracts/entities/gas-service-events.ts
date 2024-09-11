@@ -7,7 +7,7 @@ export interface GasPaidForContractCallEvent {
   destinationAddress: string;
   data: {
     payloadHash: string;
-    gasToken: string | null;
+    gasToken: string | null; // null if EGLD
     gasFeeAmount: BigNumber;
     refundAddress: IAddress;
   };
@@ -17,7 +17,7 @@ export interface GasAddedEvent {
   txHash: string,
   logIndex: number,
   data: {
-    gasToken: string | null,
+    gasToken: string | null, // null if EGLD
     gasFeeAmount: BigNumber,
     refundAddress: IAddress,
   }
@@ -28,7 +28,7 @@ export interface RefundedEvent {
   logIndex: number,
   data: {
     receiver: IAddress,
-    token: string | null,
+    token: string | null, // null if EGLD
     amount: BigNumber,
   }
 }

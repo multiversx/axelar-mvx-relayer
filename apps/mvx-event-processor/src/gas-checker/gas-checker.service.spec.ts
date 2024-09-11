@@ -11,8 +11,8 @@ import { UserAddress } from '@multiversx/sdk-wallet/out/userAddress';
 import BigNumber from 'bignumber.js';
 
 describe('GasCheckerService', () => {
-  const gasServiceAddress = Address.fromBech32('erd1qqqqqqqqqqqqqpgqhe8t5jewej70zupmh44jurgn29psua5l2jps3ntjj3');
-  const userSignerAddress = UserAddress.fromBech32('erd1fsk0cnaag2m78gunfddsvg0y042rf0maxxgz6kvm32kxcl25m0yq8s38vt');
+  const gasServiceAddress = Address.newFromBech32('erd1qqqqqqqqqqqqqpgqhe8t5jewej70zupmh44jurgn29psua5l2jps3ntjj3');
+  const userSignerAddress = UserAddress.newFromBech32('erd1fsk0cnaag2m78gunfddsvg0y042rf0maxxgz6kvm32kxcl25m0yq8s38vt');
 
   let walletSigner: DeepMocked<UserSigner>;
   let transactionsHelper: DeepMocked<TransactionsHelper>;

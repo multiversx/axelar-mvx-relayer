@@ -186,7 +186,11 @@ describe('GatewayContract', () => {
     it('Should decode event', () => {
       const result = contract.decodeMessageExecutedEvent(event);
 
-      expect(result).toEqual('0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15da');
+      expect(result).toEqual({
+        commandId: '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15da',
+        sourceChain: 'ethereum',
+        messageId: 'messageId',
+      });
     });
 
     it('Should throw error while decoding', () => {
