@@ -309,7 +309,7 @@ describe('MessageApprovedProcessorService', () => {
     proxy.sendTransactions.mockImplementation((transactions): Promise<string[]> => {
       return Promise.resolve(transactions.map((transaction: any) => transaction.getHash().toString() as string));
     });
-    proxy.doPostGeneric.mockImplementation((url: string): Promise<any> => {
+    proxy.doPostGeneric.mockImplementation((): Promise<any> => {
       // Mock gas error
       return Promise.resolve(null);
     });
