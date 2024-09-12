@@ -300,6 +300,41 @@ describe('MessageApprovedProcessorService', () => {
     });
   }
 
+  it('Should send execute transaction retry on gas failure', async () => {
+    const originalFirstEntry = await createMessageApproved({
+      retry: 1,
+      updatedAt: new Date(new Date().getTime() - 60_500),
+    });
+
+    proxy.sendTransactions.mockImplementation((transactions): Promise<string[]> => {
+      return Promise.resolve(transactions.map((transaction: any) => transaction.getHash().toString() as string));
+    });
+    proxy.doPostGeneric.mockImplementation((url: string): Promise<any> => {
+      // Mock gas error
+      return Promise.resolve(null);
+    });
+
+    await service.processPendingMessageApproved();
+
+    expect(proxy.getAccount).toHaveBeenCalledTimes(1);
+    expect(proxy.doPostGeneric).toHaveBeenCalledTimes(1);
+    expect(proxy.sendTransactions).toHaveBeenCalledTimes(0);
+
+    // No contract call approved pending remained for now
+    expect(await messageApprovedRepository.findPending()).toEqual([]);
+
+    // Expect entries in database updated
+    const firstEntry = await messageApprovedRepository.findBySourceChainAndMessageId(
+      originalFirstEntry.sourceChain,
+      originalFirstEntry.messageId,
+    );
+    expect(firstEntry).toEqual({
+      ...originalFirstEntry,
+      retry: 2,
+      updatedAt: expect.any(Date),
+    });
+  });
+
   describe('ITS execute', () => {
     const contractAddress = 'erd1qqqqqqqqqqqqqpgq97wezxw6l7lgg7k9rxvycrz66vn92ksh2tssxwf7ep';
 

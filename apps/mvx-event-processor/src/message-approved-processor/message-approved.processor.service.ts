@@ -17,6 +17,7 @@ import { TransactionsHelper } from '@mvx-monorepo/common/contracts/transactions.
 import { ApiConfigService } from '@mvx-monorepo/common';
 import { ItsContract } from '@mvx-monorepo/common/contracts/its.contract';
 import { Locker } from '@multiversx/sdk-nestjs-common';
+import { GasError } from '@mvx-monorepo/common/contracts/entities/gas.error';
 
 // Support a max of 3 retries (mainly because some Interchain Token Service endpoints need to be called 2 times)
 const MAX_NUMBER_OF_RETRIES: number = 3;
@@ -89,16 +90,31 @@ export class MessageApprovedProcessorService {
             continue;
           }
 
-          const transaction = await this.buildAndSignExecuteTransaction(messageApproved, accountNonce);
+          try {
+            const transaction = await this.buildAndSignExecuteTransaction(messageApproved, accountNonce);
 
-          accountNonce++;
+            accountNonce++;
 
-          transactionsToSend.push(transaction);
+            transactionsToSend.push(transaction);
 
-          messageApproved.executeTxHash = transaction.getHash().toString();
-          messageApproved.retry += 1;
+            messageApproved.executeTxHash = transaction.getHash().toString();
+            messageApproved.retry += 1;
 
-          entriesWithTransactions.push(messageApproved);
+            entriesWithTransactions.push(messageApproved);
+          } catch (e) {
+            this.logger.error(
+              `Could not build and sign execute transaction for ${messageApproved.sourceChain} ${messageApproved.messageId}`,
+              e,
+            );
+
+            if (e instanceof GasError) {
+              messageApproved.retry += 1;
+
+              entriesToUpdate.push(messageApproved);
+            } else {
+              throw e;
+            }
+          }
         }
 
         const hashes = await this.transactionsHelper.sendTransactions(transactionsToSend);

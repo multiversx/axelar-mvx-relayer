@@ -4,6 +4,7 @@ import { Transaction, TransactionHash, TransactionWatcher } from '@multiversx/sd
 import { UserAddress } from '@multiversx/sdk-wallet/out/userAddress';
 import { UserSigner } from '@multiversx/sdk-wallet/out';
 import { ApiConfigService } from '@mvx-monorepo/common/config';
+import { GasError } from '@mvx-monorepo/common/contracts/entities/gas.error';
 
 @Injectable()
 export class TransactionsHelper {
@@ -31,10 +32,10 @@ export class TransactionsHelper {
     const result = await this.proxy.doPostGeneric('transaction/cost', transaction.toSendable());
 
     if (!result?.txGasUnits) {
-      throw new Error(`Could not get gas for transaction ${transaction.getHash()} ${JSON.stringify(result)}`);
+      throw new GasError(`Could not get gas for transaction ${transaction.getHash()} ${JSON.stringify(result)}`);
     }
 
-    return Math.ceil(result.txGasUnits * (11 + retry * 2) / 10); // add 10% extra gas initially, and more gas with each retry
+    return Math.ceil((result.txGasUnits * (11 + retry * 2)) / 10); // add 10% extra gas initially, and more gas with each retry
   }
 
   async signAndSendTransactionAndGetNonce(transaction: Transaction, signer: UserSigner) {
@@ -82,9 +83,7 @@ export class TransactionsHelper {
     try {
       const hashes = await this.proxy.sendTransactions(transactions);
 
-      this.logger.log(
-        `Sent ${transactions.length} transactions to proxy: ${hashes}`,
-      );
+      this.logger.log(`Sent ${transactions.length} transactions to proxy: ${hashes}`);
 
       return hashes;
     } catch (e) {
