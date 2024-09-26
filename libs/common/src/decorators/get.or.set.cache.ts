@@ -19,8 +19,6 @@ export function GetOrSetCache(cacheInfoFunc: (...args: any[]) => CacheInfo) {
 
       const cachingService: CacheService = (this as any).cacheService;
 
-      console.log('Caching service', cachingService);
-
       const funcValue = () => childMethod.apply(this, args);
       return await cachingService.getOrSet(key, funcValue, ttl);
     };
