@@ -23,6 +23,7 @@ model MessageApproved {
   createdAt       DateTime              @default(now()) @db.Timestamp(6)
   updatedAt       DateTime              @default(now()) @updatedAt @db.Timestamp(6)
   successTimes    Int?                  @db.SmallInt
+  taskItemId      String?               @db.Uuid
 
   @@id([sourceChain, messageId])
 }

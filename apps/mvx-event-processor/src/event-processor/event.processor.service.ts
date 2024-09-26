@@ -38,7 +38,6 @@ export class EventProcessorService {
         }
       }
 
-      // TODO: Change to use queue here?
       if (crossChainTransactions.size > 0) {
         await this.redisHelper.sadd(CacheInfo.CrossChainTransactions().key, ...crossChainTransactions);
       }

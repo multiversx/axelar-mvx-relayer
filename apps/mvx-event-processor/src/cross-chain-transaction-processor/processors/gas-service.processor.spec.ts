@@ -7,9 +7,13 @@ import { EventIdentifiers, Events } from '@mvx-monorepo/common/utils/event.enum'
 import { Address, ITransactionEvent } from '@multiversx/sdk-core/out';
 import { ApiConfigService, GatewayContract } from '@mvx-monorepo/common';
 import { TransactionEvent, TransactionOnNetwork } from '@multiversx/sdk-network-providers/out';
-import { GasAddedEvent, GasPaidForContractCallEvent } from '@mvx-monorepo/common/contracts/entities/gas-service-events';
+import {
+  GasAddedEvent,
+  GasPaidForContractCallEvent,
+  RefundedEvent,
+} from '@mvx-monorepo/common/contracts/entities/gas-service-events';
 import BigNumber from 'bignumber.js';
-import { Components } from '@mvx-monorepo/common/api/entities/axelar.gmp.api';
+import { Components, GasRefundedEvent } from '@mvx-monorepo/common/api/entities/axelar.gmp.api';
 import { ContractCallEvent } from '@mvx-monorepo/common/contracts/entities/gateway-events';
 import GasCreditEvent = Components.Schemas.GasCreditEvent;
 
@@ -61,7 +65,7 @@ describe('GasServiceProcessor', () => {
       topics: [BinaryUtils.base64Encode(Events.CONTRACT_CALL_EVENT)],
     });
 
-    const result = service.handleGasServiceEvent(rawEvent, createMock(), 0);
+    const result = service.handleGasServiceEvent(rawEvent, createMock(), 0, '100');
 
     expect(result).toBeUndefined();
     expect(gasServiceContract.decodeGasPaidForContractCallEvent).not.toHaveBeenCalled();
@@ -133,7 +137,7 @@ describe('GasServiceProcessor', () => {
       transaction.logs.events = [];
     }
 
-    const result = service.handleGasServiceEvent(rawEvent, transaction, 0);
+    const result = service.handleGasServiceEvent(rawEvent, transaction, 0, '100');
 
     if (!isValid) {
       expect(result).toBeUndefined();
@@ -220,7 +224,7 @@ describe('GasServiceProcessor', () => {
     transaction.hash = 'txHash';
     transaction.sender = Address.fromBech32('erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7');
 
-    const result = service.handleGasServiceEvent(rawEvent, transaction, 0);
+    const result = service.handleGasServiceEvent(rawEvent, transaction, 0, '100');
 
     expect(result).not.toBeUndefined();
     expect(result?.type).toBe('GAS_CREDIT');
@@ -258,6 +262,56 @@ describe('GasServiceProcessor', () => {
       gasServiceContract.decodeNativeGasAddedEvent.mockReturnValueOnce(event);
 
       assertGasAddedEvent(rawEvent, null);
+    });
+  });
+
+  describe('Handle event refunded', () => {
+    const rawEvent: TransactionEvent = TransactionEvent.fromHttpResponse({
+      address: mockGasServiceContract,
+      identifier: 'any',
+      data: '',
+      topics: [BinaryUtils.base64Encode(Events.REFUNDED_EVENT)],
+    });
+
+    const refundedEvent: RefundedEvent = {
+      txHash: 'txHash',
+      logIndex: 1,
+      data: {
+        token: null,
+        amount: new BigNumber('500'),
+        receiver: Address.fromBech32('erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7'),
+      },
+    };
+
+    it('Should handle', () => {
+      gasServiceContract.decodeRefundedEvent.mockReturnValueOnce(refundedEvent);
+
+      const transaction = createMock<TransactionOnNetwork>();
+      transaction.hash = 'txHash';
+      transaction.sender = Address.fromBech32('erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7');
+
+      const result = service.handleGasServiceEvent(rawEvent, transaction, 0, '100');
+
+      expect(result).not.toBeUndefined();
+      expect(result?.type).toBe('GAS_REFUNDED');
+
+      const event = result as GasRefundedEvent;
+
+      expect(event.eventID).toBe('0xtxHash-0');
+      expect(event.messageID).toBe('0xtxHash-1');
+      expect(event.recipientAddress).toBe('erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7');
+      expect(event.refundedAmount).toEqual({
+        tokenID: null,
+        amount: '500',
+      });
+      expect(event.cost).toEqual({
+        amount: '100',
+      });
+      expect(event.meta).toEqual({
+        txID: 'txHash',
+        fromAddress: 'erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7',
+        finalized: true,
+      });
     });
   });
 });

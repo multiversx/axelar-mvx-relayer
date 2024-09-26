@@ -1,7 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EventIdentifiers, Events } from '@mvx-monorepo/common/utils/event.enum';
 import { GasServiceContract } from '@mvx-monorepo/common/contracts/gas-service.contract';
-import { GasAddedEvent, GasPaidForContractCallEvent } from '@mvx-monorepo/common/contracts/entities/gas-service-events';
+import {
+  GasAddedEvent,
+  GasPaidForContractCallEvent,
+  RefundedEvent,
+} from '@mvx-monorepo/common/contracts/entities/gas-service-events';
 import { ITransactionEvent } from '@multiversx/sdk-core/out';
 import { DecodingUtils } from '@mvx-monorepo/common/utils/decoding.utils';
 import { Components } from '@mvx-monorepo/common/api/entities/axelar.gmp.api';
@@ -29,6 +33,7 @@ export class GasServiceProcessor {
     rawEvent: ITransactionEvent,
     transaction: TransactionOnNetwork,
     index: number,
+    fee: string,
   ): Event | undefined {
     const eventName = rawEvent.topics?.[0]?.toString();
 
@@ -81,33 +86,7 @@ export class GasServiceProcessor {
     if (eventName === Events.REFUNDED_EVENT) {
       const event = this.gasServiceContract.decodeRefundedEvent(rawEvent);
 
-      const gasRefundedEvent: GasRefundedEvent = {
-        eventID: DecodingUtils.getEventId(transaction.hash, index),
-        messageID: DecodingUtils.getEventId(event.txHash, event.logIndex),
-        recipientAddress: event.data.receiver.bech32(),
-        refundedAmount: {
-          tokenID: event.data.token,
-          amount: event.data.amount.toFixed(),
-        },
-        cost: {
-          amount: '0', // TODO: How to calculate cost?
-        },
-        meta: {
-          txID: transaction.hash,
-          fromAddress: transaction.sender.bech32(),
-          finalized: true,
-        },
-      };
-
-      this.logger.debug(
-        `Successfully handled gas refunded event from transaction ${transaction.hash}, log index ${index}`,
-        gasRefundedEvent,
-      );
-
-      return {
-        type: 'GAS_REFUNDED',
-        ...gasRefundedEvent,
-      };
+      return this.handleRefundedEvent(event, transaction.sender.bech32(), transaction.hash, index, fee);
     }
 
     return undefined;
@@ -169,6 +148,42 @@ export class GasServiceProcessor {
     return {
       type: 'GAS_CREDIT',
       ...gasCreditEvent,
+    };
+  }
+
+  private handleRefundedEvent(
+    event: RefundedEvent,
+    sender: string,
+    txHash: string,
+    index: number,
+    fee: string,
+  ): Event | undefined {
+    const gasRefundedEvent: GasRefundedEvent = {
+      eventID: DecodingUtils.getEventId(txHash, index),
+      messageID: DecodingUtils.getEventId(event.txHash, event.logIndex),
+      recipientAddress: event.data.receiver.bech32(),
+      refundedAmount: {
+        tokenID: event.data.token,
+        amount: event.data.amount.toFixed(),
+      },
+      cost: {
+        amount: fee,
+      },
+      meta: {
+        txID: txHash,
+        fromAddress: sender,
+        finalized: true,
+      },
+    };
+
+    this.logger.debug(
+      `Successfully handled gas refunded event from transaction ${txHash}, log index ${index}`,
+      gasRefundedEvent,
+    );
+
+    return {
+      type: 'GAS_REFUNDED',
+      ...gasRefundedEvent,
     };
   }
 

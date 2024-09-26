@@ -155,7 +155,7 @@ export class ApprovalsProcessorService {
     if (task.type === 'EXECUTE') {
       const response = task.task as ExecuteTask;
 
-      await this.processExecuteTask(response);
+      await this.processExecuteTask(response, task.id);
 
       return;
     }
@@ -208,7 +208,7 @@ export class ApprovalsProcessorService {
     );
   }
 
-  private async processExecuteTask(response: ExecuteTask) {
+  private async processExecuteTask(response: ExecuteTask, taskItemId: string) {
     const messageApproved = await this.messageApprovedRepository.create({
       sourceChain: response.message.sourceChain,
       messageId: response.message.messageID,
@@ -218,6 +218,7 @@ export class ApprovalsProcessorService {
       payloadHash: BinaryUtils.base64ToHex(response.message.payloadHash),
       payload: Buffer.from(response.payload, 'base64'),
       retry: 0,
+      taskItemId,
     });
 
     if (!messageApproved) {

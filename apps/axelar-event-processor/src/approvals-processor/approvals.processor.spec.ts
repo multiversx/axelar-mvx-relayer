@@ -253,6 +253,7 @@ describe('ApprovalsProcessorService', () => {
         payloadHash: '0234',
         payload: Buffer.from('0123', 'hex'),
         retry: 0,
+        taskItemId: 'UUID',
       });
       expect(redisCacheService.set).toHaveBeenCalledTimes(1);
     });
