@@ -42,7 +42,7 @@ export class MessageApprovedProcessorService {
   }
 
   // TODO: Use queues instead?
-  @Cron('*/30 * * * * *')
+  @Cron('10/15 * * * * *')
   async processPendingMessageApproved() {
     await Locker.lock('processPendingMessageApproved', async () => {
       this.logger.debug('Running processPendingMessageApproved cron');

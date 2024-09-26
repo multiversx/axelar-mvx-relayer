@@ -99,6 +99,11 @@ export class GasServiceProcessor {
         },
       };
 
+      this.logger.debug(
+        `Successfully handled gas refunded event from transaction ${transaction.hash}, log index ${index}`,
+        gasRefundedEvent,
+      );
+
       return {
         type: 'GAS_REFUNDED',
         ...gasRefundedEvent,
@@ -129,6 +134,11 @@ export class GasServiceProcessor {
       },
     };
 
+    this.logger.debug(
+      `Successfully handled gas paid event from transaction ${txHash}, log index ${index}`,
+      gasCreditEvent,
+    );
+
     return {
       type: 'GAS_CREDIT',
       ...gasCreditEvent,
@@ -150,6 +160,11 @@ export class GasServiceProcessor {
         finalized: true,
       },
     };
+
+    this.logger.debug(
+      `Successfully handled gas added event from transaction ${txHash}, log index ${index}`,
+      gasCreditEvent,
+    );
 
     return {
       type: 'GAS_CREDIT',

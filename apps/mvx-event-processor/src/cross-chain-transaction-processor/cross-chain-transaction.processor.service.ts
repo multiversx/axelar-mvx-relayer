@@ -27,8 +27,7 @@ export class CrossChainTransactionProcessorService {
   }
 
   // TODO: Change this to use RabbitMQ instead?
-  // Runs every 15 seconds
-  @Cron('*/15 * * * * *')
+  @Cron('5/15 * * * * *')
   async processCrossChainTransactions() {
     await Locker.lock('processCrossChainTransactions', this.processCrossChainTransactionsRaw.bind(this));
   }

@@ -170,7 +170,6 @@ components:
               type: string
               nullable: true
               x-omitempty: true
-              # TODO: use exact length
               minLength: 1
     MessageExecutedEventMetadata:
       allOf:
@@ -180,7 +179,6 @@ components:
               type: string
               nullable: true
               x-omitempty: true
-              # TODO: use exact length
               minLength: 1
             childMessageIDs:
               type: array
@@ -474,10 +472,12 @@ components:
     TaskType:
       type: string
       enum:
+        - VERIFY
         - GATEWAY_TX
         - EXECUTE
         - REFUND
       x-enum-varnames:
+        - TaskTypeVerify
         - TaskTypeGatewayTransaction
         - TaskTypeExecute
         - TaskTypeRefund
@@ -508,9 +508,10 @@ components:
         name: uuid
     Task:
       oneOf:
-        - $ref: '#/components/schemas/RefundTask'
+        - $ref: '#/components/schemas/VerifyTask'
         - $ref: '#/components/schemas/GatewayTransactionTask'
         - $ref: '#/components/schemas/ExecuteTask'
+        - $ref: '#/components/schemas/RefundTask'
     RefundTask:
       properties:
         message:
@@ -531,6 +532,17 @@ components:
           minLength: 1
       required:
         - executeData
+    VerifyTask:
+      properties:
+        message:
+          $ref: "#/components/schemas/GatewayV2Message"
+        payload:
+          type: string
+          format: byte
+          minLength: 1
+      required:
+        - message
+        - payload
     ExecuteTask:
       properties:
         message:

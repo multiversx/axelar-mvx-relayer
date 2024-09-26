@@ -3,19 +3,22 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { ProviderKeys } from '@mvx-monorepo/common/utils/provider.enum';
 import { UserSigner } from '@multiversx/sdk-wallet/out';
 import { TransactionsHelper } from '@mvx-monorepo/common/contracts/transactions.helper';
-import { CacheInfo } from '@mvx-monorepo/common';
 import { Locker } from '@multiversx/sdk-nestjs-common';
 import { ApiNetworkProvider } from '@multiversx/sdk-network-providers/out';
 import { CONSTANTS } from '@mvx-monorepo/common/utils/constants.enum';
-import { GetOrSetCache } from '@mvx-monorepo/common/decorators/get.or.set.cache';
 import { WegldSwapContract } from '@mvx-monorepo/common/contracts/wegld-swap.contract';
 import { FungibleTokenOfAccountOnNetwork } from '@multiversx/sdk-network-providers/out/tokens';
 import BigNumber from 'bignumber.js';
 import { GasServiceContract } from '@mvx-monorepo/common/contracts/gas-service.contract';
 import { IAddress } from '@multiversx/sdk-network-providers/out/interface';
+import { GetOrSetCache } from '@mvx-monorepo/common/decorators/get.or.set.cache';
+import { CacheInfo } from '@mvx-monorepo/common';
 
-const EGLD_COLLECT_THRESHOLD = new BigNumber('200000000000000000'); // 0.2 EGLD
+const EGLD_COLLECT_THRESHOLD = new BigNumber('300000000000000000'); // 0.3 EGLD
+const EGLD_REFUND_RESERVE = new BigNumber('100000000000000000'); // 0.1 EGLD
+
 const EGLD_LOW_ERROR_THRESHOLD = new BigNumber('100000000000000000'); // 0.1 EGLD
+const WEGLD_CONVERT_THRESHOLD = new BigNumber('200000000000000000'); // 0.2 WEGLD
 
 @Injectable()
 export class GasCheckerService {
@@ -66,8 +69,16 @@ export class GasCheckerService {
   }
 
   private async checkGasServiceFees() {
+    // TODO: Add support for other tokens also
     const tokens = await this.getAccountEgldAndWegld(this.gasServiceContract.getContractAddress());
-    const tokensToCollect = Object.values(tokens).filter((token) => token.balance.gte(EGLD_COLLECT_THRESHOLD));
+    const tokensToCollect = Object.values(tokens)
+      .filter((token) => token.balance.gte(EGLD_COLLECT_THRESHOLD))
+      .map((token) => {
+        // Leave some tokens in the contract in case of refunds
+        token.balance = token.balance.minus(EGLD_REFUND_RESERVE);
+
+        return token;
+      });
 
     if (!tokensToCollect.length) {
       this.logger.log('No fees to collect currently');
@@ -100,7 +111,7 @@ export class GasCheckerService {
   private async checkWalletTokens() {
     const tokens = await this.getAccountEgldAndWegld(this.walletSigner.getAddress());
 
-    if (tokens.wegldToken.balance.gte(EGLD_COLLECT_THRESHOLD)) {
+    if (tokens.wegldToken.balance.gte(WEGLD_CONVERT_THRESHOLD)) {
       this.logger.log(`Trying to convert ${tokens.wegldToken.balance} wegld token to egld for wallet`);
 
       const wegld = tokens.wegldToken;
