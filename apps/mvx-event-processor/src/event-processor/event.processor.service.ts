@@ -38,7 +38,6 @@ export class EventProcessorService {
         }
       }
 
-      // TODO: Change to use queue here?
       if (crossChainTransactions.size > 0) {
         await this.redisHelper.sadd(CacheInfo.CrossChainTransactions().key, ...crossChainTransactions);
       }
@@ -56,32 +55,38 @@ export class EventProcessorService {
 
   private handleEvent(event: NotifierEvent): boolean {
     if (event.address === this.contractGasService) {
-      this.logger.debug('Received Gas Service event from MultiversX:');
-      this.logger.debug(JSON.stringify(event));
-
       const eventName = BinaryUtils.base64Decode(event.topics[0]);
 
-      return (
+      const validEvent =
         eventName === Events.GAS_PAID_FOR_CONTRACT_CALL_EVENT ||
         eventName === Events.NATIVE_GAS_PAID_FOR_CONTRACT_CALL_EVENT ||
         eventName === Events.GAS_ADDED_EVENT ||
         eventName === Events.NATIVE_GAS_ADDED_EVENT ||
-        eventName === Events.REFUNDED_EVENT
-      );
+        eventName === Events.REFUNDED_EVENT;
+
+      if (validEvent) {
+        this.logger.debug('Received Gas Service event from MultiversX:');
+        this.logger.debug(JSON.stringify(event));
+      }
+
+      return validEvent;
     }
 
     if (event.address === this.contractGateway) {
-      this.logger.debug('Received Gateway event from MultiversX:');
-      this.logger.debug(JSON.stringify(event));
-
       const eventName = BinaryUtils.base64Decode(event.topics[0]);
 
-      return (
+      const validEvent =
         (event.identifier === EventIdentifiers.CALL_CONTRACT && eventName === Events.CONTRACT_CALL_EVENT) ||
         (event.identifier === EventIdentifiers.ROTATE_SIGNERS && eventName === Events.SIGNERS_ROTATED_EVENT) ||
         (event.identifier === EventIdentifiers.APPROVE_MESSAGES && eventName === Events.MESSAGE_APPROVED_EVENT) ||
-        (event.identifier === EventIdentifiers.VALIDATE_MESSAGE && eventName === Events.MESSAGE_EXECUTED_EVENT)
-      );
+        (event.identifier === EventIdentifiers.VALIDATE_MESSAGE && eventName === Events.MESSAGE_EXECUTED_EVENT);
+
+      if (validEvent) {
+        this.logger.debug('Received Gateway event from MultiversX:');
+        this.logger.debug(JSON.stringify(event));
+      }
+
+      return validEvent;
     }
 
     return false;

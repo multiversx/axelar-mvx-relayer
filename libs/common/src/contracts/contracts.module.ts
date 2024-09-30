@@ -21,6 +21,7 @@ import { ItsContract } from '@mvx-monorepo/common/contracts/its.contract';
       useFactory: (apiConfigService: ApiConfigService) => {
         return new ProxyNetworkProvider(apiConfigService.getGatewayUrl(), {
           timeout: apiConfigService.getGatewayTimeout(),
+          clientName: 'axelar-mvx-relayer',
         });
       },
       inject: [ApiConfigService],
@@ -30,6 +31,7 @@ import { ItsContract } from '@mvx-monorepo/common/contracts/its.contract';
       useFactory: (apiConfigService: ApiConfigService) => {
         return new ApiNetworkProvider(apiConfigService.getApiUrl(), {
           timeout: apiConfigService.getApiTimeout(),
+          clientName: 'axelar-mvx-relayer',
         });
       },
       inject: [ApiConfigService],

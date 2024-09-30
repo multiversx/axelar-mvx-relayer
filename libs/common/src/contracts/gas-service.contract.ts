@@ -39,6 +39,21 @@ export class GasServiceContract {
       .buildTransaction();
   }
 
+  refund(
+    sender: IAddress,
+    txHash: string,
+    logIndex: string,
+    receiver: string,
+    token: string,
+    amount: string,
+  ): Transaction {
+    return this.smartContract.methods
+      .refund([Buffer.from(txHash, 'hex'), logIndex, receiver, token, amount])
+      .withGasLimit(GasInfo.Refund.value)
+      .withSender(sender)
+      .buildTransaction();
+  }
+
   decodeGasPaidForContractCallEvent(event: ITransactionEvent): GasPaidForContractCallEvent {
     const eventDefinition = this.abi.getEvent(Events.GAS_PAID_FOR_CONTRACT_CALL_EVENT);
     const outcome = DecodingUtils.parseTransactionEvent(event, eventDefinition);

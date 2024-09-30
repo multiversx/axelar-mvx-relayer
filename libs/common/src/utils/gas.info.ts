@@ -12,4 +12,8 @@ export class GasInfo {
   static CollectFeesExtra: GasInfo = {
     value: 1_000_000,
   };
+
+  static Refund: GasInfo = {
+    value: 15_000_000,
+  };
 }

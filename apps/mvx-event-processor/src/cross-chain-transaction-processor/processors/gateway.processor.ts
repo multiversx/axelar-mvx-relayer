@@ -8,11 +8,11 @@ import { GatewayContract } from '@mvx-monorepo/common';
 import { Components } from '@mvx-monorepo/common/api/entities/axelar.gmp.api';
 import { MessageApprovedRepository } from '@mvx-monorepo/common/database/repository/message-approved.repository';
 import { TransactionOnNetwork } from '@multiversx/sdk-network-providers/out';
+import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
 import CallEvent = Components.Schemas.CallEvent;
 import MessageApprovedEvent = Components.Schemas.MessageApprovedEvent;
 import Event = Components.Schemas.Event;
 import MessageExecutedEvent = Components.Schemas.MessageExecutedEvent;
-import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
 
 @Injectable()
 export class GatewayProcessor {
@@ -29,6 +29,7 @@ export class GatewayProcessor {
     rawEvent: ITransactionEvent,
     transaction: TransactionOnNetwork,
     index: number,
+    fee: string,
   ): Promise<Event | undefined> {
     const eventName = rawEvent.topics?.[0]?.toString();
 
@@ -41,7 +42,7 @@ export class GatewayProcessor {
     }
 
     if (rawEvent.identifier === EventIdentifiers.VALIDATE_MESSAGE && eventName === Events.MESSAGE_EXECUTED_EVENT) {
-      return await this.handleMessageExecutedEvent(rawEvent, transaction.sender.bech32(), transaction.hash, index);
+      return await this.handleMessageExecutedEvent(rawEvent, transaction.sender.bech32(), transaction.hash, index, fee);
     }
 
     if (rawEvent.identifier === EventIdentifiers.ROTATE_SIGNERS && eventName === Events.SIGNERS_ROTATED_EVENT) {
@@ -101,7 +102,7 @@ export class GatewayProcessor {
         payloadHash: BinaryUtils.hexToBase64(event.payloadHash),
       },
       cost: {
-        amount: '0', // TODO: How to get amount here?
+        amount: '0', // This will be set later since multiple approvals can happen in the same transaction
       },
       meta: {
         txID: txHash,
@@ -126,45 +127,43 @@ export class GatewayProcessor {
     sender: string,
     txHash: string,
     index: number,
+    fee: string,
   ): Promise<Event | undefined> {
     const messageExecutedEvent = this.gatewayContract.decodeMessageExecutedEvent(rawEvent);
 
-    // TODO: Querying the database is not strictly necessary here, if refactoring to use queues this can be removed
     const messageApproved = await this.messageApprovedRepository.findBySourceChainAndMessageId(
       messageExecutedEvent.sourceChain,
       messageExecutedEvent.messageId,
     );
 
-    if (!messageApproved) {
+    if (messageApproved) {
+      messageApproved.status = MessageApprovedStatus.SUCCESS;
+      messageApproved.successTimes = (messageApproved.successTimes || 0) + 1;
+
+      await this.messageApprovedRepository.updateStatusAndSuccessTimes(messageApproved);
+    } else {
       this.logger.warn(
         `Could not find corresponding message approved for message executed event in database from ${messageExecutedEvent.sourceChain} with message id ${messageExecutedEvent.messageId}`,
       );
-
-      return undefined;
     }
-
-    messageApproved.status = MessageApprovedStatus.SUCCESS;
-    messageApproved.successTimes = (messageApproved.successTimes || 0) + 1;
-
-    await this.messageApprovedRepository.updateStatusAndSuccessTimes(messageApproved);
 
     const messageExecuted: MessageExecutedEvent = {
       eventID: DecodingUtils.getEventId(txHash, index),
       messageID: messageExecutedEvent.messageId,
       sourceChain: messageExecutedEvent.sourceChain,
       cost: {
-        amount: '0', // TODO: How to get amount here?
+        amount: fee,
       },
       meta: {
         txID: txHash,
         fromAddress: sender,
         finalized: true,
       },
-      status: 'SUCCESSFUL', // TODO: Handle reverted?
+      status: 'SUCCESSFUL', // TODO: How to handle reverted?
     };
 
     this.logger.debug(
-      `Successfully executed message from ${messageApproved.sourceChain} with message id ${messageApproved.messageId}`,
+      `Successfully executed message from ${messageExecutedEvent.sourceChain} with message id ${messageExecutedEvent.messageId}`,
     );
 
     return {

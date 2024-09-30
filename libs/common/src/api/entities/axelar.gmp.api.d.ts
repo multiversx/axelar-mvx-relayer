@@ -296,7 +296,7 @@ declare namespace Components {
             refundRecipientAddress: Address;
             remainingGasBalance: Token;
         }
-        export type Task = RefundTask | GatewayTransactionTask | ExecuteTask;
+        export type Task = VerifyTask | GatewayTransactionTask | ExecuteTask | RefundTask;
         export interface TaskItem {
             id: string;
             timestamp: string; // date-time
@@ -304,10 +304,14 @@ declare namespace Components {
             task: Task;
         }
         export type TaskItemID = string;
-        export type TaskType = "GATEWAY_TX" | "EXECUTE" | "REFUND";
+        export type TaskType = "VERIFY" | "GATEWAY_TX" | "EXECUTE" | "REFUND";
         export interface Token {
             tokenID?: string | null;
             amount: BigInt /* ^(0|[1-9]\d*)$ */;
+        }
+        export interface VerifyTask {
+            message: GatewayV2Message;
+            payload: string; // byte
         }
     }
 }
@@ -363,7 +367,7 @@ export interface OperationMethods {
   'healthCheck'(
     parameters?: Parameters<UnknownParamsObject> | null,
     data?: any,
-    config?: AxiosRequestConfig  
+    config?: AxiosRequestConfig
   ): OperationResponse<Paths.HealthCheck.Responses.$200>
   /**
    * getTasks - Poll transaction to be executed on chain
@@ -371,7 +375,7 @@ export interface OperationMethods {
   'getTasks'(
     parameters?: Parameters<Paths.GetTasks.QueryParameters & Paths.GetTasks.PathParameters> | null,
     data?: any,
-    config?: AxiosRequestConfig  
+    config?: AxiosRequestConfig
   ): OperationResponse<Paths.GetTasks.Responses.$200>
 }
 
@@ -383,7 +387,7 @@ export interface PathsDictionary {
     'get'(
       parameters?: Parameters<UnknownParamsObject> | null,
       data?: any,
-      config?: AxiosRequestConfig  
+      config?: AxiosRequestConfig
     ): OperationResponse<Paths.HealthCheck.Responses.$200>
   }
   ['/chains/{chain}/events']: {
@@ -395,10 +399,47 @@ export interface PathsDictionary {
     'get'(
       parameters?: Parameters<Paths.GetTasks.QueryParameters & Paths.GetTasks.PathParameters> | null,
       data?: any,
-      config?: AxiosRequestConfig  
+      config?: AxiosRequestConfig
     ): OperationResponse<Paths.GetTasks.Responses.$200>
   }
 }
 
 export type Client = OpenAPIClient<OperationMethods, PathsDictionary>
 
+export type Address = Components.Schemas.Address;
+export type BigInt = Components.Schemas.BigInt;
+export type CallEvent = Components.Schemas.CallEvent;
+export type CallEventMetadata = Components.Schemas.CallEventMetadata;
+export type CannotExecuteMessageEvent = Components.Schemas.CannotExecuteMessageEvent;
+export type CannotExecuteMessageEventMetadata = Components.Schemas.CannotExecuteMessageEventMetadata;
+export type CannotExecuteMessageReason = Components.Schemas.CannotExecuteMessageReason;
+export type ErrorResponse = Components.Schemas.ErrorResponse;
+export type Event = Components.Schemas.Event;
+export type EventBase = Components.Schemas.EventBase;
+export type EventMetadata = Components.Schemas.EventMetadata;
+export type EventType = Components.Schemas.EventType;
+export type ExecuteTask = Components.Schemas.ExecuteTask;
+export type GasCreditEvent = Components.Schemas.GasCreditEvent;
+export type GasRefundedEvent = Components.Schemas.GasRefundedEvent;
+export type GatewayTransactionTask = Components.Schemas.GatewayTransactionTask;
+export type GatewayV2Message = Components.Schemas.GatewayV2Message;
+export type GetTasksResult = Components.Schemas.GetTasksResult;
+export type MessageApprovedEvent = Components.Schemas.MessageApprovedEvent;
+export type MessageApprovedEventMetadata = Components.Schemas.MessageApprovedEventMetadata;
+export type MessageExecutedEvent = Components.Schemas.MessageExecutedEvent;
+export type MessageExecutedEventMetadata = Components.Schemas.MessageExecutedEventMetadata;
+export type MessageExecutionStatus = Components.Schemas.MessageExecutionStatus;
+export type PublishEventAcceptedResult = Components.Schemas.PublishEventAcceptedResult;
+export type PublishEventErrorResult = Components.Schemas.PublishEventErrorResult;
+export type PublishEventResultItem = Components.Schemas.PublishEventResultItem;
+export type PublishEventResultItemBase = Components.Schemas.PublishEventResultItemBase;
+export type PublishEventStatus = Components.Schemas.PublishEventStatus;
+export type PublishEventsRequest = Components.Schemas.PublishEventsRequest;
+export type PublishEventsResult = Components.Schemas.PublishEventsResult;
+export type RefundTask = Components.Schemas.RefundTask;
+export type Task = Components.Schemas.Task;
+export type TaskItem = Components.Schemas.TaskItem;
+export type TaskItemID = Components.Schemas.TaskItemID;
+export type TaskType = Components.Schemas.TaskType;
+export type Token = Components.Schemas.Token;
+export type VerifyTask = Components.Schemas.VerifyTask;

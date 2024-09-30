@@ -9,12 +9,14 @@ import { Transaction, TransactionWatcher } from '@multiversx/sdk-core/out';
 import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
 import { AbiCoder } from 'ethers';
 import { MessageApproved, MessageApprovedStatus } from '@prisma/client';
+import { AxelarGmpApi } from '@mvx-monorepo/common';
 
 const WALLET_SIGNER_ADDRESS = 'erd1fsk0cnaag2m78gunfddsvg0y042rf0maxxgz6kvm32kxcl25m0yq8s38vt';
 
 describe('MessageApprovedProcessorService', () => {
   let proxy: DeepMocked<ProxyNetworkProvider>;
   let transactionWatcher: DeepMocked<TransactionWatcher>;
+  let axelarGmpApi: DeepMocked<AxelarGmpApi>;
   let prisma: PrismaService;
   let messageApprovedRepository: MessageApprovedRepository;
 
@@ -25,6 +27,7 @@ describe('MessageApprovedProcessorService', () => {
   beforeEach(async () => {
     proxy = createMock();
     transactionWatcher = createMock();
+    axelarGmpApi = createMock();
 
     const moduleRef = await Test.createTestingModule({
       imports: [MessageApprovedProcessorModule],
@@ -33,6 +36,8 @@ describe('MessageApprovedProcessorService', () => {
       .useValue(proxy)
       .overrideProvider(TransactionWatcher)
       .useValue(transactionWatcher)
+      .overrideProvider(AxelarGmpApi)
+      .useValue(axelarGmpApi)
       .compile();
 
     prisma = await moduleRef.get(PrismaService);
@@ -179,6 +184,7 @@ describe('MessageApprovedProcessorService', () => {
       payload: Buffer.from('otherPayload'),
       retry: 3,
       updatedAt: new Date(new Date().getTime() - 60_500),
+      taskItemId: '0191ead2-2234-7310-b405-76e787415031',
     });
     // Entry will not be processed (updated too early)
     const originalThirdEntry = await createMessageApproved({
@@ -188,6 +194,10 @@ describe('MessageApprovedProcessorService', () => {
 
     proxy.sendTransactions.mockImplementation((transactions): Promise<string[]> => {
       return Promise.resolve(transactions.map((transaction: any) => transaction.getHash().toString() as string));
+    });
+
+    axelarGmpApi.postEvents.mockImplementation(() => {
+      return Promise.resolve();
     });
 
     await service.processPendingMessageApproved();
@@ -229,6 +239,16 @@ describe('MessageApprovedProcessorService', () => {
       ...originalSecondEntry,
       status: MessageApprovedStatus.FAILED,
       updatedAt: expect.any(Date),
+    });
+
+    expect(axelarGmpApi.postEvents).toHaveBeenCalledTimes(1);
+    // @ts-ignore
+    expect(axelarGmpApi.postEvents.mock.lastCall[0][0]).toEqual({
+      type: 'CANNOT_EXECUTE_MESSAGE',
+      eventID: originalSecondEntry.messageId,
+      taskItemID: originalSecondEntry.taskItemId,
+      reason: 'ERROR',
+      details: '',
     });
 
     // Was not updated

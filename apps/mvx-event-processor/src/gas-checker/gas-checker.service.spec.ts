@@ -125,7 +125,7 @@ describe('GasCheckerService', () => {
           throw new Error('Invalid account');
         }
 
-        return Promise.resolve(new AccountOnNetwork({ balance: new BigNumber('200000000000000000') }));
+        return Promise.resolve(new AccountOnNetwork({ balance: new BigNumber('300000000000000000') }));
       });
       api.getFungibleTokenOfAccount.mockRejectedValue(new Error('No wegld token for address'));
 

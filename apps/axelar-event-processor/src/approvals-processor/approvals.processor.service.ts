@@ -3,16 +3,18 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { AxelarGmpApi } from '@mvx-monorepo/common/api/axelar.gmp.api';
 import { RedisCacheService } from '@multiversx/sdk-nestjs-cache';
-import { CacheInfo } from '@mvx-monorepo/common';
+import { CacheInfo, GasServiceContract } from '@mvx-monorepo/common';
 import { ProviderKeys } from '@mvx-monorepo/common/utils/provider.enum';
 import { UserSigner } from '@multiversx/sdk-wallet/out';
 import { TransactionsHelper } from '@mvx-monorepo/common/contracts/transactions.helper';
 import { GatewayContract } from '@mvx-monorepo/common/contracts/gateway.contract';
 import { PendingTransaction } from './entities/pending-transaction';
 import { CONSTANTS } from '@mvx-monorepo/common/utils/constants.enum';
-import { Components } from '@mvx-monorepo/common/api/entities/axelar.gmp.api';
+import { Components, VerifyTask } from '@mvx-monorepo/common/api/entities/axelar.gmp.api';
 import { MessageApprovedRepository } from '@mvx-monorepo/common/database/repository/message-approved.repository';
 import { MessageApprovedStatus } from '@prisma/client';
+import { ApiNetworkProvider } from '@multiversx/sdk-network-providers/out';
+import BigNumber from 'bignumber.js';
 import TaskItem = Components.Schemas.TaskItem;
 import GatewayTransactionTask = Components.Schemas.GatewayTransactionTask;
 import ExecuteTask = Components.Schemas.ExecuteTask;
@@ -31,16 +33,18 @@ export class ApprovalsProcessorService {
     private readonly transactionsHelper: TransactionsHelper,
     private readonly gatewayContract: GatewayContract,
     private readonly messageApprovedRepository: MessageApprovedRepository,
+    private readonly gasServiceContract: GasServiceContract,
+    private readonly api: ApiNetworkProvider,
   ) {
     this.logger = new Logger(ApprovalsProcessorService.name);
   }
 
-  @Cron('*/30 * * * * *')
+  @Cron('0/20 * * * * *')
   async handleNewTasks() {
     await Locker.lock('handleNewTasks', this.handleNewTasksRaw.bind(this));
   }
 
-  @Cron('*/6 * * * * *')
+  @Cron('3/6 * * * * *')
   async handlePendingTransactions() {
     await Locker.lock('pendingTransactions', this.handlePendingTransactionsRaw.bind(this));
   }
@@ -151,7 +155,7 @@ export class ApprovalsProcessorService {
     if (task.type === 'EXECUTE') {
       const response = task.task as ExecuteTask;
 
-      await this.processExecuteTask(response);
+      await this.processExecuteTask(response, task.id);
 
       return;
     }
@@ -159,20 +163,26 @@ export class ApprovalsProcessorService {
     if (task.type === 'REFUND') {
       const response = task.task as RefundTask;
 
-      this.processRefundTask(response);
+      await this.processRefundTask(response);
+
+      return;
+    }
+
+    if (task.type === 'VERIFY') {
+      const response = task.task as VerifyTask;
+
+      await this.processGatewayTxTask(response.payload);
 
       return;
     }
   }
 
-  // TODO: Check if it is fine to use the same wallet as in the MessageApprovedProcessor
-  // and that no issues happen because of nonce
   private async processGatewayTxTask(externalData: string, retry: number = 0) {
     // The Amplifier for MultiversX encodes the executeData as hex, we need to decode it to string
     // It will have the format `function@arg1HEX@arg2HEX...`
     const decodedExecuteData = BinaryUtils.base64Decode(externalData);
 
-    this.logger.debug(`Trying to execute Gateway execute transaction with externalData:`);
+    this.logger.debug(`Trying to execute Gateway transaction with externalData:`);
     this.logger.debug(decodedExecuteData);
 
     const nonce = await this.transactionsHelper.getAccountNonce(this.walletSigner.getAddress());
@@ -198,8 +208,7 @@ export class ApprovalsProcessorService {
     );
   }
 
-  private async processExecuteTask(response: ExecuteTask) {
-    // TODO: Save data in Redis since it is only needed temporarily if refactoring to use queues?
+  private async processExecuteTask(response: ExecuteTask, taskItemId: string) {
     const messageApproved = await this.messageApprovedRepository.create({
       sourceChain: response.message.sourceChain,
       messageId: response.message.messageID,
@@ -209,6 +218,7 @@ export class ApprovalsProcessorService {
       payloadHash: BinaryUtils.base64ToHex(response.message.payloadHash),
       payload: Buffer.from(response.payload, 'base64'),
       retry: 0,
+      taskItemId,
     });
 
     if (!messageApproved) {
@@ -220,11 +230,54 @@ export class ApprovalsProcessorService {
     }
   }
 
-  // TODO: Handle refunds
-  private processRefundTask(response: RefundTask) {
-    this.logger.warn(
-      `Received a refund task for ${response.message.messageID}. However refunds are not currently supported`,
-      response,
+  private async processRefundTask(response: RefundTask) {
+    let tokenBalance: BigNumber;
+
+    try {
+      if (response.remainingGasBalance.tokenID) {
+        const token = await this.api.getFungibleTokenOfAccount(
+          this.gasServiceContract.getContractAddress(),
+          response.remainingGasBalance.tokenID,
+        );
+
+        tokenBalance = token.balance;
+      } else {
+        const account = await this.api.getAccount(this.gasServiceContract.getContractAddress());
+
+        tokenBalance = account.balance;
+      }
+
+      if (tokenBalance.lt(response.remainingGasBalance.amount)) {
+        throw new Error(
+          `Insufficient balance for token ${response.remainingGasBalance.tokenID || CONSTANTS.EGLD_IDENTIFIER}` +
+            ` in gas service contract ${this.gasServiceContract.getContractAddress()}. Needed ${response.remainingGasBalance.amount},` +
+            ` but balance is ${tokenBalance.toFixed()}`,
+        );
+      }
+    } catch (e) {
+      this.logger.error(
+        `Could not process refund for ${response.message.messageID}, for account ${response.refundRecipientAddress},` +
+          ` token ${response.remainingGasBalance.tokenID}, amount ${response.remainingGasBalance.amount}`,
+        e,
+      );
+
+      return;
+    }
+
+    const [messageTxHash, logIndex] = response.message.messageID.split('-');
+
+    const transaction = this.gasServiceContract.refund(
+      this.walletSigner.getAddress(),
+      messageTxHash.slice(2), // Remove 0x from start
+      logIndex,
+      response.refundRecipientAddress,
+      response.remainingGasBalance.tokenID || CONSTANTS.EGLD_IDENTIFIER,
+      response.remainingGasBalance.amount,
     );
+
+    // TODO: Handle retries in case of transaction failing?
+    const txHash = await this.transactionsHelper.signAndSendTransactionAndGetNonce(transaction, this.walletSigner);
+
+    this.logger.debug(`Processed refund for ${response.message.messageID}, sent transaction ${txHash}`);
   }
 }

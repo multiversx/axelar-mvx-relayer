@@ -14,10 +14,12 @@ import {
 } from '@multiversx/sdk-core/out';
 import { MessageApproved, MessageApprovedStatus } from '@prisma/client';
 import { TransactionsHelper } from '@mvx-monorepo/common/contracts/transactions.helper';
-import { ApiConfigService } from '@mvx-monorepo/common';
+import { ApiConfigService, AxelarGmpApi } from '@mvx-monorepo/common';
 import { ItsContract } from '@mvx-monorepo/common/contracts/its.contract';
 import { Locker } from '@multiversx/sdk-nestjs-common';
 import { GasError } from '@mvx-monorepo/common/contracts/entities/gas.error';
+import { CannotExecuteMessageEvent, Event } from '@mvx-monorepo/common/api/entities/axelar.gmp.api';
+import { AxiosError } from 'axios';
 
 // Support a max of 3 retries (mainly because some Interchain Token Service endpoints need to be called 2 times)
 const MAX_NUMBER_OF_RETRIES: number = 3;
@@ -34,6 +36,7 @@ export class MessageApprovedProcessorService {
     @Inject(ProviderKeys.WALLET_SIGNER) private readonly walletSigner: UserSigner,
     private readonly transactionsHelper: TransactionsHelper,
     private readonly itsContract: ItsContract,
+    private readonly axelarGmpApi: AxelarGmpApi,
     apiConfigService: ApiConfigService,
   ) {
     this.logger = new Logger(MessageApprovedProcessorService.name);
@@ -41,8 +44,7 @@ export class MessageApprovedProcessorService {
     this.contractItsAddress = apiConfigService.getContractIts();
   }
 
-  // TODO: Use queues instead?
-  @Cron('*/30 * * * * *')
+  @Cron('10/15 * * * * *')
   async processPendingMessageApproved() {
     await Locker.lock('processPendingMessageApproved', async () => {
       this.logger.debug('Running processPendingMessageApproved cron');
@@ -63,11 +65,7 @@ export class MessageApprovedProcessorService {
         const entriesWithTransactions: MessageApproved[] = [];
         for (const messageApproved of entries) {
           if (messageApproved.retry === MAX_NUMBER_OF_RETRIES) {
-            this.logger.error(
-              `Could not execute MessageApproved from ${messageApproved.sourceChain} with message id ${messageApproved.messageId} after ${messageApproved.retry} retries`,
-            );
-
-            messageApproved.status = MessageApprovedStatus.FAILED;
+            await this.handleMessageApprovedFailed(messageApproved);
 
             entriesToUpdate.push(messageApproved);
 
@@ -195,5 +193,39 @@ export class MessageApprovedProcessorService {
       messageApproved.payload,
       messageApproved.successTimes || 0,
     );
+  }
+
+  private async handleMessageApprovedFailed(messageApproved: MessageApproved) {
+    this.logger.error(
+      `Could not execute MessageApproved from ${messageApproved.sourceChain} with message id ${messageApproved.messageId} after ${messageApproved.retry} retries`,
+    );
+
+    messageApproved.status = MessageApprovedStatus.FAILED;
+
+    const cannotExecuteEvent: CannotExecuteMessageEvent = {
+      eventID: messageApproved.messageId,
+      taskItemID: messageApproved.taskItemId || '',
+      reason: 'ERROR',
+      details: '',
+    };
+
+    try {
+      const eventsToSend: Event[] = [
+        {
+          type: 'CANNOT_EXECUTE_MESSAGE',
+          ...cannotExecuteEvent,
+        },
+      ];
+
+      await this.axelarGmpApi.postEvents(eventsToSend, messageApproved.executeTxHash || '');
+    } catch (e) {
+      this.logger.error('Could not send all events to GMP API...', e);
+
+      if (e instanceof AxiosError) {
+        this.logger.error(e.response);
+      }
+
+      throw e;
+    }
   }
 }
