@@ -93,7 +93,7 @@ describe('GatewayProcessor', () => {
       topics: [BinaryUtils.base64Encode(Events.NATIVE_GAS_PAID_FOR_CONTRACT_CALL_EVENT)],
     });
 
-    const result = await service.handleGatewayEvent(rawEvent, createMock(), 0, '100');
+    const result = await service.handleGatewayEvent(rawEvent, createMock(), 0, '100', '0');
 
     expect(result).toBeUndefined();
     expect(gatewayContract.decodeContractCallEvent).not.toHaveBeenCalled();
@@ -124,7 +124,7 @@ describe('GatewayProcessor', () => {
       const transaction = createMock<TransactionOnNetwork>();
       transaction.hash = 'txHash';
 
-      const result = await service.handleGatewayEvent(rawEvent, transaction, 0, '100');
+      const result = await service.handleGatewayEvent(rawEvent, transaction, 0, '100', '0');
 
       expect(gatewayContract.decodeContractCallEvent).toBeCalledTimes(1);
 
@@ -175,7 +175,7 @@ describe('GatewayProcessor', () => {
       transaction.hash = 'txHash';
       transaction.sender = Address.newFromBech32('erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7');
 
-      const result = await service.handleGatewayEvent(rawEvent, transaction, 0, '100');
+      const result = await service.handleGatewayEvent(rawEvent, transaction, 0, '100', '0');
 
       expect(gatewayContract.decodeMessageApprovedEvent).toHaveBeenCalledTimes(1);
 
@@ -237,7 +237,7 @@ describe('GatewayProcessor', () => {
 
       messageApprovedRepository.findBySourceChainAndMessageId.mockReturnValueOnce(Promise.resolve(messageApproved));
 
-      const result = await service.handleGatewayEvent(rawEvent, transaction, 0, '100');
+      const result = await service.handleGatewayEvent(rawEvent, transaction, 0, '100', '0');
 
       expect(gatewayContract.decodeMessageExecutedEvent).toHaveBeenCalledTimes(1);
 
@@ -271,7 +271,7 @@ describe('GatewayProcessor', () => {
     it('Should handle event no contract call approved', async () => {
       messageApprovedRepository.findBySourceChainAndMessageId.mockReturnValueOnce(Promise.resolve(null));
 
-      const result = await service.handleGatewayEvent(rawEvent, transaction, 0, '100');
+      const result = await service.handleGatewayEvent(rawEvent, transaction, 0, '100', '20');
 
       expect(gatewayContract.decodeMessageExecutedEvent).toHaveBeenCalledTimes(1);
 
@@ -288,7 +288,7 @@ describe('GatewayProcessor', () => {
       expect(event.messageID).toBe('messageId');
       expect(event.sourceChain).toBe('ethereum');
       expect(event.cost).toEqual({
-        amount: '100',
+        amount: '120',
       });
       expect(event.meta).toEqual({
         txID: 'txHash',
@@ -316,7 +316,7 @@ describe('GatewayProcessor', () => {
     it('Should handle event', async () => {
       gatewayContract.decodeSignersRotatedEvent.mockReturnValueOnce(weightedSigners);
 
-      const result = await service.handleGatewayEvent(rawEvent, createMock(), 0, '100');
+      const result = await service.handleGatewayEvent(rawEvent, createMock(), 0, '100', '0');
 
       expect(gatewayContract.decodeSignersRotatedEvent).toHaveBeenCalledTimes(1);
 

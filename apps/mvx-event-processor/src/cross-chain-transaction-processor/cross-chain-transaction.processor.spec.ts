@@ -171,6 +171,7 @@ describe('CrossChainTransactionProcessor', () => {
     transaction.txHash = 'txHash';
     transaction.status = 'success';
     transaction.fee = '1000';
+    transaction.value = '0';
 
     it('Should handle multiple events', async () => {
       // @ts-ignore
@@ -195,6 +196,7 @@ describe('CrossChainTransactionProcessor', () => {
         expect.any(TransactionOnNetwork),
         1,
         '1000',
+        '0',
       );
 
       expect(axelarGmpApi.postEvents).toHaveBeenCalledTimes(1);
@@ -237,6 +239,7 @@ describe('CrossChainTransactionProcessor', () => {
         expect.any(TransactionOnNetwork),
         1,
         '1000',
+        '0'
       );
 
       expect(axelarGmpApi.postEvents).toHaveBeenCalledTimes(1);

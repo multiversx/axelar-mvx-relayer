@@ -209,6 +209,7 @@ export class ApprovalsProcessorService {
   }
 
   private async processExecuteTask(response: ExecuteTask, taskItemId: string) {
+    // TODO: Should we also save response.availableGasBalance and check if enough gas was payed before executing?
     const messageApproved = await this.messageApprovedRepository.create({
       sourceChain: response.message.sourceChain,
       messageId: response.message.messageID,

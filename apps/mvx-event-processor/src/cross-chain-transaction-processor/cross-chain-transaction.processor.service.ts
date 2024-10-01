@@ -67,7 +67,13 @@ export class CrossChainTransactionProcessorService {
       const address = rawEvent.address.bech32();
 
       if (address === this.contractGateway) {
-        const event = await this.gatewayProcessor.handleGatewayEvent(rawEvent, transaction, index, fee);
+        const event = await this.gatewayProcessor.handleGatewayEvent(
+          rawEvent,
+          transaction,
+          index,
+          fee,
+          transaction.value,
+        );
 
         if (event) {
           eventsToSend.push(event);

@@ -13,6 +13,7 @@ import CallEvent = Components.Schemas.CallEvent;
 import MessageApprovedEvent = Components.Schemas.MessageApprovedEvent;
 import Event = Components.Schemas.Event;
 import MessageExecutedEvent = Components.Schemas.MessageExecutedEvent;
+import BigNumber from 'bignumber.js';
 
 @Injectable()
 export class GatewayProcessor {
@@ -30,6 +31,7 @@ export class GatewayProcessor {
     transaction: TransactionOnNetwork,
     index: number,
     fee: string,
+    transactionValue: string,
   ): Promise<Event | undefined> {
     const eventName = rawEvent.topics?.[0]?.toString();
 
@@ -42,7 +44,14 @@ export class GatewayProcessor {
     }
 
     if (rawEvent.identifier === EventIdentifiers.VALIDATE_MESSAGE && eventName === Events.MESSAGE_EXECUTED_EVENT) {
-      return await this.handleMessageExecutedEvent(rawEvent, transaction.sender.bech32(), transaction.hash, index, fee);
+      return await this.handleMessageExecutedEvent(
+        rawEvent,
+        transaction.sender.bech32(),
+        transaction.hash,
+        index,
+        fee,
+        transactionValue,
+      );
     }
 
     if (rawEvent.identifier === EventIdentifiers.ROTATE_SIGNERS && eventName === Events.SIGNERS_ROTATED_EVENT) {
@@ -128,6 +137,7 @@ export class GatewayProcessor {
     txHash: string,
     index: number,
     fee: string,
+    transactionValue: string,
   ): Promise<Event | undefined> {
     const messageExecutedEvent = this.gatewayContract.decodeMessageExecutedEvent(rawEvent);
 
@@ -152,7 +162,7 @@ export class GatewayProcessor {
       messageID: messageExecutedEvent.messageId,
       sourceChain: messageExecutedEvent.sourceChain,
       cost: {
-        amount: fee,
+        amount: new BigNumber(fee).plus(transactionValue, 10).toFixed(), // Also add transaction value to fee, i.e in case of ITS execute with ESDT issue cost
       },
       meta: {
         txID: txHash,
