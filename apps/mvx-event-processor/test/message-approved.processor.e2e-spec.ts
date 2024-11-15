@@ -246,9 +246,13 @@ describe('MessageApprovedProcessorService', () => {
     expect(axelarGmpApi.postEvents.mock.lastCall[0][0]).toEqual({
       type: 'CANNOT_EXECUTE_MESSAGE',
       eventID: originalSecondEntry.messageId,
-      taskItemID: originalSecondEntry.taskItemId,
+      messageID: originalSecondEntry.messageId,
+      sourceChain: 'multiversx',
       reason: 'ERROR',
       details: '',
+      meta: {
+        taskItemID: originalSecondEntry.taskItemId,
+      },
     });
 
     // Was not updated

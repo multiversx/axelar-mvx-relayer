@@ -152,6 +152,8 @@ describe('GatewayContract', () => {
     it('Should decode event', () => {
       const result = contract.decodeSignersRotatedEvent(event);
 
+      expect(result.epoch).toEqual(new BigNumber('1'));
+      expect(result.signersHash).toEqual('0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15da');
       expect(result.signers).toEqual([
         { signer: '0139472eff6886771a982f3083da5d421f24c29181e63888228dc81ca60d69e1', weight: new BigNumber('1') },
         { signer: '8049d639e5a6980d1cd2392abcce41029cda74a1563523a202f09641cc2618f8', weight: new BigNumber('1') },

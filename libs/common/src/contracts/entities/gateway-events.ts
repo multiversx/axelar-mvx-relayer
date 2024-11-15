@@ -24,7 +24,9 @@ export interface MessageExecutedEvent {
   messageId: string;
 }
 
-export interface WeightedSigners {
+export interface SignersRotatedEvent {
+  epoch: BigNumber;
+  signersHash: string;
   signers: {
     signer: string, // ed25519 public key
     weight: BigNumber,

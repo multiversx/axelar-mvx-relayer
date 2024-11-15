@@ -276,7 +276,7 @@ export class ApprovalsProcessorService {
       response.remainingGasBalance.amount,
     );
 
-    // TODO: Handle retries in case of transaction failing?
+    // If transaction generation fails, the task will be retried in parent function
     const txHash = await this.transactionsHelper.signAndSendTransactionAndGetNonce(transaction, this.walletSigner);
 
     this.logger.debug(`Processed refund for ${response.message.messageID}, sent transaction ${txHash}`);
