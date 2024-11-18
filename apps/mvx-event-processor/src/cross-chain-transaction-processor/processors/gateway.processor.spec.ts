@@ -236,6 +236,7 @@ describe('GatewayProcessor', () => {
         createdAt: new Date(),
         successTimes: null,
         taskItemId: null,
+        availableGasBalance: '0',
       };
 
       messageApprovedRepository.findBySourceChainAndMessageId.mockReturnValueOnce(Promise.resolve(messageApproved));

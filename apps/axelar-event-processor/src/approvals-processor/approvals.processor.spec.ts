@@ -225,7 +225,7 @@ describe('ApprovalsProcessorService', () => {
                 task: {
                   payload: BinaryUtils.hexToBase64('0123'),
                   availableGasBalance: {
-                    amount: '0',
+                    amount: '100',
                   },
                   message: {
                     messageID: 'messageId',
@@ -246,8 +246,8 @@ describe('ApprovalsProcessorService', () => {
 
       await service.handleNewTasksRaw();
 
-      expect(messageApprovedRepository.create).toHaveBeenCalledTimes(1);
-      expect(messageApprovedRepository.create).toHaveBeenCalledWith({
+      expect(messageApprovedRepository.createOrUpdate).toHaveBeenCalledTimes(1);
+      expect(messageApprovedRepository.createOrUpdate).toHaveBeenCalledWith({
         sourceChain: 'ethereum',
         messageId: 'messageId',
         status: MessageApprovedStatus.PENDING,
@@ -257,11 +257,12 @@ describe('ApprovalsProcessorService', () => {
         payload: Buffer.from('0123', 'hex'),
         retry: 0,
         taskItemId: 'UUID',
+        availableGasBalance: '100',
       });
       expect(redisCacheService.set).toHaveBeenCalledTimes(1);
     });
 
-    it('Should handle execute task duplicate in database', async () => {
+    it('Should handle execute task invalid gas token', async () => {
       axelarGmpApi.getTasks.mockReturnValueOnce(
         // @ts-ignore
         Promise.resolve({
@@ -270,16 +271,17 @@ describe('ApprovalsProcessorService', () => {
               {
                 type: 'EXECUTE',
                 task: {
-                  payload: '0123',
+                  payload: BinaryUtils.hexToBase64('0123'),
                   availableGasBalance: {
-                    amount: '0',
+                    tokenID: 'other',
+                    amount: '100',
                   },
                   message: {
                     messageID: 'messageId',
                     destinationAddress: 'destinationAddress',
                     sourceAddress: 'sourceAddress',
                     sourceChain: 'ethereum',
-                    payloadHash: '0234',
+                    payloadHash: BinaryUtils.hexToBase64('0234'),
                   },
                 } as ExecuteTask,
                 id: 'UUID',
@@ -291,11 +293,21 @@ describe('ApprovalsProcessorService', () => {
         }),
       );
 
-      messageApprovedRepository.create.mockReturnValueOnce(Promise.resolve(null));
-
       await service.handleNewTasksRaw();
 
-      expect(messageApprovedRepository.create).toHaveBeenCalledTimes(1);
+      expect(messageApprovedRepository.createOrUpdate).toHaveBeenCalledTimes(1);
+      expect(messageApprovedRepository.createOrUpdate).toHaveBeenCalledWith({
+        sourceChain: 'ethereum',
+        messageId: 'messageId',
+        status: MessageApprovedStatus.PENDING,
+        sourceAddress: 'sourceAddress',
+        contractAddress: 'destinationAddress',
+        payloadHash: '0234',
+        payload: Buffer.from('0123', 'hex'),
+        retry: 0,
+        taskItemId: 'UUID',
+        availableGasBalance: '0',
+      });
       expect(redisCacheService.set).toHaveBeenCalledTimes(1);
     });
 

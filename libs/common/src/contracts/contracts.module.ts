@@ -12,6 +12,7 @@ import { WegldSwapContract } from '@mvx-monorepo/common/contracts/wegld-swap.con
 import { ApiConfigService } from '@mvx-monorepo/common/config';
 import { DynamicModuleUtils } from '@mvx-monorepo/common/utils';
 import { ItsContract } from '@mvx-monorepo/common/contracts/its.contract';
+import { FeeHelper } from '@mvx-monorepo/common/contracts/fee.helper';
 
 @Module({
   imports: [DynamicModuleUtils.getCacheModule()],
@@ -107,6 +108,7 @@ import { ItsContract } from '@mvx-monorepo/common/contracts/its.contract';
       inject: [ApiConfigService, ResultsParser],
     },
     TransactionsHelper,
+    FeeHelper,
   ],
   exports: [
     GatewayContract,
@@ -117,6 +119,7 @@ import { ItsContract } from '@mvx-monorepo/common/contracts/its.contract';
     ProxyNetworkProvider,
     ApiNetworkProvider,
     TransactionsHelper,
+    FeeHelper,
   ],
 })
 export class ContractsModule {}

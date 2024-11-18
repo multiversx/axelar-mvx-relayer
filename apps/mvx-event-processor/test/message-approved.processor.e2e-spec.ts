@@ -63,6 +63,15 @@ describe('MessageApprovedProcessorService', () => {
       return Promise.resolve(null);
     });
 
+    proxy.getNetworkConfig.mockImplementation((): Promise<any> => {
+      return Promise.resolve({
+        MinGasPrice: 1000000000,
+        MinGasLimit: 50000,
+        GasPerDataByte: 1500,
+        GasPriceModifier: 0.01,
+      });
+    });
+
     // Reset database & cache
     await prisma.messageApproved.deleteMany();
 
@@ -77,7 +86,7 @@ describe('MessageApprovedProcessorService', () => {
   });
 
   const createMessageApproved = async (extraData: Partial<MessageApproved> = {}): Promise<MessageApproved> => {
-    const result = await messageApprovedRepository.create({
+    await messageApprovedRepository.createOrUpdate({
       sourceAddress: 'sourceAddress',
       messageId: 'messageId',
       status: MessageApprovedStatus.PENDING,
@@ -89,14 +98,19 @@ describe('MessageApprovedProcessorService', () => {
       executeTxHash: null,
       updatedAt: new Date(),
       createdAt: new Date(),
+      availableGasBalance: '0',
       ...extraData,
     });
 
-    if (!result) {
-      throw new Error('Can not create database entries');
-    }
-
-    return result;
+    // @ts-ignore
+    return await prisma.messageApproved.findUnique({
+      where: {
+        sourceChain_messageId: {
+          sourceChain: extraData.sourceChain || 'ethereum',
+          messageId: extraData.messageId || 'messageId',
+        },
+      },
+    });
   };
 
   const assertArgs = (transaction: Transaction, entry: MessageApproved) => {
@@ -110,12 +124,15 @@ describe('MessageApprovedProcessorService', () => {
   };
 
   it('Should send execute transaction two initial', async () => {
-    const originalFirstEntry = await createMessageApproved();
+    const originalFirstEntry = await createMessageApproved({
+      availableGasBalance: '1200000000000000',
+    });
     const originalSecondEntry = await createMessageApproved({
       sourceChain: 'polygon',
       messageId: 'messageId2',
       sourceAddress: 'otherSourceAddress',
       payload: Buffer.from('otherPayload'),
+      availableGasBalance: '1200000000000000',
     });
 
     proxy.sendTransactions.mockImplementation((transactions): Promise<string[]> => {
@@ -176,6 +193,7 @@ describe('MessageApprovedProcessorService', () => {
     const originalFirstEntry = await createMessageApproved({
       retry: 1,
       updatedAt: new Date(new Date().getTime() - 60_500),
+      availableGasBalance: '1200000000000000',
     });
     const originalSecondEntry = await createMessageApproved({
       sourceChain: 'polygon',
@@ -185,11 +203,13 @@ describe('MessageApprovedProcessorService', () => {
       retry: 3,
       updatedAt: new Date(new Date().getTime() - 60_500),
       taskItemId: '0191ead2-2234-7310-b405-76e787415031',
+      availableGasBalance: '1200000000000000',
     });
     // Entry will not be processed (updated too early)
     const originalThirdEntry = await createMessageApproved({
       messageId: 'messageId3',
       retry: 1,
+      availableGasBalance: '1200000000000000',
     });
 
     proxy.sendTransactions.mockImplementation((transactions): Promise<string[]> => {
@@ -246,13 +266,9 @@ describe('MessageApprovedProcessorService', () => {
     expect(axelarGmpApi.postEvents.mock.lastCall[0][0]).toEqual({
       type: 'CANNOT_EXECUTE_MESSAGE',
       eventID: originalSecondEntry.messageId,
-      messageID: originalSecondEntry.messageId,
-      sourceChain: 'multiversx',
       reason: 'ERROR',
       details: '',
-      meta: {
-        taskItemID: originalSecondEntry.taskItemId,
-      },
+      taskItemID: originalSecondEntry.taskItemId,
     });
 
     // Was not updated
@@ -266,7 +282,9 @@ describe('MessageApprovedProcessorService', () => {
   });
 
   it('Should send execute transaction not successfully sent', async () => {
-    const originalFirstEntry = await createMessageApproved();
+    const originalFirstEntry = await createMessageApproved({
+      availableGasBalance: '1200000000000000',
+    });
     const originalSecondEntry = await createMessageApproved({
       sourceChain: 'polygon',
       messageId: 'messageId2',
@@ -274,6 +292,7 @@ describe('MessageApprovedProcessorService', () => {
       payload: Buffer.from('otherPayload'),
       retry: 2,
       updatedAt: new Date(new Date().getTime() - 60_500),
+      availableGasBalance: '1200000000000000',
     });
 
     proxy.sendTransactions.mockImplementation((): Promise<string[]> => {
@@ -324,10 +343,11 @@ describe('MessageApprovedProcessorService', () => {
     });
   }
 
-  it('Should send execute transaction retry on gas failure', async () => {
+  it('Should send execute transaction do not retry on gas failure', async () => {
     const originalFirstEntry = await createMessageApproved({
       retry: 1,
       updatedAt: new Date(new Date().getTime() - 60_500),
+      availableGasBalance: '1200000000000000',
     });
 
     proxy.sendTransactions.mockImplementation((transactions): Promise<string[]> => {
@@ -336,6 +356,36 @@ describe('MessageApprovedProcessorService', () => {
     proxy.doPostGeneric.mockImplementation((): Promise<any> => {
       // Mock gas error
       return Promise.resolve(null);
+    });
+
+    await service.processPendingMessageApproved();
+
+    expect(proxy.getAccount).toHaveBeenCalledTimes(1);
+    expect(proxy.doPostGeneric).toHaveBeenCalledTimes(1);
+    // Transaction is sent even though it will fail
+    expect(proxy.sendTransactions).toHaveBeenCalledTimes(1);
+
+    // No contract call approved pending remained for now
+    expect(await messageApprovedRepository.findPending()).toEqual([]);
+
+    // Expect entries in database updated
+    const firstEntry = await messageApprovedRepository.findBySourceChainAndMessageId(
+      originalFirstEntry.sourceChain,
+      originalFirstEntry.messageId,
+    );
+    expect(firstEntry).toEqual({
+      ...originalFirstEntry,
+      executeTxHash: '90d4f525856840a5c9c8115a30e87d823ac8261b298ca4ecb42f1b806fec363c',
+      retry: 3,
+      updatedAt: expect.any(Date),
+    });
+  });
+
+  it('Should not send execute transaction if not enough gas', async () => {
+    const originalFirstEntry = await createMessageApproved({
+      retry: 1,
+      updatedAt: new Date(new Date().getTime() - 60_500),
+      availableGasBalance: '300000000000000', // Not enough gas
     });
 
     await service.processPendingMessageApproved();
@@ -354,7 +404,37 @@ describe('MessageApprovedProcessorService', () => {
     );
     expect(firstEntry).toEqual({
       ...originalFirstEntry,
-      retry: 2,
+      status: 'FAILED',
+      retry: 3,
+      updatedAt: expect.any(Date),
+    });
+  });
+
+  it('Should not send execute transaction if not enough gas negative', async () => {
+    const originalFirstEntry = await createMessageApproved({
+      retry: 1,
+      updatedAt: new Date(new Date().getTime() - 60_500),
+      availableGasBalance: '-300000000000000', // Not enough gas negative
+    });
+
+    await service.processPendingMessageApproved();
+
+    expect(proxy.getAccount).toHaveBeenCalledTimes(1);
+    expect(proxy.doPostGeneric).toHaveBeenCalledTimes(1);
+    expect(proxy.sendTransactions).toHaveBeenCalledTimes(0);
+
+    // No contract call approved pending remained for now
+    expect(await messageApprovedRepository.findPending()).toEqual([]);
+
+    // Expect entries in database updated
+    const firstEntry = await messageApprovedRepository.findBySourceChainAndMessageId(
+      originalFirstEntry.sourceChain,
+      originalFirstEntry.messageId,
+    );
+    expect(firstEntry).toEqual({
+      ...originalFirstEntry,
+      status: 'FAILED',
+      retry: 3,
       updatedAt: expect.any(Date),
     });
   });
@@ -366,12 +446,14 @@ describe('MessageApprovedProcessorService', () => {
       const originalItsExecuteOther = await createMessageApproved({
         contractAddress,
         payload: Buffer.from(AbiCoder.defaultAbiCoder().encode(['uint256'], [0]).substring(2), 'hex'),
+        availableGasBalance: '1200000000000000',
       });
       const originalItsExecute = await createMessageApproved({
         contractAddress,
         sourceChain: 'polygon',
         sourceAddress: 'otherSourceAddress',
         payload: Buffer.from(AbiCoder.defaultAbiCoder().encode(['uint256'], [1]).substring(2), 'hex'),
+        availableGasBalance: '1200000000000000',
       });
 
       mockProxySendTransactionsSuccess();
@@ -435,6 +517,7 @@ describe('MessageApprovedProcessorService', () => {
         sourceChain: 'polygon',
         sourceAddress: 'otherSourceAddress',
         payload: Buffer.from(AbiCoder.defaultAbiCoder().encode(['uint256'], [1]).substring(2), 'hex'),
+        availableGasBalance: '51200000000000000', // also contains 0.05 EGLD for ESDT issue
       });
 
       mockProxySendTransactionsSuccess();
@@ -576,6 +659,36 @@ describe('MessageApprovedProcessorService', () => {
         executeTxHash: 'ef05047f045cc3769eaa31130ce1efa4c558367df7920327b57d9350ed123dfd',
         updatedAt: expect.any(Date),
         successTimes: 1,
+      });
+    });
+
+    it('Should send execute transaction deploy interchain token only deploy esdt not enough fee', async () => {
+      const originalItsExecute = await createMessageApproved({
+        contractAddress,
+        sourceChain: 'polygon',
+        sourceAddress: 'otherSourceAddress',
+        payload: Buffer.from(AbiCoder.defaultAbiCoder().encode(['uint256'], [1]).substring(2), 'hex'),
+        retry: 1,
+        executeTxHash: '67b2b814e2ec9bdd08f57073f575ec95d160c76ec9ccd4d14395e7824b6b77cc',
+        successTimes: 1,
+        availableGasBalance: '1200000000000000', // not enough fee for paying 0.05 EGLD for ESDT issue
+        updatedAt: new Date(new Date().getTime() - 60_500),
+      });
+
+      // Process transaction for ESDT issue only
+      await service.processPendingMessageApproved();
+
+      expect(proxy.sendTransactions).toHaveBeenCalledTimes(0);
+
+      const itsExecute = (await messageApprovedRepository.findBySourceChainAndMessageId(
+        originalItsExecute.sourceChain,
+        originalItsExecute.messageId,
+      )) as MessageApproved;
+      expect(itsExecute).toEqual({
+        ...originalItsExecute,
+        retry: 3,
+        status: 'FAILED',
+        updatedAt: expect.any(Date),
       });
     });
   });

@@ -157,4 +157,8 @@ export class ApiConfigService {
   getGatewayTimeout(): number {
     return this.configService.get<number>('GATEWAY_TIMEOUT') ?? 30_000; // 30 seconds default
   }
+
+  isEnabledGasCheck(): boolean {
+    return this.configService.get<boolean>('ENABLE_GAS_CHECK') ?? false;
+  }
 }
