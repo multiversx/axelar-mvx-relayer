@@ -197,6 +197,7 @@ components:
         - MESSAGE_APPROVED
         - MESSAGE_EXECUTED
         - CANNOT_EXECUTE_MESSAGE
+        - CANNOT_EXECUTE_MESSAGE/V2
         - SIGNERS_ROTATED
       x-enum-varnames:
         - EventTypeGasCredit
@@ -205,6 +206,7 @@ components:
         - EventTypeMessageApproved
         - EventTypeMessageExecuted
         - EventTypeCannotExecuteMessage
+        - EventTypeCannotExecuteMessageV2
         - EventTypeSignersRotated
     EventMetadata:
       type: object
@@ -622,15 +624,17 @@ components:
     TaskType:
       type: string
       enum:
-        - VERIFY
-        - GATEWAY_TX
+        - CONSTRUCT_PROOF
         - EXECUTE
+        - GATEWAY_TX
         - REFUND
+        - VERIFY
       x-enum-varnames:
-        - TaskTypeVerify
-        - TaskTypeGatewayTransaction
+        - TaskTypeConstructProof
         - TaskTypeExecute
+        - TaskTypeGatewayTransaction
         - TaskTypeRefund
+        - TaskTypeVerify
     TaskItem:
       properties:
         id:
@@ -662,31 +666,12 @@ components:
         name: uuid
     Task:
       oneOf:
-        - $ref: '#/components/schemas/VerifyTask'
+        - $ref: '#/components/schemas/ConstructProofTask'
         - $ref: '#/components/schemas/GatewayTransactionTask'
         - $ref: '#/components/schemas/ExecuteTask'
         - $ref: '#/components/schemas/RefundTask'
-    RefundTask:
-      properties:
-        message:
-          $ref: "#/components/schemas/GatewayV2Message"
-        refundRecipientAddress:
-          $ref: '#/components/schemas/Address'
-        remainingGasBalance:
-          $ref: "#/components/schemas/Token"
-      required:
-        - message
-        - refundRecipientAddress
-        - remainingGasBalance
-    GatewayTransactionTask:
-      properties:
-        executeData:
-          type: string
-          format: byte
-          minLength: 1
-      required:
-        - executeData
-    VerifyTask:
+        - $ref: '#/components/schemas/VerifyTask'
+    ConstructProofTask:
       properties:
         message:
           $ref: "#/components/schemas/GatewayV2Message"
@@ -711,6 +696,37 @@ components:
         - message
         - payload
         - availableGasBalance
+    GatewayTransactionTask:
+      properties:
+        executeData:
+          type: string
+          format: byte
+          minLength: 1
+      required:
+        - executeData
+    RefundTask:
+      properties:
+        message:
+          $ref: "#/components/schemas/GatewayV2Message"
+        refundRecipientAddress:
+          $ref: '#/components/schemas/Address'
+        remainingGasBalance:
+          $ref: "#/components/schemas/Token"
+      required:
+        - message
+        - refundRecipientAddress
+        - remainingGasBalance
+    VerifyTask:
+      properties:
+        message:
+          $ref: "#/components/schemas/GatewayV2Message"
+        payload:
+          type: string
+          format: byte
+          minLength: 1
+      required:
+        - message
+        - payload
     BroadcastRequest:
       type: object
       additionalProperties: {}

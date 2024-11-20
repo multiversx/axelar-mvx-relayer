@@ -99,7 +99,6 @@ describe('GatewayContract', () => {
       data: '',
       topics: [
         BinaryUtils.base64Encode(Events.MESSAGE_APPROVED_EVENT),
-        Buffer.from('0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15da', 'hex').toString('base64'),
         BinaryUtils.base64Encode('ethereum'),
         BinaryUtils.base64Encode('messageId'),
         BinaryUtils.base64Encode('sourceAddress'),
@@ -116,7 +115,6 @@ describe('GatewayContract', () => {
       const result = contract.decodeMessageApprovedEvent(event);
 
       expect(result).toEqual({
-        commandId: '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15da',
         sourceChain: 'ethereum',
         sourceAddress: 'sourceAddress',
         messageId: 'messageId',
@@ -178,7 +176,6 @@ describe('GatewayContract', () => {
       data: '',
       topics: [
         BinaryUtils.base64Encode(Events.MESSAGE_EXECUTED_EVENT),
-        Buffer.from('0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15da', 'hex').toString('base64'),
         BinaryUtils.base64Encode('ethereum'),
         BinaryUtils.base64Encode('messageId'),
       ],
@@ -189,7 +186,6 @@ describe('GatewayContract', () => {
       const result = contract.decodeMessageExecutedEvent(event);
 
       expect(result).toEqual({
-        commandId: '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15da',
         sourceChain: 'ethereum',
         messageId: 'messageId',
       });

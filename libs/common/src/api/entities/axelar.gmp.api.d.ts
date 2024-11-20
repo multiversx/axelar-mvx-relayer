@@ -107,6 +107,10 @@ declare namespace Components {
             taskItemID?: TaskItemID;
         }
         export type CannotExecuteMessageReason = "INSUFFICIENT_GAS" | "ERROR";
+        export interface ConstructProofTask {
+            message: GatewayV2Message;
+            payload: string; // byte
+        }
         export interface ErrorResponse {
             error: string;
             requestID?: string;
@@ -129,7 +133,7 @@ declare namespace Components {
             fromAddress?: string | null;
             finalized?: boolean | null;
         }
-        export type EventType = "GAS_CREDIT" | "GAS_REFUNDED" | "CALL" | "MESSAGE_APPROVED" | "MESSAGE_EXECUTED" | "CANNOT_EXECUTE_MESSAGE" | "SIGNERS_ROTATED";
+        export type EventType = "GAS_CREDIT" | "GAS_REFUNDED" | "CALL" | "MESSAGE_APPROVED" | "MESSAGE_EXECUTED" | "CANNOT_EXECUTE_MESSAGE" | "CANNOT_EXECUTE_MESSAGE/V2" | "SIGNERS_ROTATED";
         export interface ExecuteTask {
             message: GatewayV2Message;
             payload: string; // byte
@@ -364,7 +368,7 @@ declare namespace Components {
             signersHash?: string; // byte
             epoch?: number; // int64
         }
-        export type Task = VerifyTask | GatewayTransactionTask | ExecuteTask | RefundTask;
+        export type Task = ConstructProofTask | GatewayTransactionTask | ExecuteTask | RefundTask | VerifyTask;
         export interface TaskItem {
             id: string;
             chain: string;
@@ -373,7 +377,7 @@ declare namespace Components {
             task: Task;
         }
         export type TaskItemID = string;
-        export type TaskType = "VERIFY" | "GATEWAY_TX" | "EXECUTE" | "REFUND";
+        export type TaskType = "CONSTRUCT_PROOF" | "EXECUTE" | "GATEWAY_TX" | "REFUND" | "VERIFY";
         export interface Token {
             tokenID?: string | null;
             amount: BigInt /* ^(0|[1-9]\d*)$ */;
@@ -556,6 +560,7 @@ export type CannotExecuteMessageEventMetadata = Components.Schemas.CannotExecute
 export type CannotExecuteMessageEventV2 = Components.Schemas.CannotExecuteMessageEventV2;
 export type CannotExecuteMessageEventV2Metadata = Components.Schemas.CannotExecuteMessageEventV2Metadata;
 export type CannotExecuteMessageReason = Components.Schemas.CannotExecuteMessageReason;
+export type ConstructProofTask = Components.Schemas.ConstructProofTask;
 export type ErrorResponse = Components.Schemas.ErrorResponse;
 export type Event = Components.Schemas.Event;
 export type EventBase = Components.Schemas.EventBase;

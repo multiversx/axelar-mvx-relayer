@@ -1,11 +1,11 @@
 {
     "buildInfo": {
         "rustc": {
-            "version": "1.78.0",
-            "commitHash": "9b00956e56009bab2aa15d7bff10916599e3d6d6",
-            "commitDate": "2024-04-29",
+            "version": "1.81.0",
+            "commitHash": "eeb90cda1969383f56a2637cbd3037bdf598841c",
+            "commitDate": "2024-09-04",
             "channel": "Stable",
-            "short": "rustc 1.78.0 (9b00956e5 2024-04-29)"
+            "short": "rustc 1.81.0 (eeb90cda1 2024-09-04)"
         },
         "contractCrate": {
             "name": "gateway",
@@ -195,8 +195,8 @@
             "mutability": "readonly",
             "inputs": [
                 {
-                    "name": "command_id",
-                    "type": "array32<u8>"
+                    "name": "cross_chain_id",
+                    "type": "CrossChainId"
                 }
             ],
             "outputs": [
@@ -385,11 +385,6 @@
             "identifier": "message_approved_event",
             "inputs": [
                 {
-                    "name": "command_id",
-                    "type": "array32<u8>",
-                    "indexed": true
-                },
-                {
                     "name": "source_chain",
                     "type": "bytes",
                     "indexed": true
@@ -419,11 +414,6 @@
         {
             "identifier": "message_executed_event",
             "inputs": [
-                {
-                    "name": "command_id",
-                    "type": "array32<u8>",
-                    "indexed": true
-                },
                 {
                     "name": "source_chain",
                     "type": "bytes",
@@ -468,6 +458,19 @@
     "esdtAttributes": [],
     "hasCallback": false,
     "types": {
+        "CrossChainId": {
+            "type": "struct",
+            "fields": [
+                {
+                    "name": "source_chain",
+                    "type": "bytes"
+                },
+                {
+                    "name": "message_id",
+                    "type": "bytes"
+                }
+            ]
+        },
         "MessageState": {
             "type": "enum",
             "variants": [

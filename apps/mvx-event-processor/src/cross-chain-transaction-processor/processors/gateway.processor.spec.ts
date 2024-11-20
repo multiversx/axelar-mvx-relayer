@@ -37,7 +37,6 @@ describe('GatewayProcessor', () => {
     payload: Buffer.from('payload'),
   };
   const messageApprovedEvent: MessageApprovedEvent = {
-    commandId: '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15da',
     sourceChain: 'ethereum',
     messageId: 'messageId',
     sourceAddress: 'sourceAddress',
@@ -45,7 +44,6 @@ describe('GatewayProcessor', () => {
     payloadHash: 'ebc84cbd75ba5516bf45e7024a9e12bc3c5c880f73e3a5beca7ebba52b2867a7',
   };
   const messageExecutedEvent: MessageExecutedEvent = {
-    commandId: '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15da',
     sourceChain: 'ethereum',
     messageId: 'messageId',
   };

@@ -52,7 +52,6 @@ export class GatewayContract {
     const outcome = DecodingUtils.parseTransactionEvent(event, eventDefinition);
 
     return {
-      commandId: DecodingUtils.decodeByteArrayToHex(outcome.command_id),
       sourceChain: outcome.source_chain.toString(),
       messageId: outcome.message_id.toString(),
       sourceAddress: outcome.source_address.toString(),
@@ -66,7 +65,6 @@ export class GatewayContract {
     const outcome = DecodingUtils.parseTransactionEvent(event, eventDefinition);
 
     return {
-      commandId: DecodingUtils.decodeByteArrayToHex(outcome.command_id),
       sourceChain: outcome.source_chain.toString(),
       messageId: outcome.message_id.toString(),
     };

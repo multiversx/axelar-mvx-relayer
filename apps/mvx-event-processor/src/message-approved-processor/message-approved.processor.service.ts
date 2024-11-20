@@ -18,14 +18,12 @@ import { ApiConfigService, AxelarGmpApi } from '@mvx-monorepo/common';
 import { ItsContract } from '@mvx-monorepo/common/contracts/its.contract';
 import { Locker } from '@multiversx/sdk-nestjs-common';
 import { GasError, NotEnoughGasError } from '@mvx-monorepo/common/contracts/entities/gas.error';
-import {
-  CannotExecuteMessageEvent,
-  CannotExecuteMessageReason,
-  Event,
-} from '@mvx-monorepo/common/api/entities/axelar.gmp.api';
+import { CannotExecuteMessageReason, Components, Event } from '@mvx-monorepo/common/api/entities/axelar.gmp.api';
 import { AxiosError } from 'axios';
 import { DecodingUtils } from '@mvx-monorepo/common/utils/decoding.utils';
 import { FeeHelper } from '@mvx-monorepo/common/contracts/fee.helper';
+import { CONSTANTS } from '@mvx-monorepo/common/utils/constants.enum';
+import CannotExecuteMessageEventV2 = Components.Schemas.CannotExecuteMessageEventV2;
 
 // Support a max of 3 retries (mainly because some Interchain Token Service endpoints need to be called 2 times)
 const MAX_NUMBER_OF_RETRIES: number = 3;
@@ -232,19 +230,24 @@ export class MessageApprovedProcessorService {
 
     messageApproved.status = MessageApprovedStatus.FAILED;
 
-    const cannotExecuteEvent: CannotExecuteMessageEvent = {
+    const cannotExecuteEvent: CannotExecuteMessageEventV2 = {
       eventID: messageApproved.executeTxHash
         ? DecodingUtils.getEventId(messageApproved.executeTxHash, 0)
         : messageApproved.messageId,
+      messageID: messageApproved.messageId,
+      sourceChain: CONSTANTS.SOURCE_CHAIN_NAME,
       reason,
       details: '',
-      taskItemID: messageApproved.taskItemId || '',
+      meta: {
+        txID: messageApproved.executeTxHash,
+        taskItemID: messageApproved.taskItemId || '',
+      },
     };
 
     try {
       const eventsToSend: Event[] = [
         {
-          type: 'CANNOT_EXECUTE_MESSAGE',
+          type: 'CANNOT_EXECUTE_MESSAGE/V2',
           ...cannotExecuteEvent,
         },
       ];

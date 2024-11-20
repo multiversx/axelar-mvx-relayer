@@ -261,14 +261,20 @@ describe('MessageApprovedProcessorService', () => {
       updatedAt: expect.any(Date),
     });
 
+
     expect(axelarGmpApi.postEvents).toHaveBeenCalledTimes(1);
     // @ts-ignore
     expect(axelarGmpApi.postEvents.mock.lastCall[0][0]).toEqual({
-      type: 'CANNOT_EXECUTE_MESSAGE',
-      eventID: originalSecondEntry.messageId,
+      type: 'CANNOT_EXECUTE_MESSAGE/V2',
+      eventID: originalSecondEntry?.messageId,
+      messageID: originalSecondEntry?.messageId,
+      sourceChain: 'multiversx',
       reason: 'ERROR',
       details: '',
-      taskItemID: originalSecondEntry.taskItemId,
+      meta: {
+        txID: null,
+        taskItemID: originalSecondEntry.taskItemId,
+      },
     });
 
     // Was not updated
@@ -407,6 +413,21 @@ describe('MessageApprovedProcessorService', () => {
       status: 'FAILED',
       retry: 3,
       updatedAt: expect.any(Date),
+    });
+
+    expect(axelarGmpApi.postEvents).toHaveBeenCalledTimes(1);
+    // @ts-ignore
+    expect(axelarGmpApi.postEvents.mock.lastCall[0][0]).toEqual({
+      type: 'CANNOT_EXECUTE_MESSAGE/V2',
+      eventID: firstEntry?.messageId,
+      messageID: firstEntry?.messageId,
+      sourceChain: 'multiversx',
+      reason: 'INSUFFICIENT_GAS',
+      details: '',
+      meta: {
+        txID: null,
+        taskItemID: "",
+      },
     });
   });
 

@@ -10,7 +10,6 @@ export interface ContractCallEvent {
 }
 
 export interface MessageApprovedEvent {
-  commandId: string;
   sourceChain: string;
   messageId: string;
   sourceAddress: string;
@@ -19,7 +18,6 @@ export interface MessageApprovedEvent {
 }
 
 export interface MessageExecutedEvent {
-  commandId: string;
   sourceChain: string;
   messageId: string;
 }
