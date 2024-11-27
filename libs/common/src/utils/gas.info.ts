@@ -16,4 +16,8 @@ export class GasInfo {
   static Refund: GasInfo = {
     value: 15_000_000,
   };
+
+  static GatewayDefault: GasInfo = {
+    value: 50_000_000,
+  };
 }

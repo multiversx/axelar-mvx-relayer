@@ -19,6 +19,8 @@ import TaskItem = Components.Schemas.TaskItem;
 import GatewayTransactionTask = Components.Schemas.GatewayTransactionTask;
 import ExecuteTask = Components.Schemas.ExecuteTask;
 import RefundTask = Components.Schemas.RefundTask;
+import { GasError } from '@mvx-monorepo/common/contracts/entities/gas.error';
+import { GasInfo } from '@mvx-monorepo/common/utils/gas.info';
 
 const MAX_NUMBER_OF_RETRIES = 3;
 
@@ -192,8 +194,18 @@ export class ApprovalsProcessorService {
       nonce,
     );
 
-    const gas = await this.transactionsHelper.getTransactionGas(transaction, retry);
-    transaction.setGasLimit(gas);
+    try {
+      const gas = await this.transactionsHelper.getTransactionGas(transaction, retry);
+      transaction.setGasLimit(gas);
+    } catch (e) {
+      // In case the gas estimation fails, the transaction will fail on chain, but we will still send it
+      // for transparency
+      if (e instanceof GasError) {
+        transaction.setGasLimit(GasInfo.GatewayDefault.value);
+      } else {
+        throw e;
+      }
+    }
 
     const txHash = await this.transactionsHelper.signAndSendTransaction(transaction, this.walletSigner);
 
