@@ -19,6 +19,7 @@ import GatewayTransactionTask = Components.Schemas.GatewayTransactionTask;
 import TaskItem = Components.Schemas.TaskItem;
 import RefundTask = Components.Schemas.RefundTask;
 import ExecuteTask = Components.Schemas.ExecuteTask;
+import { GasError } from '@mvx-monorepo/common/contracts/entities/gas.error';
 
 const mockExternalData = BinaryUtils.base64Encode('approveMessages@61726731@61726732');
 const mockVerifyData = BinaryUtils.base64Encode('rotateSigners@1234@4321');
@@ -193,6 +194,74 @@ describe('ApprovalsProcessorService', () => {
       expect(transactionsHelper.getTransactionGas).toHaveBeenCalledWith(transaction, 0);
       expect(transaction.setGasLimit).toHaveBeenCalledTimes(1);
       expect(transaction.setGasLimit).toHaveBeenCalledWith(100_000_000);
+      expect(transactionsHelper.signAndSendTransaction).toHaveBeenCalledTimes(1);
+      expect(transactionsHelper.signAndSendTransaction).toHaveBeenCalledWith(transaction, walletSigner);
+
+      expect(redisCacheService.set).toHaveBeenCalledTimes(2);
+      expect(redisCacheService.set).toHaveBeenCalledWith(
+        CacheInfo.PendingTransaction('txHash').key,
+        {
+          txHash: 'txHash',
+          externalData: mockExternalData,
+          retry: 1,
+        },
+        CacheInfo.PendingTransaction('txHash').ttl,
+      );
+
+      expect(redisCacheService.set).toHaveBeenCalledWith(
+        CacheInfo.LastTaskUUID().key,
+        'UUID',
+        CacheInfo.LastTaskUUID().ttl,
+      );
+    });
+
+
+    it('Should handle gateway tx task error', async () => {
+      axelarGmpApi.getTasks.mockReturnValueOnce(
+        // @ts-ignore
+        Promise.resolve({
+          data: {
+            tasks: [
+              {
+                type: 'GATEWAY_TX',
+                task: {
+                  executeData: mockExternalData,
+                } as GatewayTransactionTask,
+                id: 'UUID',
+                timestamp: '1234',
+                chain: 'multiversx',
+              },
+            ],
+          },
+        }),
+      );
+
+      const userAddress = UserAddress.newFromBech32('erd1qqqqqqqqqqqqqpgqhe8t5jewej70zupmh44jurgn29psua5l2jps3ntjj3');
+      walletSigner.getAddress.mockReturnValueOnce(userAddress);
+
+      const transaction: DeepMocked<Transaction> = createMock();
+      gatewayContract.buildTransactionExternalFunction.mockReturnValueOnce(transaction);
+
+      transactionsHelper.getTransactionGas.mockRejectedValue(new GasError());
+      transactionsHelper.signAndSendTransaction.mockReturnValueOnce(Promise.resolve('txHash'));
+
+      await service.handleNewTasksRaw();
+
+      expect(redisCacheService.get).toHaveBeenCalledTimes(1);
+      expect(axelarGmpApi.getTasks).toHaveBeenCalledTimes(2);
+      expect(axelarGmpApi.getTasks).toHaveBeenCalledWith('multiversx', undefined);
+      expect(axelarGmpApi.getTasks).toHaveBeenCalledWith('multiversx', 'UUID');
+
+      expect(gatewayContract.buildTransactionExternalFunction).toHaveBeenCalledTimes(1);
+      expect(gatewayContract.buildTransactionExternalFunction).toHaveBeenCalledWith(
+        'approveMessages@61726731@61726732',
+        userAddress,
+        1,
+      );
+      expect(transactionsHelper.getTransactionGas).toHaveBeenCalledTimes(1);
+      expect(transactionsHelper.getTransactionGas).toHaveBeenCalledWith(transaction, 0);
+      expect(transaction.setGasLimit).toHaveBeenCalledTimes(1);
+      expect(transaction.setGasLimit).toHaveBeenCalledWith(50_000_000);
       expect(transactionsHelper.signAndSendTransaction).toHaveBeenCalledTimes(1);
       expect(transactionsHelper.signAndSendTransaction).toHaveBeenCalledWith(transaction, walletSigner);
 
