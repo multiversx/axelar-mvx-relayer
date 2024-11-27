@@ -201,6 +201,8 @@ export class ApprovalsProcessorService {
       // In case the gas estimation fails, the transaction will fail on chain, but we will still send it
       // for transparency
       if (e instanceof GasError) {
+        this.logger.warn('Could not estimate gas for Gateway transaction...');
+
         transaction.setGasLimit(GasInfo.GatewayDefault.value);
       } else {
         throw e;
