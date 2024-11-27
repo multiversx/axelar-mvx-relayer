@@ -1,11 +1,11 @@
 {
     "buildInfo": {
         "rustc": {
-            "version": "1.78.0",
-            "commitHash": "9b00956e56009bab2aa15d7bff10916599e3d6d6",
-            "commitDate": "2024-04-29",
+            "version": "1.81.0",
+            "commitHash": "eeb90cda1969383f56a2637cbd3037bdf598841c",
+            "commitDate": "2024-09-04",
             "channel": "Stable",
-            "short": "rustc 1.78.0 (9b00956e5 2024-04-29)"
+            "short": "rustc 1.81.0 (eeb90cda1 2024-09-04)"
         },
         "contractCrate": {
             "name": "gas-service",

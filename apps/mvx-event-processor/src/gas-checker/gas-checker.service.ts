@@ -69,7 +69,6 @@ export class GasCheckerService {
   }
 
   private async checkGasServiceFees() {
-    // TODO: Add support for other tokens also
     const tokens = await this.getAccountEgldAndWegld(this.gasServiceContract.getContractAddress());
     const tokensToCollect = Object.values(tokens)
       .filter((token) => token.balance.gte(EGLD_COLLECT_THRESHOLD))

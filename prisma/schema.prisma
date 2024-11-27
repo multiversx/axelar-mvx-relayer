@@ -11,19 +11,20 @@ datasource db {
 }
 
 model MessageApproved {
-  sourceChain     String                @db.VarChar(255)
-  messageId       String                @db.VarChar(255)
-  status          MessageApprovedStatus
-  sourceAddress   String                @db.VarChar(255)
-  contractAddress String                @db.VarChar(62)
-  payloadHash     String                @db.VarChar(64)
-  payload         Bytes
-  executeTxHash   String?               @db.VarChar(64)
-  retry           Int                   @db.SmallInt
-  createdAt       DateTime              @default(now()) @db.Timestamp(6)
-  updatedAt       DateTime              @default(now()) @updatedAt @db.Timestamp(6)
-  successTimes    Int?                  @db.SmallInt
-  taskItemId      String?               @db.Uuid
+  sourceChain         String                @db.VarChar(255)
+  messageId           String                @db.VarChar(255)
+  status              MessageApprovedStatus
+  sourceAddress       String                @db.VarChar(255)
+  contractAddress     String                @db.VarChar(62)
+  payloadHash         String                @db.VarChar(64)
+  payload             Bytes
+  executeTxHash       String?               @db.VarChar(64)
+  retry               Int                   @db.SmallInt
+  createdAt           DateTime              @default(now()) @db.Timestamp(6)
+  updatedAt           DateTime              @default(now()) @updatedAt @db.Timestamp(6)
+  successTimes        Int?                  @db.SmallInt
+  taskItemId          String?               @db.Uuid
+  availableGasBalance String                @default("0") @db.VarChar(255)
 
   @@id([sourceChain, messageId])
 }

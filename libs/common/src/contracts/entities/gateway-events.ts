@@ -10,7 +10,6 @@ export interface ContractCallEvent {
 }
 
 export interface MessageApprovedEvent {
-  commandId: string;
   sourceChain: string;
   messageId: string;
   sourceAddress: string;
@@ -19,12 +18,13 @@ export interface MessageApprovedEvent {
 }
 
 export interface MessageExecutedEvent {
-  commandId: string;
   sourceChain: string;
   messageId: string;
 }
 
-export interface WeightedSigners {
+export interface SignersRotatedEvent {
+  epoch: BigNumber;
+  signersHash: string;
   signers: {
     signer: string, // ed25519 public key
     weight: BigNumber,

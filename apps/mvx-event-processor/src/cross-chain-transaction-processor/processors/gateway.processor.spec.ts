@@ -9,7 +9,7 @@ import {
   ContractCallEvent,
   MessageApprovedEvent,
   MessageExecutedEvent,
-  WeightedSigners,
+  SignersRotatedEvent,
 } from '@mvx-monorepo/common/contracts/entities/gateway-events';
 import { TransactionEvent, TransactionOnNetwork } from '@multiversx/sdk-network-providers/out';
 import { MessageApprovedRepository } from '@mvx-monorepo/common/database/repository/message-approved.repository';
@@ -19,6 +19,7 @@ import BigNumber from 'bignumber.js';
 import CallEvent = Components.Schemas.CallEvent;
 import MessageApprovedEventApi = Components.Schemas.MessageApprovedEvent;
 import MessageExecutedEventApi = Components.Schemas.MessageExecutedEvent;
+import SignersRotatedEventApi = Components.Schemas.SignersRotatedEvent;
 
 const mockGatewayContract = 'erd1qqqqqqqqqqqqqpgqvc7gdl0p4s97guh498wgz75k8sav6sjfjlwqh679jy';
 
@@ -36,7 +37,6 @@ describe('GatewayProcessor', () => {
     payload: Buffer.from('payload'),
   };
   const messageApprovedEvent: MessageApprovedEvent = {
-    commandId: '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15da',
     sourceChain: 'ethereum',
     messageId: 'messageId',
     sourceAddress: 'sourceAddress',
@@ -44,11 +44,12 @@ describe('GatewayProcessor', () => {
     payloadHash: 'ebc84cbd75ba5516bf45e7024a9e12bc3c5c880f73e3a5beca7ebba52b2867a7',
   };
   const messageExecutedEvent: MessageExecutedEvent = {
-    commandId: '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15da',
     sourceChain: 'ethereum',
     messageId: 'messageId',
   };
-  const weightedSigners: WeightedSigners = {
+  const signersRotatedEvent: SignersRotatedEvent = {
+    epoch: new BigNumber(1),
+    signersHash: '0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15da',
     signers: [
       {
         signer: '',
@@ -233,6 +234,7 @@ describe('GatewayProcessor', () => {
         createdAt: new Date(),
         successTimes: null,
         taskItemId: null,
+        availableGasBalance: '0',
       };
 
       messageApprovedRepository.findBySourceChainAndMessageId.mockReturnValueOnce(Promise.resolve(messageApproved));
@@ -314,13 +316,30 @@ describe('GatewayProcessor', () => {
     });
 
     it('Should handle event', async () => {
-      gatewayContract.decodeSignersRotatedEvent.mockReturnValueOnce(weightedSigners);
+      gatewayContract.decodeSignersRotatedEvent.mockReturnValueOnce(signersRotatedEvent);
 
-      const result = await service.handleGatewayEvent(rawEvent, createMock(), 0, '100', '0');
+      const transaction = createMock<TransactionOnNetwork>();
+      transaction.hash = 'txHash';
+      transaction.sender = Address.newFromBech32('erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7');
+
+      const result = await service.handleGatewayEvent(rawEvent, transaction, 0, '100', '0');
 
       expect(gatewayContract.decodeSignersRotatedEvent).toHaveBeenCalledTimes(1);
 
-      expect(result).toEqual(undefined);
+      expect(result).not.toBeUndefined();
+      expect(result?.type).toBe('SIGNERS_ROTATED');
+
+      const event = result as SignersRotatedEventApi;
+
+      expect(event.eventID).toBe('0xtxHash-0');
+      expect(event.messageID).toBe('0xtxHash-0');
+      expect(event.meta).toEqual({
+        txID: 'txHash',
+        fromAddress: 'erd1qqqqqqqqqqqqqpgqzqvm5ywqqf524efwrhr039tjs29w0qltkklsa05pk7',
+        finalized: true,
+        epoch: 1,
+        signersHash: BinaryUtils.hexToBase64('0c38359b7a35c755573659d797afec315bb0e51374a056745abd9764715a15da'),
+      });
     });
   });
 });

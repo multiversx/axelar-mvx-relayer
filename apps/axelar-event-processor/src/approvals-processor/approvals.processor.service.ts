@@ -209,8 +209,7 @@ export class ApprovalsProcessorService {
   }
 
   private async processExecuteTask(response: ExecuteTask, taskItemId: string) {
-    // TODO: Should we also save response.availableGasBalance and check if enough gas was payed before executing?
-    const messageApproved = await this.messageApprovedRepository.create({
+    await this.messageApprovedRepository.createOrUpdate({
       sourceChain: response.message.sourceChain,
       messageId: response.message.messageID,
       status: MessageApprovedStatus.PENDING,
@@ -220,15 +219,9 @@ export class ApprovalsProcessorService {
       payload: Buffer.from(response.payload, 'base64'),
       retry: 0,
       taskItemId,
+      // Only support native token for gas
+      availableGasBalance: !response.availableGasBalance.tokenID ? response.availableGasBalance.amount : '0',
     });
-
-    if (!messageApproved) {
-      this.logger.warn(
-        `Couldn't save message approved to database, duplicate exists for source chain ${response.message.sourceChain} and message id ${response.message.messageID}`,
-      );
-
-      return;
-    }
   }
 
   private async processRefundTask(response: RefundTask) {
@@ -276,7 +269,7 @@ export class ApprovalsProcessorService {
       response.remainingGasBalance.amount,
     );
 
-    // TODO: Handle retries in case of transaction failing?
+    // If transaction generation fails, the task will be retried in parent function
     const txHash = await this.transactionsHelper.signAndSendTransactionAndGetNonce(transaction, this.walletSigner);
 
     this.logger.debug(`Processed refund for ${response.message.messageID}, sent transaction ${txHash}`);

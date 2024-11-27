@@ -9,11 +9,15 @@ import type {
 declare namespace Components {
     namespace Parameters {
         export type After = string;
+        export type BroadcastID = Schemas.BroadcastID;
         export type Chain = string;
         export type Limit = number;
+        export type WasmContractAddress = string; // ^axelar1[acdefghjklmnpqrstuvwxyz023456789]{58}$
     }
     export interface PathParameters {
         chain: Parameters.Chain;
+        wasmContractAddress: Parameters.WasmContractAddress /* ^axelar1[acdefghjklmnpqrstuvwxyz023456789]{58}$ */;
+        broadcastID: Parameters.BroadcastID;
     }
     export interface QueryParameters {
         after?: Parameters.After;
@@ -22,6 +26,30 @@ declare namespace Components {
     namespace Schemas {
         export type Address = string;
         export type BigInt = string; // ^(0|[1-9]\d*)$
+        export type BroadcastID = string;
+        export interface BroadcastRequest {
+            [name: string]: any;
+        }
+        export interface BroadcastResponse {
+            broadcastID: BroadcastID;
+        }
+        export type BroadcastStatus = "RECEIVED" | "SUCCESS" | "ERROR";
+        export interface BroadcastStatusResponse {
+            status: BroadcastStatus;
+            receivedAt: string; // date-time
+            completedAt?: string; // date-time
+            txEvents?: BroadcastTxEvent[];
+            txHash?: string | null;
+            error?: string | null;
+        }
+        export interface BroadcastTxEvent {
+            type: string;
+            attributes: BroadcastTxEventAttribute[];
+        }
+        export interface BroadcastTxEventAttribute {
+            key: string;
+            value: string;
+        }
         export interface CallEvent {
             eventID: string;
             meta?: {
@@ -34,6 +62,7 @@ declare namespace Components {
             message: GatewayV2Message;
             destinationChain: string;
             payload: string; // byte
+            withToken?: Token;
         }
         export interface CallEventMetadata {
             txID?: string | null;
@@ -58,14 +87,37 @@ declare namespace Components {
             fromAddress?: string | null;
             timestamp?: string; // date-time
         }
+        export interface CannotExecuteMessageEventV2 {
+            eventID: string;
+            meta?: {
+                txID?: string | null;
+                timestamp?: string; // date-time
+                fromAddress?: string | null;
+                finalized?: boolean | null;
+                taskItemID?: TaskItemID;
+            } | null;
+            messageID: string;
+            sourceChain: string;
+            reason: CannotExecuteMessageReason;
+            details: string;
+        }
+        export interface CannotExecuteMessageEventV2Metadata {
+            fromAddress?: string | null;
+            timestamp?: string; // date-time
+            taskItemID?: TaskItemID;
+        }
         export type CannotExecuteMessageReason = "INSUFFICIENT_GAS" | "ERROR";
+        export interface ConstructProofTask {
+            message: GatewayV2Message;
+            payload: string; // byte
+        }
         export interface ErrorResponse {
             error: string;
             requestID?: string;
         }
         export type Event = {
             type: EventType;
-        } & (GasCreditEvent | GasRefundedEvent | CallEvent | MessageApprovedEvent | MessageExecutedEvent | CannotExecuteMessageEvent);
+        } & (GasCreditEvent | GasRefundedEvent | CallEvent | MessageApprovedEvent | MessageExecutedEvent | CannotExecuteMessageEvent | CannotExecuteMessageEventV2 | SignersRotatedEvent);
         export interface EventBase {
             eventID: string;
             meta?: {
@@ -81,7 +133,7 @@ declare namespace Components {
             fromAddress?: string | null;
             finalized?: boolean | null;
         }
-        export type EventType = "GAS_CREDIT" | "GAS_REFUNDED" | "CALL" | "MESSAGE_APPROVED" | "MESSAGE_EXECUTED" | "CANNOT_EXECUTE_MESSAGE";
+        export type EventType = "GAS_CREDIT" | "GAS_REFUNDED" | "CALL" | "MESSAGE_APPROVED" | "MESSAGE_EXECUTED" | "CANNOT_EXECUTE_MESSAGE" | "CANNOT_EXECUTE_MESSAGE/V2" | "SIGNERS_ROTATED";
         export interface ExecuteTask {
             message: GatewayV2Message;
             payload: string; // byte
@@ -296,15 +348,36 @@ declare namespace Components {
             refundRecipientAddress: Address;
             remainingGasBalance: Token;
         }
-        export type Task = VerifyTask | GatewayTransactionTask | ExecuteTask | RefundTask;
+        export interface SignersRotatedEvent {
+            eventID: string;
+            meta?: {
+                txID?: string | null;
+                timestamp?: string; // date-time
+                fromAddress?: string | null;
+                finalized?: boolean | null;
+                signersHash?: string; // byte
+                epoch?: number; // int64
+            } | null;
+            messageID: string;
+        }
+        export interface SignersRotatedEventMetadata {
+            txID?: string | null;
+            timestamp?: string; // date-time
+            fromAddress?: string | null;
+            finalized?: boolean | null;
+            signersHash?: string; // byte
+            epoch?: number; // int64
+        }
+        export type Task = ConstructProofTask | GatewayTransactionTask | ExecuteTask | RefundTask | VerifyTask;
         export interface TaskItem {
             id: string;
+            chain: string;
             timestamp: string; // date-time
             type: TaskType;
             task: Task;
         }
         export type TaskItemID = string;
-        export type TaskType = "VERIFY" | "GATEWAY_TX" | "EXECUTE" | "REFUND";
+        export type TaskType = "CONSTRUCT_PROOF" | "EXECUTE" | "GATEWAY_TX" | "REFUND" | "VERIFY";
         export interface Token {
             tokenID?: string | null;
             amount: BigInt /* ^(0|[1-9]\d*)$ */;
@@ -316,6 +389,20 @@ declare namespace Components {
     }
 }
 declare namespace Paths {
+    namespace BroadcastMsgExecuteContract {
+        namespace Parameters {
+            export type WasmContractAddress = string; // ^axelar1[acdefghjklmnpqrstuvwxyz023456789]{58}$
+        }
+        export interface PathParameters {
+            wasmContractAddress: Parameters.WasmContractAddress /* ^axelar1[acdefghjklmnpqrstuvwxyz023456789]{58}$ */;
+        }
+        export type RequestBody = Components.Schemas.BroadcastRequest;
+        namespace Responses {
+            export type $200 = Components.Schemas.BroadcastResponse;
+            export type $400 = Components.Schemas.ErrorResponse;
+            export type $500 = Components.Schemas.ErrorResponse;
+        }
+    }
     namespace Chains$ChainEvents {
         namespace Post {
             namespace Parameters {
@@ -331,6 +418,21 @@ declare namespace Paths {
                 export type $404 = Components.Schemas.ErrorResponse;
                 export type $500 = Components.Schemas.ErrorResponse;
             }
+        }
+    }
+    namespace GetMsgExecuteContractBroadcastStatus {
+        namespace Parameters {
+            export type BroadcastID = Components.Schemas.BroadcastID;
+            export type WasmContractAddress = string; // ^axelar1[acdefghjklmnpqrstuvwxyz023456789]{58}$
+        }
+        export interface PathParameters {
+            wasmContractAddress: Parameters.WasmContractAddress /* ^axelar1[acdefghjklmnpqrstuvwxyz023456789]{58}$ */;
+            broadcastID: Parameters.BroadcastID;
+        }
+        namespace Responses {
+            export type $200 = Components.Schemas.BroadcastStatusResponse;
+            export type $404 = Components.Schemas.ErrorResponse;
+            export type $500 = Components.Schemas.ErrorResponse;
         }
     }
     namespace GetTasks {
@@ -367,15 +469,31 @@ export interface OperationMethods {
   'healthCheck'(
     parameters?: Parameters<UnknownParamsObject> | null,
     data?: any,
-    config?: AxiosRequestConfig
+    config?: AxiosRequestConfig  
   ): OperationResponse<Paths.HealthCheck.Responses.$200>
+  /**
+   * broadcastMsgExecuteContract - Broadcast arbitrary MsgExecuteContract transaction
+   */
+  'broadcastMsgExecuteContract'(
+    parameters?: Parameters<Paths.BroadcastMsgExecuteContract.PathParameters> | null,
+    data?: Paths.BroadcastMsgExecuteContract.RequestBody,
+    config?: AxiosRequestConfig  
+  ): OperationResponse<Paths.BroadcastMsgExecuteContract.Responses.$200>
+  /**
+   * getMsgExecuteContractBroadcastStatus - Get broadcast status
+   */
+  'getMsgExecuteContractBroadcastStatus'(
+    parameters?: Parameters<Paths.GetMsgExecuteContractBroadcastStatus.PathParameters> | null,
+    data?: any,
+    config?: AxiosRequestConfig  
+  ): OperationResponse<Paths.GetMsgExecuteContractBroadcastStatus.Responses.$200>
   /**
    * getTasks - Poll transaction to be executed on chain
    */
   'getTasks'(
     parameters?: Parameters<Paths.GetTasks.QueryParameters & Paths.GetTasks.PathParameters> | null,
     data?: any,
-    config?: AxiosRequestConfig
+    config?: AxiosRequestConfig  
   ): OperationResponse<Paths.GetTasks.Responses.$200>
 }
 
@@ -387,8 +505,28 @@ export interface PathsDictionary {
     'get'(
       parameters?: Parameters<UnknownParamsObject> | null,
       data?: any,
-      config?: AxiosRequestConfig
+      config?: AxiosRequestConfig  
     ): OperationResponse<Paths.HealthCheck.Responses.$200>
+  }
+  ['/contracts/{wasmContractAddress}/broadcasts']: {
+    /**
+     * broadcastMsgExecuteContract - Broadcast arbitrary MsgExecuteContract transaction
+     */
+    'post'(
+      parameters?: Parameters<Paths.BroadcastMsgExecuteContract.PathParameters> | null,
+      data?: Paths.BroadcastMsgExecuteContract.RequestBody,
+      config?: AxiosRequestConfig  
+    ): OperationResponse<Paths.BroadcastMsgExecuteContract.Responses.$200>
+  }
+  ['/contracts/{wasmContractAddress}/broadcasts/{broadcastID}']: {
+    /**
+     * getMsgExecuteContractBroadcastStatus - Get broadcast status
+     */
+    'get'(
+      parameters?: Parameters<Paths.GetMsgExecuteContractBroadcastStatus.PathParameters> | null,
+      data?: any,
+      config?: AxiosRequestConfig  
+    ): OperationResponse<Paths.GetMsgExecuteContractBroadcastStatus.Responses.$200>
   }
   ['/chains/{chain}/events']: {
   }
@@ -399,7 +537,7 @@ export interface PathsDictionary {
     'get'(
       parameters?: Parameters<Paths.GetTasks.QueryParameters & Paths.GetTasks.PathParameters> | null,
       data?: any,
-      config?: AxiosRequestConfig
+      config?: AxiosRequestConfig  
     ): OperationResponse<Paths.GetTasks.Responses.$200>
   }
 }
@@ -408,11 +546,21 @@ export type Client = OpenAPIClient<OperationMethods, PathsDictionary>
 
 export type Address = Components.Schemas.Address;
 export type BigInt = Components.Schemas.BigInt;
+export type BroadcastID = Components.Schemas.BroadcastID;
+export type BroadcastRequest = Components.Schemas.BroadcastRequest;
+export type BroadcastResponse = Components.Schemas.BroadcastResponse;
+export type BroadcastStatus = Components.Schemas.BroadcastStatus;
+export type BroadcastStatusResponse = Components.Schemas.BroadcastStatusResponse;
+export type BroadcastTxEvent = Components.Schemas.BroadcastTxEvent;
+export type BroadcastTxEventAttribute = Components.Schemas.BroadcastTxEventAttribute;
 export type CallEvent = Components.Schemas.CallEvent;
 export type CallEventMetadata = Components.Schemas.CallEventMetadata;
 export type CannotExecuteMessageEvent = Components.Schemas.CannotExecuteMessageEvent;
 export type CannotExecuteMessageEventMetadata = Components.Schemas.CannotExecuteMessageEventMetadata;
+export type CannotExecuteMessageEventV2 = Components.Schemas.CannotExecuteMessageEventV2;
+export type CannotExecuteMessageEventV2Metadata = Components.Schemas.CannotExecuteMessageEventV2Metadata;
 export type CannotExecuteMessageReason = Components.Schemas.CannotExecuteMessageReason;
+export type ConstructProofTask = Components.Schemas.ConstructProofTask;
 export type ErrorResponse = Components.Schemas.ErrorResponse;
 export type Event = Components.Schemas.Event;
 export type EventBase = Components.Schemas.EventBase;
@@ -437,6 +585,8 @@ export type PublishEventStatus = Components.Schemas.PublishEventStatus;
 export type PublishEventsRequest = Components.Schemas.PublishEventsRequest;
 export type PublishEventsResult = Components.Schemas.PublishEventsResult;
 export type RefundTask = Components.Schemas.RefundTask;
+export type SignersRotatedEvent = Components.Schemas.SignersRotatedEvent;
+export type SignersRotatedEventMetadata = Components.Schemas.SignersRotatedEventMetadata;
 export type Task = Components.Schemas.Task;
 export type TaskItem = Components.Schemas.TaskItem;
 export type TaskItemID = Components.Schemas.TaskItemID;

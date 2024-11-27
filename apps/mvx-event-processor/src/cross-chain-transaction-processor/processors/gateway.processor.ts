@@ -14,6 +14,7 @@ import MessageApprovedEvent = Components.Schemas.MessageApprovedEvent;
 import Event = Components.Schemas.Event;
 import MessageExecutedEvent = Components.Schemas.MessageExecutedEvent;
 import BigNumber from 'bignumber.js';
+import SignersRotatedEvent = Components.Schemas.SignersRotatedEvent;
 
 @Injectable()
 export class GatewayProcessor {
@@ -55,7 +56,7 @@ export class GatewayProcessor {
     }
 
     if (rawEvent.identifier === EventIdentifiers.ROTATE_SIGNERS && eventName === Events.SIGNERS_ROTATED_EVENT) {
-      return this.handleSignersRotatedEvent(rawEvent, transaction.hash, index);
+      return this.handleSignersRotatedEvent(rawEvent, transaction.sender.bech32(), transaction.hash, index);
     }
 
     return undefined;
@@ -169,7 +170,7 @@ export class GatewayProcessor {
         fromAddress: sender,
         finalized: true,
       },
-      status: 'SUCCESSFUL', // TODO: How to handle reverted?
+      status: 'SUCCESSFUL',
     };
 
     this.logger.debug(
@@ -182,46 +183,30 @@ export class GatewayProcessor {
     };
   }
 
-  // TODO: Properly implement this after the Axelar GMP API supports it
-  private handleSignersRotatedEvent(rawEvent: ITransactionEvent, txHash: string, index: number) {
-    const weightedSigners = this.gatewayContract.decodeSignersRotatedEvent(rawEvent);
+  private handleSignersRotatedEvent(rawEvent: ITransactionEvent, sender: string, txHash: string, index: number): Event {
+    const signersRotatedEvent = this.gatewayContract.decodeSignersRotatedEvent(rawEvent);
 
-    this.logger.warn(
-      `Received Signers Rotated event which is not properly implemented yet. Transaction:  ${txHash}, index: ${index}`,
-      weightedSigners,
+    const signersRotated: SignersRotatedEvent = {
+      eventID: DecodingUtils.getEventId(txHash, index),
+      messageID: DecodingUtils.getEventId(txHash, index),
+      meta: {
+        txID: txHash,
+        fromAddress: sender,
+        finalized: true,
+        signersHash: BinaryUtils.hexToBase64(signersRotatedEvent.signersHash),
+        epoch: signersRotatedEvent.epoch.toNumber(),
+      },
+    };
+
+    this.logger.debug(
+      `Successfully handled signers rotated event from transaction ${txHash}, log index ${index}`,
+      signersRotated,
+      signersRotatedEvent,
     );
 
-    return undefined;
-
-    // // The id needs to have `0x` in front of the txHash (hex string)
-    // const id = `0x${txHash}-${index}`;
-    //
-    //
-    // // @ts-ignore
-    // const response = await this.axelarGmpApi.verifyVerifierSet(
-    //   id,
-    //   weightedSigners.signers,
-    //   weightedSigners.threshold,
-    //   weightedSigners.nonce,
-    // );
-
-    // if (response.published) {
-    //   return;
-    // }
-    //
-    // this.logger.warn(`Couldn't dispatch verifyWorkerSet ${id} to Amplifier API. Retrying...`);
-    //
-    // setTimeout(async () => {
-    //   const response = await this.axelarGmpApi.verifyVerifierSet(
-    //     id,
-    //     weightedSigners.signers,
-    //     weightedSigners.threshold,
-    //     weightedSigners.nonce,
-    //   );
-    //
-    //   if (!response.published) {
-    //     this.logger.error(`Couldn't dispatch verifyWorkerSet ${id} to Amplifier API.`);
-    //   }
-    // }, 60_000);
+    return {
+      type: 'SIGNERS_ROTATED',
+      ...signersRotated,
+    };
   }
 }

@@ -17,9 +17,13 @@ import { TransactionsHelper } from '@mvx-monorepo/common/contracts/transactions.
 import { ApiConfigService, AxelarGmpApi } from '@mvx-monorepo/common';
 import { ItsContract } from '@mvx-monorepo/common/contracts/its.contract';
 import { Locker } from '@multiversx/sdk-nestjs-common';
-import { GasError } from '@mvx-monorepo/common/contracts/entities/gas.error';
-import { CannotExecuteMessageEvent, Event } from '@mvx-monorepo/common/api/entities/axelar.gmp.api';
+import { GasError, NotEnoughGasError } from '@mvx-monorepo/common/contracts/entities/gas.error';
+import { CannotExecuteMessageReason, Components, Event } from '@mvx-monorepo/common/api/entities/axelar.gmp.api';
 import { AxiosError } from 'axios';
+import { DecodingUtils } from '@mvx-monorepo/common/utils/decoding.utils';
+import { FeeHelper } from '@mvx-monorepo/common/contracts/fee.helper';
+import { CONSTANTS } from '@mvx-monorepo/common/utils/constants.enum';
+import CannotExecuteMessageEventV2 = Components.Schemas.CannotExecuteMessageEventV2;
 
 // Support a max of 3 retries (mainly because some Interchain Token Service endpoints need to be called 2 times)
 const MAX_NUMBER_OF_RETRIES: number = 3;
@@ -37,6 +41,7 @@ export class MessageApprovedProcessorService {
     private readonly transactionsHelper: TransactionsHelper,
     private readonly itsContract: ItsContract,
     private readonly axelarGmpApi: AxelarGmpApi,
+    private readonly feeHelper: FeeHelper,
     apiConfigService: ApiConfigService,
   ) {
     this.logger = new Logger(MessageApprovedProcessorService.name);
@@ -64,7 +69,7 @@ export class MessageApprovedProcessorService {
         const entriesToUpdate: MessageApproved[] = [];
         const entriesWithTransactions: MessageApproved[] = [];
         for (const messageApproved of entries) {
-          if (messageApproved.retry === MAX_NUMBER_OF_RETRIES) {
+          if (messageApproved.retry >= MAX_NUMBER_OF_RETRIES) {
             await this.handleMessageApprovedFailed(messageApproved);
 
             entriesToUpdate.push(messageApproved);
@@ -100,16 +105,20 @@ export class MessageApprovedProcessorService {
 
             entriesWithTransactions.push(messageApproved);
           } catch (e) {
-            this.logger.error(
-              `Could not build and sign execute transaction for ${messageApproved.sourceChain} ${messageApproved.messageId}`,
-              e,
-            );
+            // In case of NotEnoughGasError, don't retry the transaction and mark it as failed instantly
+            if (e instanceof NotEnoughGasError) {
+              messageApproved.retry = MAX_NUMBER_OF_RETRIES;
+              messageApproved.status = MessageApprovedStatus.FAILED;
 
-            if (e instanceof GasError) {
-              messageApproved.retry += 1;
+              await this.handleMessageApprovedFailed(messageApproved, 'INSUFFICIENT_GAS');
 
               entriesToUpdate.push(messageApproved);
             } else {
+              this.logger.error(
+                `Could not build and sign execute transaction for ${messageApproved.sourceChain} ${messageApproved.messageId}`,
+                e,
+              );
+
               throw e;
             }
           }
@@ -154,8 +163,24 @@ export class MessageApprovedProcessorService {
       .withChainID(this.chainId)
       .buildTransaction();
 
-    const gas = await this.transactionsHelper.getTransactionGas(transaction, messageApproved.retry);
-    transaction.setGasLimit(gas);
+    try {
+      const gas = await this.transactionsHelper.getTransactionGas(transaction, messageApproved.retry);
+      transaction.setGasLimit(gas);
+
+      this.feeHelper.checkGasCost(gas, transaction.getValue(), transaction.getData(), messageApproved);
+    } catch (e) {
+      // In case the gas estimation fails, the transaction will fail on chain, but we will still send it
+      // for transparency with the full gas available, but don't try to retry it
+      if (e instanceof GasError) {
+        transaction.setGasLimit(
+          this.feeHelper.getGasLimitFromEgldFee(BigInt(messageApproved.availableGasBalance), transaction.getData()),
+        );
+
+        messageApproved.retry = MAX_NUMBER_OF_RETRIES - 1;
+      } else {
+        throw e;
+      }
+    }
 
     const signature = await this.walletSigner.sign(transaction.serializeForSigning());
     transaction.applySignature(signature);
@@ -195,24 +220,34 @@ export class MessageApprovedProcessorService {
     );
   }
 
-  private async handleMessageApprovedFailed(messageApproved: MessageApproved) {
+  private async handleMessageApprovedFailed(
+    messageApproved: MessageApproved,
+    reason: CannotExecuteMessageReason = 'ERROR',
+  ) {
     this.logger.error(
       `Could not execute MessageApproved from ${messageApproved.sourceChain} with message id ${messageApproved.messageId} after ${messageApproved.retry} retries`,
     );
 
     messageApproved.status = MessageApprovedStatus.FAILED;
 
-    const cannotExecuteEvent: CannotExecuteMessageEvent = {
-      eventID: messageApproved.messageId,
-      taskItemID: messageApproved.taskItemId || '',
-      reason: 'ERROR',
+    const cannotExecuteEvent: CannotExecuteMessageEventV2 = {
+      eventID: messageApproved.executeTxHash
+        ? DecodingUtils.getEventId(messageApproved.executeTxHash, 0)
+        : messageApproved.messageId,
+      messageID: messageApproved.messageId,
+      sourceChain: CONSTANTS.SOURCE_CHAIN_NAME,
+      reason,
       details: '',
+      meta: {
+        txID: messageApproved.executeTxHash,
+        taskItemID: messageApproved.taskItemId || '',
+      },
     };
 
     try {
       const eventsToSend: Event[] = [
         {
-          type: 'CANNOT_EXECUTE_MESSAGE',
+          type: 'CANNOT_EXECUTE_MESSAGE/V2',
           ...cannotExecuteEvent,
         },
       ];

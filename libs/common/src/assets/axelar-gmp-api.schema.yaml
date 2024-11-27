@@ -11,6 +11,63 @@ paths:
       responses:
         '200':
           description: OK
+  /contracts/{wasmContractAddress}/broadcasts:
+    post:
+      summary: Broadcast arbitrary MsgExecuteContract transaction
+      operationId: broadcastMsgExecuteContract
+      parameters:
+        - $ref: '#/components/parameters/wasmContractAddress'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BroadcastRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BroadcastResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /contracts/{wasmContractAddress}/broadcasts/{broadcastID}:
+    get:
+      summary: Get broadcast status
+      operationId: getMsgExecuteContractBroadcastStatus
+      parameters:
+        - $ref: '#/components/parameters/wasmContractAddress'
+        - $ref: '#/components/parameters/broadcastID'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BroadcastStatusResponse'
+        '404':
+          description: Broadcast Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /chains/{chain}/events:
     post:
       summary: Publish on-chain events
@@ -94,7 +151,7 @@ components:
         x-go-type-import:
           path: github.com/google/uuid
           name: uuid
-      example: "TBD"
+      example: "deadbeef-dead-beef-dead-beefdeadbeef"
     limit:
       name: limit
       in: query
@@ -104,6 +161,21 @@ components:
         minimum: 1
         default: 20
       example: 10
+    wasmContractAddress:
+      name: wasmContractAddress
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^axelar1[acdefghjklmnpqrstuvwxyz023456789]{58}$'
+      example: "axelar16mek8sdcsq78jltfue35zhm5ds0cxpl0dfnrel8kck3jwtecdtnqcejdav"
+    broadcastID:
+      name: broadcastID
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/BroadcastID'
+      example: "deadbeef-dead-beef-dead-beefdeadbeef"
   schemas:
     PublishEventsRequest:
       type: object
@@ -125,6 +197,8 @@ components:
         - MESSAGE_APPROVED
         - MESSAGE_EXECUTED
         - CANNOT_EXECUTE_MESSAGE
+        - CANNOT_EXECUTE_MESSAGE/V2
+        - SIGNERS_ROTATED
       x-enum-varnames:
         - EventTypeGasCredit
         - EventTypeGasRefunded
@@ -132,6 +206,8 @@ components:
         - EventTypeMessageApproved
         - EventTypeMessageExecuted
         - EventTypeCannotExecuteMessage
+        - EventTypeCannotExecuteMessageV2
+        - EventTypeSignersRotated
     EventMetadata:
       type: object
       properties:
@@ -170,6 +246,7 @@ components:
               type: string
               nullable: true
               x-omitempty: true
+              # TODO: use exact length
               minLength: 1
     MessageExecutedEventMetadata:
       allOf:
@@ -179,6 +256,7 @@ components:
               type: string
               nullable: true
               x-omitempty: true
+              # TODO: use exact length
               minLength: 1
             childMessageIDs:
               type: array
@@ -198,6 +276,31 @@ components:
         timestamp:
           type: string
           format: date-time
+    CannotExecuteMessageEventV2Metadata:
+      type: object
+      properties:
+        fromAddress:
+          allOf:
+            - $ref: '#/components/schemas/Address'
+          nullable: true
+          x-omitempty: true
+        timestamp:
+          type: string
+          format: date-time
+        taskItemID:
+          $ref: '#/components/schemas/TaskItemID'
+    SignersRotatedEventMetadata:
+      allOf:
+        - $ref: '#/components/schemas/EventMetadata'
+        - properties:
+            signersHash:
+              type: string
+              format: byte
+              minLength: 1
+            epoch:
+              type: integer
+              format: int64
+              minimum: 0
     Event:
       oneOf:
         - $ref: '#/components/schemas/GasCreditEvent'
@@ -206,6 +309,8 @@ components:
         - $ref: '#/components/schemas/MessageApprovedEvent'
         - $ref: '#/components/schemas/MessageExecutedEvent'
         - $ref: '#/components/schemas/CannotExecuteMessageEvent'
+        - $ref: '#/components/schemas/CannotExecuteMessageEventV2'
+        - $ref: '#/components/schemas/SignersRotatedEvent'
       discriminator:
         propertyName: type
         mapping:
@@ -215,6 +320,8 @@ components:
           MESSAGE_APPROVED: '#/components/schemas/MessageApprovedEvent'
           MESSAGE_EXECUTED: '#/components/schemas/MessageExecutedEvent'
           CANNOT_EXECUTE_MESSAGE: '#/components/schemas/CannotExecuteMessageEvent'
+          CANNOT_EXECUTE_MESSAGE/V2: '#/components/schemas/CannotExecuteMessageEventV2'
+          SIGNERS_ROTATED: '#/components/schemas/SignersRotatedEvent'
       properties:
         type:
           $ref: '#/components/schemas/EventType'
@@ -287,6 +394,8 @@ components:
             payload:
               type: string
               format: byte
+            withToken:
+              $ref: '#/components/schemas/Token'
           required:
             - message
             - destinationChain
@@ -365,6 +474,33 @@ components:
             - taskItemID
             - reason
             - details
+    CannotExecuteMessageEventV2:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/EventBase'
+        - properties:
+            meta:
+              allOf:
+                - $ref: '#/components/schemas/CannotExecuteMessageEventV2Metadata'
+              nullable: true
+              x-omitempty: true
+        - properties:
+            messageID:
+              type: string
+              minLength: 1
+            sourceChain:
+              type: string
+              minLength: 1
+            reason:
+              $ref: '#/components/schemas/CannotExecuteMessageReason'
+            details:
+              type: string
+              minLength: 1
+          required:
+            - messageID
+            - sourceChain
+            - reason
+            - details
     CannotExecuteMessageReason:
       type: string
       enum:
@@ -373,6 +509,22 @@ components:
       x-enum-varnames:
         - CannotExecuteMessageReasonInsufficientGas
         - CannotExecuteMessageReasonError
+    SignersRotatedEvent:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/EventBase'
+        - properties:
+            meta:
+              allOf:
+                - $ref: '#/components/schemas/SignersRotatedEventMetadata'
+              nullable: true
+              x-omitempty: true
+        - properties:
+            messageID:
+              type: string
+              minLength: 1
+          required:
+            - messageID
     GatewayV2Message:
       type: object
       properties:
@@ -472,21 +624,26 @@ components:
     TaskType:
       type: string
       enum:
-        - VERIFY
-        - GATEWAY_TX
+        - CONSTRUCT_PROOF
         - EXECUTE
+        - GATEWAY_TX
         - REFUND
+        - VERIFY
       x-enum-varnames:
-        - TaskTypeVerify
-        - TaskTypeGatewayTransaction
+        - TaskTypeConstructProof
         - TaskTypeExecute
+        - TaskTypeGatewayTransaction
         - TaskTypeRefund
+        - TaskTypeVerify
     TaskItem:
       properties:
         id:
           allOf:
             - $ref: '#/components/schemas/TaskItemID'
           x-go-name: ID
+        chain:
+          type: string
+          minLength: 1
         timestamp:
           type: string
           format: date-time
@@ -496,6 +653,7 @@ components:
           $ref: '#/components/schemas/Task'
       required:
         - id
+        - chain
         - timestamp
         - type
         - task
@@ -508,31 +666,12 @@ components:
         name: uuid
     Task:
       oneOf:
-        - $ref: '#/components/schemas/VerifyTask'
+        - $ref: '#/components/schemas/ConstructProofTask'
         - $ref: '#/components/schemas/GatewayTransactionTask'
         - $ref: '#/components/schemas/ExecuteTask'
         - $ref: '#/components/schemas/RefundTask'
-    RefundTask:
-      properties:
-        message:
-          $ref: "#/components/schemas/GatewayV2Message"
-        refundRecipientAddress:
-          $ref: '#/components/schemas/Address'
-        remainingGasBalance:
-          $ref: "#/components/schemas/Token"
-      required:
-        - message
-        - refundRecipientAddress
-        - remainingGasBalance
-    GatewayTransactionTask:
-      properties:
-        executeData:
-          type: string
-          format: byte
-          minLength: 1
-      required:
-        - executeData
-    VerifyTask:
+        - $ref: '#/components/schemas/VerifyTask'
+    ConstructProofTask:
       properties:
         message:
           $ref: "#/components/schemas/GatewayV2Message"
@@ -557,6 +696,111 @@ components:
         - message
         - payload
         - availableGasBalance
+    GatewayTransactionTask:
+      properties:
+        executeData:
+          type: string
+          format: byte
+          minLength: 1
+      required:
+        - executeData
+    RefundTask:
+      properties:
+        message:
+          $ref: "#/components/schemas/GatewayV2Message"
+        refundRecipientAddress:
+          $ref: '#/components/schemas/Address'
+        remainingGasBalance:
+          $ref: "#/components/schemas/Token"
+      required:
+        - message
+        - refundRecipientAddress
+        - remainingGasBalance
+    VerifyTask:
+      properties:
+        message:
+          $ref: "#/components/schemas/GatewayV2Message"
+        payload:
+          type: string
+          format: byte
+          minLength: 1
+      required:
+        - message
+        - payload
+    BroadcastRequest:
+      type: object
+      additionalProperties: {}
+    BroadcastResponse:
+      type: object
+      properties:
+        broadcastID:
+          $ref: "#/components/schemas/BroadcastID"
+      required:
+        - broadcastID
+    BroadcastStatusResponse:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/BroadcastStatus'
+        receivedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        txEvents:
+          type: array
+          x-omitempty: true
+          items:
+            $ref: '#/components/schemas/BroadcastTxEvent'
+        txHash:
+          type: string
+          nullable: true
+          x-omitempty: true
+          minLength: 1
+        error:
+          type: string
+          nullable: true
+          x-omitempty: true
+          minLength: 1
+      required:
+        - receivedAt
+        - status
+    BroadcastTxEvent:
+      type: object
+      properties:
+        type:
+          type: string
+          minLength: 1
+        attributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/BroadcastTxEventAttribute'
+      required:
+        - type
+        - attributes
+    BroadcastTxEventAttribute:
+      type: object
+      properties:
+        key:
+          type: string
+          minLength: 1
+        value:
+          type: string
+          minLength: 1
+      required:
+        - key
+        - value
+    BroadcastStatus:
+      type: string
+      enum:
+        - RECEIVED
+        - SUCCESS
+        - ERROR
+      x-enum-varnames:
+        - BroadcastStatusReceived
+        - BroadcastStatusSuccess
+        - BroadcastStatusError
     ErrorResponse:
       type: object
       properties:
@@ -568,6 +812,13 @@ components:
           minLength: 1
       required:
         - error
+    BroadcastID:
+      type: string
+      minLength: 1
+      x-go-type: uuid.UUID
+      x-go-type-import:
+        path: github.com/google/uuid
+        name: uuid
     Address:
       type: string
       minLength: 1

@@ -11,7 +11,7 @@ import { Events } from '../utils/event.enum';
 import {
   ContractCallEvent,
   MessageApprovedEvent, MessageExecutedEvent,
-  WeightedSigners,
+  SignersRotatedEvent,
 } from '@mvx-monorepo/common/contracts/entities/gateway-events';
 import { DecodingUtils } from '@mvx-monorepo/common/utils/decoding.utils';
 
@@ -52,7 +52,6 @@ export class GatewayContract {
     const outcome = DecodingUtils.parseTransactionEvent(event, eventDefinition);
 
     return {
-      commandId: DecodingUtils.decodeByteArrayToHex(outcome.command_id),
       sourceChain: outcome.source_chain.toString(),
       messageId: outcome.message_id.toString(),
       sourceAddress: outcome.source_address.toString(),
@@ -66,19 +65,20 @@ export class GatewayContract {
     const outcome = DecodingUtils.parseTransactionEvent(event, eventDefinition);
 
     return {
-      commandId: DecodingUtils.decodeByteArrayToHex(outcome.command_id),
       sourceChain: outcome.source_chain.toString(),
       messageId: outcome.message_id.toString(),
     };
   }
 
-  decodeSignersRotatedEvent(event: ITransactionEvent): WeightedSigners {
+  decodeSignersRotatedEvent(event: ITransactionEvent): SignersRotatedEvent {
     const eventDefinition = this.abi.getEvent(Events.SIGNERS_ROTATED_EVENT);
     const outcome = DecodingUtils.parseTransactionEvent(event, eventDefinition);
 
     const signers = outcome.signers;
 
     return {
+      epoch: outcome.epoch,
+      signersHash: DecodingUtils.decodeByteArrayToHex(outcome.signers_hash),
       signers: signers.signers.map((signer: any) => ({
         signer: DecodingUtils.decodeByteArrayToHex(signer.signer),
         weight: signer.weight,
