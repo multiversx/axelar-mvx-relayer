@@ -70,7 +70,7 @@ export class ApprovalsProcessorService {
 
         for (const task of tasks) {
           try {
-            // await this.processTask(task);
+            await this.processTask(task);
 
             lastTaskUUID = task.id;
 
