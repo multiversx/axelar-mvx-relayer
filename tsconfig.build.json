@@ -5,5 +5,9 @@
     "test",
     "dist",
     "**/*spec.ts"
-  ]
+  ],
+  "compilerOptions": {
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  }
 }

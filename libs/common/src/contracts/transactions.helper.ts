@@ -4,6 +4,7 @@ import { Transaction, TransactionHash, TransactionWatcher } from '@multiversx/sd
 import { UserAddress } from '@multiversx/sdk-wallet/out/userAddress';
 import { UserSigner } from '@multiversx/sdk-wallet/out';
 import { ApiConfigService } from '@mvx-monorepo/common/config';
+import { GasError } from '@mvx-monorepo/common/contracts/entities/gas.error';
 
 @Injectable()
 export class TransactionsHelper {
@@ -27,22 +28,34 @@ export class TransactionsHelper {
     return accountOnNetwork.nonce;
   }
 
-  // TODO: Test if this works correctly
   async getTransactionGas(transaction: Transaction, retry: number): Promise<number> {
-    transaction.setChainID(this.chainId);
-
     const result = await this.proxy.doPostGeneric('transaction/cost', transaction.toSendable());
 
-    return (result.data.txGasUnits * (11 + retry * 2)) / 10; // add 10% extra gas initially, and more gas with each retry
+    if (!result?.txGasUnits) {
+      throw new GasError(`Could not get gas for transaction ${transaction.getHash()} ${JSON.stringify(result)}`);
+    }
+
+    return Math.ceil((result.txGasUnits * (11 + retry * 2)) / 10); // add 10% extra gas initially, and more gas with each retry
+  }
+
+  async signAndSendTransactionAndGetNonce(transaction: Transaction, signer: UserSigner) {
+    let accountNonce = null;
+    try {
+      accountNonce = await this.getAccountNonce(signer.getAddress());
+    } catch (e) {
+      this.logger.error(`Can get nonce for transaction...`);
+      this.logger.error(e);
+
+      throw e;
+    }
+
+    transaction.setNonce(accountNonce);
+
+    return this.signAndSendTransaction(transaction, signer);
   }
 
   async signAndSendTransaction(transaction: Transaction, signer: UserSigner) {
     try {
-      // TODO: Check if it is fine to use the same wallet as in the CallContractApprovedProcessor
-      // and that no issues happen because of nonce
-      const accountNonce = await this.getAccountNonce(signer.getAddress());
-
-      transaction.setNonce(accountNonce);
       transaction.setSender(signer.getAddress());
       transaction.setChainID(this.chainId);
 
@@ -70,9 +83,7 @@ export class TransactionsHelper {
     try {
       const hashes = await this.proxy.sendTransactions(transactions);
 
-      this.logger.log(
-        `Sent ${transactions.length} transactions to proxy: ${hashes}`,
-      );
+      this.logger.log(`Sent ${transactions.length} transactions to proxy: ${hashes}`);
 
       return hashes;
     } catch (e) {

@@ -1,67 +1,90 @@
-import { AbiRegistry, BytesValue, IAddress, ResultsParser, SmartContract, Transaction } from '@multiversx/sdk-core/out';
+import {
+  AbiRegistry,
+  IAddress,
+  ITransactionEvent,
+  SmartContract,
+  Transaction,
+  TransactionPayload,
+} from '@multiversx/sdk-core/out';
 import { Injectable } from '@nestjs/common';
 import { Events } from '../utils/event.enum';
-import { TransactionEvent } from '@multiversx/sdk-network-providers/out';
-import { ContractCallApprovedEvent, ContractCallEvent } from '@mvx-monorepo/common/contracts/entities/gateway-events';
+import {
+  ContractCallEvent,
+  MessageApprovedEvent, MessageExecutedEvent,
+  SignersRotatedEvent,
+} from '@mvx-monorepo/common/contracts/entities/gateway-events';
 import { DecodingUtils } from '@mvx-monorepo/common/utils/decoding.utils';
-import { TransferData } from '@mvx-monorepo/common/contracts/entities/auth-types';
-import { AuthContract } from '@mvx-monorepo/common/contracts/auth.contract';
 
 @Injectable()
 export class GatewayContract {
   constructor(
     private readonly smartContract: SmartContract,
     private readonly abi: AbiRegistry,
-    private readonly resultsParser: ResultsParser,
-    private readonly authContract: AuthContract,
+    private readonly chainId: string,
   ) {}
 
-  buildExecuteTransaction(executeData: Uint8Array, sender: IAddress): Transaction {
-    return this.smartContract.methodsExplicit
-      .execute([new BytesValue(Buffer.from(executeData))])
-      .withSender(sender)
-      .buildTransaction();
+  buildTransactionExternalFunction(externalData: string, sender: IAddress, nonce: number): Transaction {
+    return new Transaction({
+      sender,
+      nonce,
+      receiver: this.smartContract.getAddress(),
+      data: new TransactionPayload(externalData),
+      gasLimit: 0, // These will actually be set before sending the transaction to the chain
+      chainID: this.chainId,
+    });
   }
 
-  decodeContractCallEvent(event: TransactionEvent): ContractCallEvent {
+  decodeContractCallEvent(event: ITransactionEvent): ContractCallEvent {
     const eventDefinition = this.abi.getEvent(Events.CONTRACT_CALL_EVENT);
-    const outcome = this.resultsParser.parseEvent(event, eventDefinition);
+    const outcome = DecodingUtils.parseTransactionEvent(event, eventDefinition);
 
     return {
       sender: outcome.sender,
       destinationChain: outcome.destination_chain.toString(),
       destinationAddress: outcome.destination_contract_address.toString(),
-      data: {
-        payloadHash: DecodingUtils.decodeKeccak256Hash(outcome.data.hash),
-        payload: outcome.data.payload,
-      },
+      payloadHash: DecodingUtils.decodeByteArrayToHex(outcome.payload_hash),
+      payload: outcome.payload,
     };
   }
 
-  decodeContractCallApprovedEvent(event: TransactionEvent): ContractCallApprovedEvent {
-    const eventDefinition = this.abi.getEvent(Events.CONTRACT_CALL_APPROVED_EVENT);
-    const outcome = this.resultsParser.parseEvent(event, eventDefinition);
+  decodeMessageApprovedEvent(event: ITransactionEvent): MessageApprovedEvent {
+    const eventDefinition = this.abi.getEvent(Events.MESSAGE_APPROVED_EVENT);
+    const outcome = DecodingUtils.parseTransactionEvent(event, eventDefinition);
 
     return {
-      commandId: DecodingUtils.decodeKeccak256Hash(outcome.command_id),
       sourceChain: outcome.source_chain.toString(),
+      messageId: outcome.message_id.toString(),
       sourceAddress: outcome.source_address.toString(),
       contractAddress: outcome.contract_address,
-      payloadHash: DecodingUtils.decodeKeccak256Hash(outcome.payload_hash),
+      payloadHash: DecodingUtils.decodeByteArrayToHex(outcome.payload_hash),
     };
   }
 
-  decodeOperatorshipTransferredEvent(event: TransactionEvent): TransferData {
-    const eventDefinition = this.abi.getEvent(Events.OPERATORSHIP_TRANSFERRED_EVENT);
-    const outcome = this.resultsParser.parseEvent(event, eventDefinition);
+  decodeMessageExecutedEvent(event: ITransactionEvent): MessageExecutedEvent {
+    const eventDefinition = this.abi.getEvent(Events.MESSAGE_EXECUTED_EVENT);
+    const outcome = DecodingUtils.parseTransactionEvent(event, eventDefinition);
 
-    return this.authContract.decodeTransferData(outcome.params);
+    return {
+      sourceChain: outcome.source_chain.toString(),
+      messageId: outcome.message_id.toString(),
+    };
   }
 
-  decodeContractCallExecutedEvent(event: TransactionEvent): string {
-    const eventDefinition = this.abi.getEvent(Events.CONTRACT_CALL_EXECUTED_EVENT);
-    const outcome = this.resultsParser.parseEvent(event, eventDefinition);
+  decodeSignersRotatedEvent(event: ITransactionEvent): SignersRotatedEvent {
+    const eventDefinition = this.abi.getEvent(Events.SIGNERS_ROTATED_EVENT);
+    const outcome = DecodingUtils.parseTransactionEvent(event, eventDefinition);
 
-    return DecodingUtils.decodeKeccak256Hash(outcome.command_id);
+    const signers = outcome.signers;
+
+    return {
+      epoch: outcome.epoch,
+      signersHash: DecodingUtils.decodeByteArrayToHex(outcome.signers_hash),
+      signers: signers.signers.map((signer: any) => ({
+        signer: DecodingUtils.decodeByteArrayToHex(signer.signer),
+        weight: signer.weight,
+      })),
+      threshold: signers.threshold,
+      nonce: DecodingUtils.decodeByteArrayToHex(signers.nonce),
+    };
   }
 }

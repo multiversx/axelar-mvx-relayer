@@ -13,6 +13,7 @@ Based on Amplifier API Docs: https://bright-ambert-2bd.notion.site/Amplifier-API
 
 1. Redis Server is required to be installed [docs](https://redis.io/).
 2. PostgreSQL is required to be installed [docs](https://www.postgresql.org/).
+3. For E2E tests you need dotenv-cli `npm install -g dotenv-cli`
 
 In this repo there is a `docker-compose.yml` file providing these services so you can run them easily using `docker-compose up -d`
 
@@ -29,24 +30,6 @@ $ npm run test:e2e
 $ npm run test:cov
 ```
 
-## Regenerating gRPC Typescript interfaces from proto file
+## Regenerating Typescript interfaces from OpenApi schema file
 
-Make sure to have `protoc` installed https://grpc.io/docs/protoc-installation/.
-
-Then you can compile the files using:
-```
-TS_ARGS=('lowerCaseServiceMethods=true'
-    'outputEncodeMethods=false'
-    'outputJsonMethods=false'
-    'outputClientImpl=false'
-    'snakeToCamel=true')
-protoc --plugin=./node_modules/.bin/protoc-gen-ts_proto\
-    --ts_proto_out=./libs/common/src/grpc/entities\
-    --proto_path=./libs/common/src/assets\
-    --ts_proto_opt="$(IFS=, ; echo "${TS_ARGS[*]}")"\
-    ./libs/common/src/assets/amplifier.proto
-```
-
-Check out these resources for more information:
-- https://github.com/stephenh/ts-proto/blob/main/NESTJS.markdown
-- https://blog.stackademic.com/nestjs-grpc-typescript-codegen-9a342bbd32f9
+`npx openapicmd typegen ./libs/common/src/assets/axelar-gmp-api.schema.yaml > ./libs/common/src/api/entities/axelar.gmp.api.d.ts`

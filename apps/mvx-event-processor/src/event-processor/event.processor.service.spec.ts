@@ -3,18 +3,17 @@ import { ApiConfigService } from '@mvx-monorepo/common';
 import { createMock, DeepMocked } from '@golevelup/ts-jest';
 import { Test } from '@nestjs/testing';
 import { NotifierBlockEvent } from './types';
-import { GatewayProcessor, GasServiceProcessor } from '../processors';
+import { RedisHelper } from '@mvx-monorepo/common/helpers/redis.helper';
+import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
 
 describe('EventProcessorService', () => {
-  let contractCallProcessor: DeepMocked<GatewayProcessor>;
-  let gasServiceProcessor: DeepMocked<GasServiceProcessor>;
+  let redisHelper: DeepMocked<RedisHelper>;
   let apiConfigService: DeepMocked<ApiConfigService>;
 
   let service: EventProcessorService;
 
   beforeEach(async () => {
-    contractCallProcessor = createMock();
-    gasServiceProcessor = createMock();
+    redisHelper = createMock();
     apiConfigService = createMock();
 
     apiConfigService.getContractGateway.mockReturnValue('mockGatewayAddress');
@@ -24,12 +23,8 @@ describe('EventProcessorService', () => {
       providers: [EventProcessorService],
     })
       .useMocker((token) => {
-        if (token === GatewayProcessor) {
-          return contractCallProcessor;
-        }
-
-        if (token === GasServiceProcessor) {
-          return gasServiceProcessor;
+        if (token === RedisHelper) {
+          return redisHelper;
         }
 
         if (token === ApiConfigService) {
@@ -59,10 +54,21 @@ describe('EventProcessorService', () => {
           },
           {
             txHash: 'test',
-            address: 'someOtherAddress',
+            address: 'mockGatewayAddress',
+            identifier: 'callContract',
+            data: '',
+            topics: [
+              BinaryUtils.base64Encode('any'),
+            ],
+          },
+          {
+            txHash: 'test',
+            address: 'mockGasServiceAddress',
             identifier: 'any',
             data: '',
-            topics: [],
+            topics: [
+              BinaryUtils.base64Encode('any'),
+            ],
           },
         ],
       };
@@ -70,8 +76,8 @@ describe('EventProcessorService', () => {
       await service.consumeEvents(blockEvent);
 
       expect(apiConfigService.getContractGateway).toHaveBeenCalledTimes(1);
-      expect(contractCallProcessor.handleEvent).not.toHaveBeenCalled();
-      expect(gasServiceProcessor.handleEvent).not.toHaveBeenCalled();
+      expect(apiConfigService.getContractGasService).toHaveBeenCalledTimes(1);
+      expect(redisHelper.sadd).not.toHaveBeenCalled();
     });
 
     it('Should consume gateway event', async () => {
@@ -81,20 +87,30 @@ describe('EventProcessorService', () => {
         timestamp: 123456,
         events: [
           {
-            txHash: 'test',
+            txHash: 'txHash',
             address: 'mockGatewayAddress',
-            identifier: 'any',
+            identifier: 'callContract',
             data: '',
-            topics: [],
+            topics: [
+              BinaryUtils.base64Encode('contract_call_event'),
+            ],
+          },
+          {
+            txHash: 'txHash',
+            address: 'mockGatewayAddress',
+            identifier: 'approveMessages',
+            data: '',
+            topics: [
+              BinaryUtils.base64Encode('message_approved_event'),
+            ],
           },
         ],
       };
 
       await service.consumeEvents(blockEvent);
 
-      expect(apiConfigService.getContractGateway).toHaveBeenCalledTimes(1);
-      expect(contractCallProcessor.handleEvent).toHaveBeenCalledTimes(1);
-      expect(gasServiceProcessor.handleEvent).not.toHaveBeenCalled();
+      expect(redisHelper.sadd).toHaveBeenCalledTimes(1);
+      expect(redisHelper.sadd).toHaveBeenCalledWith('crossChainTransactions', 'txHash');
     });
 
     it('Should consume gas contract event', async () => {
@@ -108,16 +124,17 @@ describe('EventProcessorService', () => {
             address: 'mockGasServiceAddress',
             identifier: 'any',
             data: '',
-            topics: [],
+            topics: [
+              BinaryUtils.base64Encode('gas_paid_for_contract_call_event'),
+            ],
           },
         ],
       };
 
       await service.consumeEvents(blockEvent);
 
-      expect(apiConfigService.getContractGateway).toHaveBeenCalledTimes(1);
-      expect(gasServiceProcessor.handleEvent).toHaveBeenCalledTimes(1);
-      expect(contractCallProcessor.handleEvent).not.toHaveBeenCalled();
+      expect(redisHelper.sadd).toHaveBeenCalledTimes(1);
+      expect(redisHelper.sadd).toHaveBeenCalledWith('crossChainTransactions', 'test');
     });
   });
 });

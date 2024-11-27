@@ -1,11 +1,11 @@
 {
     "buildInfo": {
         "rustc": {
-            "version": "1.76.0-nightly",
-            "commitHash": "d86d65bbc19b928387f68427fcc3a0da498d8a19",
-            "commitDate": "2023-12-10",
-            "channel": "Nightly",
-            "short": "rustc 1.76.0-nightly (d86d65bbc 2023-12-10)"
+            "version": "1.81.0",
+            "commitHash": "eeb90cda1969383f56a2637cbd3037bdf598841c",
+            "commitDate": "2024-09-04",
+            "channel": "Stable",
+            "short": "rustc 1.81.0 (eeb90cda1 2024-09-04)"
         },
         "contractCrate": {
             "name": "gas-service",
@@ -13,7 +13,7 @@
         },
         "framework": {
             "name": "multiversx-sc",
-            "version": "0.46.1"
+            "version": "0.50.3"
         }
     },
     "name": "GasService",
@@ -26,13 +26,11 @@
         ],
         "outputs": []
     },
+    "upgradeConstructor": {
+        "inputs": [],
+        "outputs": []
+    },
     "endpoints": [
-        {
-            "name": "upgrade",
-            "mutability": "mutable",
-            "inputs": [],
-            "outputs": []
-        },
         {
             "name": "payGasForContractCall",
             "mutability": "mutable",
@@ -40,6 +38,10 @@
                 "*"
             ],
             "inputs": [
+                {
+                    "name": "sender",
+                    "type": "Address"
+                },
                 {
                     "name": "destination_chain",
                     "type": "bytes"
@@ -67,6 +69,10 @@
             ],
             "inputs": [
                 {
+                    "name": "sender",
+                    "type": "Address"
+                },
+                {
                     "name": "destination_chain",
                     "type": "bytes"
                 },
@@ -93,6 +99,10 @@
             ],
             "inputs": [
                 {
+                    "name": "sender",
+                    "type": "Address"
+                },
+                {
                     "name": "destination_chain",
                     "type": "bytes"
                 },
@@ -118,6 +128,10 @@
                 "EGLD"
             ],
             "inputs": [
+                {
+                    "name": "sender",
+                    "type": "Address"
+                },
                 {
                     "name": "destination_chain",
                     "type": "bytes"

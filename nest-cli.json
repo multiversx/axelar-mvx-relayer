@@ -10,7 +10,7 @@
     "tsConfigPath": "apps/mvx-event-processor/tsconfig.app.json",
     "assets": [
       {
-        "include": "../libs/common/src/assets/*.proto",
+        "include": "../libs/common/src/assets/axelar-gmp-api.schema.yaml",
         "outDir": "dist"
       }
     ]
@@ -24,13 +24,7 @@
       "entryFile": "main",
       "sourceRoot": "apps/axelar-event-processor/src",
       "compilerOptions": {
-        "tsConfigPath": "apps/axelar-event-processor/tsconfig.app.json",
-        "assets": [
-          {
-            "include": "../axelar/amplifier.proto",
-            "outDir": "./dist/apps/axelar-event-processor/axelar"
-          }
-        ]
+        "tsConfigPath": "apps/axelar-event-processor/tsconfig.app.json"
       }
     },
     "mvx-event-processor": {
@@ -49,7 +43,7 @@
       "sourceRoot": "libs/common/src",
       "compilerOptions": {
         "tsConfigPath": "libs/common/tsconfig.lib.json",
-        "assets": ["assets/*.proto", "assets/*.abi.json"]
+        "assets": ["assets/**"]
       }
     }
   }

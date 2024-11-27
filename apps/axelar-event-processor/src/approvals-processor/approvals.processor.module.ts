@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
-import { ApiConfigModule, DynamicModuleUtils } from '@mvx-monorepo/common';
+import { ApiConfigModule, DatabaseModule, DynamicModuleUtils } from '@mvx-monorepo/common';
 import { ApprovalsProcessorService } from './approvals.processor.service';
-import { GrpcModule } from '@mvx-monorepo/common/grpc/grpc.module';
+import { ApiModule } from '@mvx-monorepo/common/api/api.module';
 import { ContractsModule } from '@mvx-monorepo/common/contracts/contracts.module';
 import { ScheduleModule } from '@nestjs/schedule';
 
@@ -10,8 +10,9 @@ import { ScheduleModule } from '@nestjs/schedule';
     ScheduleModule.forRoot(),
     ApiConfigModule,
     DynamicModuleUtils.getRedisCacheModule(),
-    GrpcModule,
+    ApiModule,
     ContractsModule,
+    DatabaseModule,
   ],
   providers: [ApprovalsProcessorService],
 })

@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { EVENTS_NOTIFIER_QUEUE } from '../../../../config/configuration';
 
 @Injectable()
 export class ApiConfigService {
@@ -53,10 +52,6 @@ export class ApiConfigService {
     return eventsNotifierUrl;
   }
 
-  getEventsNotifierQueue(): string {
-    return EVENTS_NOTIFIER_QUEUE;
-  }
-
   getContractGateway(): string {
     const contractGateway = this.configService.get<string>('CONTRACT_GATEWAY');
     if (!contractGateway) {
@@ -102,13 +97,31 @@ export class ApiConfigService {
     return axelarContractVotingVerifier;
   }
 
-  getAxelarApiUrl(): string {
-    const axelarApiUrl = this.configService.get<string>('AXELAR_API_URL');
-    if (!axelarApiUrl) {
-      throw new Error('No Axelar API url present');
+  getAxelarGmpApiUrl(): string {
+    const axelarGmpApiUrl = this.configService.get<string>('AXELAR_GMP_API_URL');
+    if (!axelarGmpApiUrl) {
+      throw new Error('No Axelar GMP API url present');
     }
 
-    return axelarApiUrl;
+    return axelarGmpApiUrl;
+  }
+
+  getClientCert(): string {
+    const clientCert = this.configService.get<string>('CLIENT_CERT');
+    if (!clientCert) {
+      throw new Error('No client cert present');
+    }
+
+    return clientCert;
+  }
+
+  getClientKey(): string {
+    const clientKey = this.configService.get<string>('CLIENT_KEY');
+    if (!clientKey) {
+      throw new Error('No client key present');
+    }
+
+    return clientKey;
   }
 
   getChainId(): string {
@@ -143,5 +156,9 @@ export class ApiConfigService {
 
   getGatewayTimeout(): number {
     return this.configService.get<number>('GATEWAY_TIMEOUT') ?? 30_000; // 30 seconds default
+  }
+
+  isEnabledGasCheck(): boolean {
+    return this.configService.get<boolean>('ENABLE_GAS_CHECK') ?? false;
   }
 }

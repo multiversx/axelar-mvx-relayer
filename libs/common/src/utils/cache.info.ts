@@ -4,16 +4,9 @@ export class CacheInfo {
   key: string = "";
   ttl: number = Constants.oneSecond() * 6;
 
-  static ChainId(): CacheInfo {
+  static LastTaskUUID(): CacheInfo {
     return {
-      key: `chainId`,
-      ttl: Constants.oneWeek(),
-    };
-  }
-
-  static StartProcessHeight(): CacheInfo {
-    return {
-      key: `startProcessHeight`,
+      key: `lastTaskUUID`,
       ttl: Constants.oneWeek(),
     };
   }
@@ -28,6 +21,13 @@ export class CacheInfo {
   static WegldTokenId(): CacheInfo {
     return {
       key: `wegldTokenId`,
+      ttl: Constants.oneWeek(),
+    };
+  }
+
+  static CrossChainTransactions(): CacheInfo {
+    return {
+      key: `crossChainTransactions`,
       ttl: Constants.oneWeek(),
     };
   }

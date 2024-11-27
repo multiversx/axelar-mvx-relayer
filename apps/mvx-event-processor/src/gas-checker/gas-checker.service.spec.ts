@@ -11,8 +11,8 @@ import { UserAddress } from '@multiversx/sdk-wallet/out/userAddress';
 import BigNumber from 'bignumber.js';
 
 describe('GasCheckerService', () => {
-  const gasServiceAddress = Address.fromBech32('erd1qqqqqqqqqqqqqpgqhe8t5jewej70zupmh44jurgn29psua5l2jps3ntjj3');
-  const userSignerAddress = UserAddress.fromBech32('erd1fsk0cnaag2m78gunfddsvg0y042rf0maxxgz6kvm32kxcl25m0yq8s38vt');
+  const gasServiceAddress = Address.newFromBech32('erd1qqqqqqqqqqqqqpgqhe8t5jewej70zupmh44jurgn29psua5l2jps3ntjj3');
+  const userSignerAddress = UserAddress.newFromBech32('erd1fsk0cnaag2m78gunfddsvg0y042rf0maxxgz6kvm32kxcl25m0yq8s38vt');
 
   let walletSigner: DeepMocked<UserSigner>;
   let transactionsHelper: DeepMocked<TransactionsHelper>;
@@ -125,13 +125,13 @@ describe('GasCheckerService', () => {
           throw new Error('Invalid account');
         }
 
-        return Promise.resolve(new AccountOnNetwork({ balance: new BigNumber('200000000000000000') }));
+        return Promise.resolve(new AccountOnNetwork({ balance: new BigNumber('300000000000000000') }));
       });
       api.getFungibleTokenOfAccount.mockRejectedValue(new Error('No wegld token for address'));
 
       const transaction: DeepMocked<Transaction> = createMock();
       gasServiceContract.collectFees.mockReturnValueOnce(transaction);
-      transactionsHelper.signAndSendTransaction.mockReturnValueOnce(Promise.resolve('txHash'));
+      transactionsHelper.signAndSendTransactionAndGetNonce.mockReturnValueOnce(Promise.resolve('txHash'));
       transactionsHelper.awaitSuccess.mockReturnValueOnce(Promise.resolve(success));
 
       await service.checkGasServiceAndWalletRaw();
@@ -148,8 +148,8 @@ describe('GasCheckerService', () => {
         ['EGLD'],
         [new BigNumber('200000000000000000')],
       );
-      expect(transactionsHelper.signAndSendTransaction).toHaveBeenCalledTimes(1);
-      expect(transactionsHelper.signAndSendTransaction).toHaveBeenCalledWith(transaction, walletSigner);
+      expect(transactionsHelper.signAndSendTransactionAndGetNonce).toHaveBeenCalledTimes(1);
+      expect(transactionsHelper.signAndSendTransactionAndGetNonce).toHaveBeenCalledWith(transaction, walletSigner);
       expect(transactionsHelper.awaitSuccess).toHaveBeenCalledTimes(1);
       expect(transactionsHelper.awaitSuccess).toHaveBeenCalledWith('txHash');
       expect(wegldSwapContract.unwrapEgld).not.toHaveBeenCalled();
@@ -207,7 +207,7 @@ describe('GasCheckerService', () => {
 
       const transaction: DeepMocked<Transaction> = createMock();
       wegldSwapContract.unwrapEgld.mockReturnValueOnce(transaction);
-      transactionsHelper.signAndSendTransaction.mockReturnValueOnce(Promise.resolve('txHash'));
+      transactionsHelper.signAndSendTransactionAndGetNonce.mockReturnValueOnce(Promise.resolve('txHash'));
       transactionsHelper.awaitSuccess.mockReturnValueOnce(Promise.resolve(complete));
 
       await service.checkGasServiceAndWalletRaw();
@@ -224,8 +224,8 @@ describe('GasCheckerService', () => {
         new BigNumber('200000000000000000'),
         userSignerAddress,
       );
-      expect(transactionsHelper.signAndSendTransaction).toHaveBeenCalledTimes(1);
-      expect(transactionsHelper.signAndSendTransaction).toHaveBeenCalledWith(transaction, walletSigner);
+      expect(transactionsHelper.signAndSendTransactionAndGetNonce).toHaveBeenCalledTimes(1);
+      expect(transactionsHelper.signAndSendTransactionAndGetNonce).toHaveBeenCalledWith(transaction, walletSigner);
       expect(transactionsHelper.awaitSuccess).toHaveBeenCalledTimes(1);
       expect(transactionsHelper.awaitSuccess).toHaveBeenCalledWith('txHash');
       expect(gasServiceContract.collectFees).not.toHaveBeenCalled();
