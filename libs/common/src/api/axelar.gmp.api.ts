@@ -1,5 +1,4 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { ApiConfigService } from '@mvx-monorepo/common/config';
 import { ProviderKeys } from '@mvx-monorepo/common/utils/provider.enum';
 import { Client as AxelarGmpApiClient, Components } from '@mvx-monorepo/common/api/entities/axelar.gmp.api';
 import { CONSTANTS } from '@mvx-monorepo/common/utils/constants.enum';
@@ -9,15 +8,9 @@ import PublishEventErrorResult = Components.Schemas.PublishEventErrorResult;
 
 @Injectable()
 export class AxelarGmpApi {
-  // @ts-ignore
-  private readonly axelarContractVotingVerifier: string;
   private readonly logger: Logger;
 
-  constructor(
-    @Inject(ProviderKeys.AXELAR_GMP_API_CLIENT) private readonly apiClient: AxelarGmpApiClient,
-    apiConfigService: ApiConfigService,
-  ) {
-    this.axelarContractVotingVerifier = apiConfigService.getAxelarContractVotingVerifier();
+  constructor(@Inject(ProviderKeys.AXELAR_GMP_API_CLIENT) private readonly apiClient: AxelarGmpApiClient) {
     this.logger = new Logger(AxelarGmpApi.name);
   }
 

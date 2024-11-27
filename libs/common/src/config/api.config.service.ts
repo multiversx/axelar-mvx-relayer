@@ -88,15 +88,6 @@ export class ApiConfigService {
     return contractWegldSwap;
   }
 
-  getAxelarContractVotingVerifier(): string {
-    const axelarContractVotingVerifier = this.configService.get<string>('AXELAR_CONTRACT_VOTING_VERIFIER');
-    if (!axelarContractVotingVerifier) {
-      throw new Error('No Axelar Contract Voting Verifier present');
-    }
-
-    return axelarContractVotingVerifier;
-  }
-
   getAxelarGmpApiUrl(): string {
     const axelarGmpApiUrl = this.configService.get<string>('AXELAR_GMP_API_URL');
     if (!axelarGmpApiUrl) {

@@ -70,7 +70,7 @@ export class ApprovalsProcessorService {
 
         for (const task of tasks) {
           try {
-            await this.processTask(task);
+            // await this.processTask(task);
 
             lastTaskUUID = task.id;
 
@@ -83,7 +83,7 @@ export class ApprovalsProcessorService {
           }
         }
 
-        this.logger.debug(`Successfully processed ${tasks.length}`);
+        this.logger.debug(`Successfully processed ${tasks.length} tasks`);
       } catch (e) {
         this.logger.error('Error retrieving tasks...', e);
 

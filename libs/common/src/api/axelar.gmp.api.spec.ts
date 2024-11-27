@@ -18,8 +18,6 @@ describe('ContractCallProcessor', () => {
     apiClient = createMock();
     apiConfigService = createMock();
 
-    apiConfigService.getAxelarContractVotingVerifier.mockReturnValueOnce('mockVotingVerifier');
-
     const moduleRef = await Test.createTestingModule({
       providers: [AxelarGmpApi],
     })
