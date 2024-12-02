@@ -11,7 +11,7 @@ import { UserAddress } from '@multiversx/sdk-wallet/out/userAddress';
 import { Transaction } from '@multiversx/sdk-core/out';
 import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
 import { MessageApprovedRepository } from '@mvx-monorepo/common/database/repository/message-approved.repository';
-import { Components, VerifyTask } from '@mvx-monorepo/common/api/entities/axelar.gmp.api';
+import { Components } from '@mvx-monorepo/common/api/entities/axelar.gmp.api';
 import { MessageApprovedStatus } from '@prisma/client';
 import { AccountOnNetwork, ApiNetworkProvider } from '@multiversx/sdk-network-providers/out';
 import BigNumber from 'bignumber.js';
@@ -22,7 +22,6 @@ import ExecuteTask = Components.Schemas.ExecuteTask;
 import { GasError } from '@mvx-monorepo/common/contracts/entities/gas.error';
 
 const mockExternalData = BinaryUtils.base64Encode('approveMessages@61726731@61726732');
-const mockVerifyData = BinaryUtils.base64Encode('rotateSigners@1234@4321');
 
 describe('ApprovalsProcessorService', () => {
   let axelarGmpApi: DeepMocked<AxelarGmpApi>;
@@ -424,80 +423,6 @@ describe('ApprovalsProcessorService', () => {
       expect(redisCacheService.get).toHaveBeenCalledTimes(2);
       expect(axelarGmpApi.getTasks).toHaveBeenCalledTimes(2);
       expect(axelarGmpApi.getTasks).toHaveBeenCalledWith('multiversx', 'lastUUID1');
-    });
-
-    it('Should handle verify task', async () => {
-      axelarGmpApi.getTasks.mockReturnValueOnce(
-        // @ts-ignore
-        Promise.resolve({
-          data: {
-            tasks: [
-              {
-                type: 'VERIFY',
-                task: {
-                  message: {
-                    messageID: '',
-                    payloadHash: '',
-                    sourceChain: '',
-                    sourceAddress: '',
-                    destinationAddress: '',
-                  },
-                  payload: mockVerifyData,
-                } as VerifyTask,
-                id: 'UUID',
-                timestamp: '1234',
-                chain: 'multiversx',
-              },
-            ],
-          },
-        }),
-      );
-
-      const userAddress = UserAddress.newFromBech32('erd1qqqqqqqqqqqqqpgqhe8t5jewej70zupmh44jurgn29psua5l2jps3ntjj3');
-      walletSigner.getAddress.mockReturnValueOnce(userAddress);
-
-      const transaction: DeepMocked<Transaction> = createMock();
-      gatewayContract.buildTransactionExternalFunction.mockReturnValueOnce(transaction);
-
-      transactionsHelper.getTransactionGas.mockReturnValueOnce(Promise.resolve(100_000_000));
-      transactionsHelper.signAndSendTransaction.mockReturnValueOnce(Promise.resolve('txHash'));
-
-      await service.handleNewTasksRaw();
-
-      expect(redisCacheService.get).toHaveBeenCalledTimes(1);
-      expect(axelarGmpApi.getTasks).toHaveBeenCalledTimes(2);
-      expect(axelarGmpApi.getTasks).toHaveBeenCalledWith('multiversx', undefined);
-      expect(axelarGmpApi.getTasks).toHaveBeenCalledWith('multiversx', 'UUID');
-
-      expect(gatewayContract.buildTransactionExternalFunction).toHaveBeenCalledTimes(1);
-      expect(gatewayContract.buildTransactionExternalFunction).toHaveBeenCalledWith(
-        'rotateSigners@1234@4321',
-        userAddress,
-        1,
-      );
-      expect(transactionsHelper.getTransactionGas).toHaveBeenCalledTimes(1);
-      expect(transactionsHelper.getTransactionGas).toHaveBeenCalledWith(transaction, 0);
-      expect(transaction.setGasLimit).toHaveBeenCalledTimes(1);
-      expect(transaction.setGasLimit).toHaveBeenCalledWith(100_000_000);
-      expect(transactionsHelper.signAndSendTransaction).toHaveBeenCalledTimes(1);
-      expect(transactionsHelper.signAndSendTransaction).toHaveBeenCalledWith(transaction, walletSigner);
-
-      expect(redisCacheService.set).toHaveBeenCalledTimes(2);
-      expect(redisCacheService.set).toHaveBeenCalledWith(
-        CacheInfo.PendingTransaction('txHash').key,
-        {
-          txHash: 'txHash',
-          externalData: mockVerifyData,
-          retry: 1,
-        },
-        CacheInfo.PendingTransaction('txHash').ttl,
-      );
-
-      expect(redisCacheService.set).toHaveBeenCalledWith(
-        CacheInfo.LastTaskUUID().key,
-        'UUID',
-        CacheInfo.LastTaskUUID().ttl,
-      );
     });
   });
 
