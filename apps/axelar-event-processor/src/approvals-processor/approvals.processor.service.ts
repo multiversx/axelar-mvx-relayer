@@ -10,7 +10,7 @@ import { TransactionsHelper } from '@mvx-monorepo/common/contracts/transactions.
 import { GatewayContract } from '@mvx-monorepo/common/contracts/gateway.contract';
 import { PendingTransaction } from './entities/pending-transaction';
 import { CONSTANTS } from '@mvx-monorepo/common/utils/constants.enum';
-import { Components, VerifyTask } from '@mvx-monorepo/common/api/entities/axelar.gmp.api';
+import { Components } from '@mvx-monorepo/common/api/entities/axelar.gmp.api';
 import { MessageApprovedRepository } from '@mvx-monorepo/common/database/repository/message-approved.repository';
 import { MessageApprovedStatus } from '@prisma/client';
 import { ApiNetworkProvider } from '@multiversx/sdk-network-providers/out';
@@ -166,14 +166,6 @@ export class ApprovalsProcessorService {
       const response = task.task as RefundTask;
 
       await this.processRefundTask(response);
-
-      return;
-    }
-
-    if (task.type === 'VERIFY') {
-      const response = task.task as VerifyTask;
-
-      await this.processGatewayTxTask(response.payload);
 
       return;
     }
