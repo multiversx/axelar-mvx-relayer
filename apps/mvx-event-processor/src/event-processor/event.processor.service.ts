@@ -11,6 +11,7 @@ import { EventIdentifiers, Events } from '@mvx-monorepo/common/utils/event.enum'
 export class EventProcessorService {
   private readonly contractGateway: string;
   private readonly contractGasService: string;
+  private readonly contractIts: string;
   private readonly logger: Logger;
 
   constructor(
@@ -19,6 +20,7 @@ export class EventProcessorService {
   ) {
     this.contractGateway = apiConfigService.getContractGateway();
     this.contractGasService = apiConfigService.getContractGasService();
+    this.contractIts = apiConfigService.getContractIts();
     this.logger = new Logger(EventProcessorService.name);
   }
 
@@ -83,6 +85,21 @@ export class EventProcessorService {
 
       if (validEvent) {
         this.logger.debug('Received Gateway event from MultiversX:');
+        this.logger.debug(JSON.stringify(event));
+      }
+
+      return validEvent;
+    }
+
+    if (event.address === this.contractIts) {
+      const eventName = BinaryUtils.base64Decode(event.topics[0]);
+
+      const validEvent =
+        eventName === Events.INTERCHAIN_TOKEN_DEPLOYMENT_STARTED_EVENT ||
+        eventName === Events.INTERCHAIN_TRANSFER_EVENT;
+
+      if (validEvent) {
+        this.logger.debug('Received ITS event from MultiversX:');
         this.logger.debug(JSON.stringify(event));
       }
 

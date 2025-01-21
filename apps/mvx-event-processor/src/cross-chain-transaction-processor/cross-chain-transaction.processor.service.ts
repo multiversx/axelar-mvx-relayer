@@ -7,16 +7,19 @@ import { ApiNetworkProvider, TransactionOnNetwork } from '@multiversx/sdk-networ
 import { GasServiceProcessor, GatewayProcessor } from './processors';
 import { AxiosError } from 'axios';
 import { MessageApprovedEvent } from '@mvx-monorepo/common/api/entities/axelar.gmp.api';
+import { ItsProcessor } from './processors/its.processor';
 
 @Injectable()
 export class CrossChainTransactionProcessorService {
   private readonly contractGateway: string;
   private readonly contractGasService: string;
+  private readonly contractIts: string;
   private readonly logger: Logger;
 
   constructor(
     private readonly gatewayProcessor: GatewayProcessor,
     private readonly gasServiceProcessor: GasServiceProcessor,
+    private readonly itsProcessor: ItsProcessor,
     private readonly axelarGmpApi: AxelarGmpApi,
     private readonly redisHelper: RedisHelper,
     private readonly api: ApiNetworkProvider,
@@ -24,6 +27,7 @@ export class CrossChainTransactionProcessorService {
   ) {
     this.contractGateway = apiConfigService.getContractGateway();
     this.contractGasService = apiConfigService.getContractGasService();
+    this.contractIts = apiConfigService.getContractIts();
     this.logger = new Logger(CrossChainTransactionProcessorService.name);
   }
 
@@ -88,6 +92,14 @@ export class CrossChainTransactionProcessorService {
 
       if (address === this.contractGasService) {
         const event = this.gasServiceProcessor.handleGasServiceEvent(rawEvent, transaction, index, fee);
+
+        if (event) {
+          eventsToSend.push(event);
+        }
+      }
+
+      if (address === this.contractIts) {
+        const event = this.itsProcessor.handleItsEvent(rawEvent, transaction, index);
 
         if (event) {
           eventsToSend.push(event);
