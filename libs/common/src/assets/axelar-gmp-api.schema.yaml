@@ -71,7 +71,7 @@ paths:
   /chains/{chain}/events:
     post:
       summary: Publish on-chain events
-      operationID: publishEvents
+      operationId: publishEvents
       parameters:
         - $ref: '#/components/parameters/chain'
       requestBody:
@@ -122,6 +122,66 @@ paths:
                 $ref: '#/components/schemas/GetTasksResult'
         '404':
           description: Chain Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /payloads:
+    post:
+      summary: Temporarily store a large payload against its hash to bypass size restrictions on some chains.
+      operationId: storePayload
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorePayloadResult'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /payloads/{hash}:
+    get:
+      summary: Retrieve a stored payload by its hash
+      operationId: getPayload
+      parameters:
+        - name: hash
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Keccak256Hash'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Payload Not Found
           content:
             application/json:
               schema:
@@ -199,6 +259,10 @@ components:
         - CANNOT_EXECUTE_MESSAGE
         - CANNOT_EXECUTE_MESSAGE/V2
         - SIGNERS_ROTATED
+        - ITS/INTERCHAIN_TOKEN_DEPLOYMENT_STARTED
+        - ITS/INTERCHAIN_TRANSFER
+        - ITS_APP/INTERCHAIN_TRANSFER_SENT
+        - ITS_APP/INTERCHAIN_TRANSFER_RECEIVED
       x-enum-varnames:
         - EventTypeGasCredit
         - EventTypeGasRefunded
@@ -208,6 +272,10 @@ components:
         - EventTypeCannotExecuteMessage
         - EventTypeCannotExecuteMessageV2
         - EventTypeSignersRotated
+        - EventTypeITSInterchainTokenDeploymentStarted
+        - EventTypeITSInterchainTransfer
+        - EventTypeITSAppInterchainTransferSent
+        - EventTypeITSAppInterchainTransferReceived
     EventMetadata:
       type: object
       properties:
@@ -234,6 +302,11 @@ components:
         - $ref: '#/components/schemas/EventMetadata'
         - properties:
             parentMessageID:
+              type: string
+              nullable: true
+              x-omitempty: true
+              minLength: 1
+            parentSourceChain:
               type: string
               nullable: true
               x-omitempty: true
@@ -265,6 +338,10 @@ components:
               items:
                 type: string
                 minLength: 1
+            revertReason:
+              type: string
+              nullable: true
+              x-omitempty: true
     CannotExecuteMessageEventMetadata:
       type: object
       properties:
@@ -301,6 +378,15 @@ components:
               type: integer
               format: int64
               minimum: 0
+    ITSAppEventMetadata:
+      allOf:
+        - $ref: '#/components/schemas/EventMetadata'
+        - properties:
+            emittedByAddress:
+              allOf:
+                - $ref: '#/components/schemas/Address'
+              nullable: true
+              x-omitempty: true
     Event:
       oneOf:
         - $ref: '#/components/schemas/GasCreditEvent'
@@ -311,6 +397,10 @@ components:
         - $ref: '#/components/schemas/CannotExecuteMessageEvent'
         - $ref: '#/components/schemas/CannotExecuteMessageEventV2'
         - $ref: '#/components/schemas/SignersRotatedEvent'
+        - $ref: '#/components/schemas/ITSInterchainTokenDeploymentStartedEvent'
+        - $ref: '#/components/schemas/ITSInterchainTransferEvent'
+        - $ref: '#/components/schemas/ITSAppInterchainTransferSentEvent'
+        - $ref: '#/components/schemas/ITSAppInterchainTransferReceivedEvent'
       discriminator:
         propertyName: type
         mapping:
@@ -322,6 +412,10 @@ components:
           CANNOT_EXECUTE_MESSAGE: '#/components/schemas/CannotExecuteMessageEvent'
           CANNOT_EXECUTE_MESSAGE/V2: '#/components/schemas/CannotExecuteMessageEventV2'
           SIGNERS_ROTATED: '#/components/schemas/SignersRotatedEvent'
+          ITS/INTERCHAIN_TOKEN_DEPLOYMENT_STARTED: '#/components/schemas/ITSInterchainTokenDeploymentStartedEvent'
+          ITS/INTERCHAIN_TRANSFER: '#/components/schemas/ITSInterchainTransferEvent'
+          ITS_APP/INTERCHAIN_TRANSFER_SENT: '#/components/schemas/ITSAppInterchainTransferSentEvent'
+          ITS_APP/INTERCHAIN_TRANSFER_RECEIVED: '#/components/schemas/ITSAppInterchainTransferReceivedEvent'
       properties:
         type:
           $ref: '#/components/schemas/EventType'
@@ -525,6 +619,120 @@ components:
               minLength: 1
           required:
             - messageID
+    ITSInterchainTokenDeploymentStartedEvent:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/EventBase'
+        - properties:
+            messageID:
+              type: string
+              minLength: 1
+            destinationChain:
+              type: string
+              minLength: 1
+            token:
+              $ref: '#/components/schemas/InterchainTokenDefinition'
+          required:
+            - destinationChain
+            - messageID
+            - token
+    ITSInterchainTransferEvent:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/EventBase'
+        - properties:
+            messageID:
+              type: string
+              minLength: 1
+            destinationChain:
+              type: string
+              minLength: 1
+            tokenSpent:
+              $ref: '#/components/schemas/Token'
+            sourceAddress:
+              $ref: '#/components/schemas/Address'
+            destinationAddress:
+              type: string
+              format: byte
+              minLength: 1
+            dataHash:
+              type: string
+              format: byte
+              minLength: 1
+          required:
+            - messageID
+            - destinationChain
+            - tokenSpent
+            - sourceAddress
+            - destinationAddress
+            - dataHash
+    ITSAppInterchainTransferSentEvent:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/EventBase'
+        - properties:
+            meta:
+              allOf:
+                - $ref: '#/components/schemas/ITSAppEventMetadata'
+              nullable: true
+              x-omitempty: true
+        - properties:
+            messageID:
+              type: string
+              minLength: 1
+            destinationChain:
+              type: string
+              minLength: 1
+            destinationContractAddress:
+              $ref: '#/components/schemas/Address'
+            sender:
+              $ref: '#/components/schemas/Address'
+            recipient:
+              type: string
+              format: byte
+              minLength: 1
+            tokenSpent:
+              $ref: '#/components/schemas/InterchainTransferToken'
+          required:
+            - messageID
+            - destinationChain
+            - destinationContractAddress
+            - sender
+            - recipient
+            - tokenSpent
+    ITSAppInterchainTransferReceivedEvent:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/EventBase'
+        - properties:
+            meta:
+              allOf:
+                - $ref: '#/components/schemas/ITSAppEventMetadata'
+              nullable: true
+              x-omitempty: true
+        - properties:
+            messageID:
+              type: string
+              minLength: 1
+            sourceChain:
+              type: string
+              minLength: 1
+            sourceAddress:
+              $ref: '#/components/schemas/Address'
+            sender:
+              type: string
+              format: byte
+            recipient:
+              $ref: '#/components/schemas/Address'
+            tokenReceived:
+              $ref: '#/components/schemas/InterchainTransferToken'
+          required:
+            - messageID
+            - sourceChain
+            - sourceAddress
+            - sender
+            - recipient
+            - tokenReceived
     GatewayV2Message:
       type: object
       properties:
@@ -560,6 +768,38 @@ components:
           $ref: '#/components/schemas/BigInt'
       required:
         - amount
+    InterchainTransferToken:
+      type: object
+      properties:
+        tokenAddress:
+          $ref: '#/components/schemas/Address'
+        amount:
+          $ref: '#/components/schemas/BigInt'
+      required:
+        - tokenAddress
+        - amount
+    InterchainTokenDefinition:
+      type: object
+      properties:
+        id:
+          type: string
+          minLength: 1
+          x-go-name: ID
+        name:
+          type: string
+          minLength: 1
+        symbol:
+          type: string
+          minLength: 1
+        decimals:
+          type: integer
+          format: uint8
+          minimum: 0
+      required:
+        - id
+        - name
+        - symbol
+        - decimals
     PublishEventsResult:
       type: object
       properties:
@@ -720,12 +960,16 @@ components:
       properties:
         message:
           $ref: "#/components/schemas/GatewayV2Message"
+        destinationChain:
+          type: string
+          minLength: 1
         payload:
           type: string
           format: byte
           minLength: 1
       required:
         - message
+        - destinationChain
         - payload
     BroadcastRequest:
       type: object
@@ -801,6 +1045,13 @@ components:
         - BroadcastStatusReceived
         - BroadcastStatusSuccess
         - BroadcastStatusError
+    StorePayloadResult:
+      type: object
+      properties:
+        keccak256:
+          $ref: '#/components/schemas/Keccak256Hash'
+      required:
+        - keccak256
     ErrorResponse:
       type: object
       properties:
@@ -825,3 +1076,6 @@ components:
     BigInt:
       type: string
       pattern: '^(0|[1-9]\d*)$'
+    Keccak256Hash:
+      type: string
+      pattern: '^0x[0-9a-f]{64}$'

@@ -58,6 +58,7 @@ declare namespace Components {
                 fromAddress?: string | null;
                 finalized?: boolean | null;
                 parentMessageID?: string | null;
+                parentSourceChain?: string | null;
             } | null;
             message: GatewayV2Message;
             destinationChain: string;
@@ -70,6 +71,7 @@ declare namespace Components {
             fromAddress?: string | null;
             finalized?: boolean | null;
             parentMessageID?: string | null;
+            parentSourceChain?: string | null;
         }
         export interface CannotExecuteMessageEvent {
             eventID: string;
@@ -117,7 +119,7 @@ declare namespace Components {
         }
         export type Event = {
             type: EventType;
-        } & (GasCreditEvent | GasRefundedEvent | CallEvent | MessageApprovedEvent | MessageExecutedEvent | CannotExecuteMessageEvent | CannotExecuteMessageEventV2 | SignersRotatedEvent);
+        } & (GasCreditEvent | GasRefundedEvent | CallEvent | MessageApprovedEvent | MessageExecutedEvent | CannotExecuteMessageEvent | CannotExecuteMessageEventV2 | SignersRotatedEvent | ITSInterchainTokenDeploymentStartedEvent | ITSInterchainTransferEvent | ITSAppInterchainTransferSentEvent | ITSAppInterchainTransferReceivedEvent);
         export interface EventBase {
             eventID: string;
             meta?: {
@@ -133,7 +135,7 @@ declare namespace Components {
             fromAddress?: string | null;
             finalized?: boolean | null;
         }
-        export type EventType = "GAS_CREDIT" | "GAS_REFUNDED" | "CALL" | "MESSAGE_APPROVED" | "MESSAGE_EXECUTED" | "CANNOT_EXECUTE_MESSAGE" | "CANNOT_EXECUTE_MESSAGE/V2" | "SIGNERS_ROTATED";
+        export type EventType = "GAS_CREDIT" | "GAS_REFUNDED" | "CALL" | "MESSAGE_APPROVED" | "MESSAGE_EXECUTED" | "CANNOT_EXECUTE_MESSAGE" | "CANNOT_EXECUTE_MESSAGE/V2" | "SIGNERS_ROTATED" | "ITS/INTERCHAIN_TOKEN_DEPLOYMENT_STARTED" | "ITS/INTERCHAIN_TRANSFER" | "ITS_APP/INTERCHAIN_TRANSFER_SENT" | "ITS_APP/INTERCHAIN_TRANSFER_RECEIVED";
         export interface ExecuteTask {
             message: GatewayV2Message;
             payload: string; // byte
@@ -177,6 +179,83 @@ declare namespace Components {
         export interface GetTasksResult {
             tasks: TaskItem[];
         }
+        export interface ITSAppEventMetadata {
+            txID?: string | null;
+            timestamp?: string; // date-time
+            fromAddress?: string | null;
+            finalized?: boolean | null;
+            emittedByAddress?: string | null;
+        }
+        export interface ITSAppInterchainTransferReceivedEvent {
+            eventID: string;
+            meta?: {
+                txID?: string | null;
+                timestamp?: string; // date-time
+                fromAddress?: string | null;
+                finalized?: boolean | null;
+                emittedByAddress?: string | null;
+            } | null;
+            messageID: string;
+            sourceChain: string;
+            sourceAddress: Address;
+            sender: string; // byte
+            recipient: Address;
+            tokenReceived: InterchainTransferToken;
+        }
+        export interface ITSAppInterchainTransferSentEvent {
+            eventID: string;
+            meta?: {
+                txID?: string | null;
+                timestamp?: string; // date-time
+                fromAddress?: string | null;
+                finalized?: boolean | null;
+                emittedByAddress?: string | null;
+            } | null;
+            messageID: string;
+            destinationChain: string;
+            destinationContractAddress: Address;
+            sender: Address;
+            recipient: string; // byte
+            tokenSpent: InterchainTransferToken;
+        }
+        export interface ITSInterchainTokenDeploymentStartedEvent {
+            eventID: string;
+            meta?: {
+                txID?: string | null;
+                timestamp?: string; // date-time
+                fromAddress?: string | null;
+                finalized?: boolean | null;
+            } | null;
+            messageID: string;
+            destinationChain: string;
+            token: InterchainTokenDefinition;
+        }
+        export interface ITSInterchainTransferEvent {
+            eventID: string;
+            meta?: {
+                txID?: string | null;
+                timestamp?: string; // date-time
+                fromAddress?: string | null;
+                finalized?: boolean | null;
+            } | null;
+            messageID: string;
+            destinationChain: string;
+            tokenSpent: Token;
+            sourceAddress: Address;
+            destinationAddress: string; // byte
+            dataHash: string; // byte
+        }
+        export interface InterchainTokenDefinition {
+            id: string;
+            name: string;
+            symbol: string;
+            decimals: number; // uint8
+        }
+        export interface InterchainTransferToken {
+            tokenAddress: Address;
+            amount: BigInt /* ^(0|[1-9]\d*)$ */;
+        }
+        export type Keccak256Hash = string; // ^0x[0-9a-f]{64}$
         export interface MessageApprovedEvent {
             eventID: string;
             meta?: {
@@ -205,6 +284,7 @@ declare namespace Components {
                 finalized?: boolean | null;
                 commandID?: string | null;
                 childMessageIDs?: string[] | null;
+                revertReason?: string | null;
             } | null;
             messageID: string;
             sourceChain: string;
@@ -218,6 +298,7 @@ declare namespace Components {
             finalized?: boolean | null;
             commandID?: string | null;
             childMessageIDs?: string[] | null;
+            revertReason?: string | null;
         }
         export type MessageExecutionStatus = "SUCCESSFUL" | "REVERTED";
         export interface PublishEventAcceptedResult {
@@ -368,6 +449,9 @@ declare namespace Components {
             signersHash?: string; // byte
             epoch?: number; // int64
         }
+        export interface StorePayloadResult {
+            keccak256: Keccak256Hash /* ^0x[0-9a-f]{64}$ */;
+        }
         export type Task = ConstructProofTask | GatewayTransactionTask | ExecuteTask | RefundTask | VerifyTask;
         export interface TaskItem {
             id: string;
@@ -384,6 +468,7 @@ declare namespace Components {
         }
         export interface VerifyTask {
             message: GatewayV2Message;
+            destinationChain: string;
             payload: string; // byte
         }
     }
@@ -403,23 +488,6 @@ declare namespace Paths {
             export type $500 = Components.Schemas.ErrorResponse;
         }
     }
-    namespace Chains$ChainEvents {
-        namespace Post {
-            namespace Parameters {
-                export type Chain = string;
-            }
-            export interface PathParameters {
-                chain: Parameters.Chain;
-            }
-            export type RequestBody = Components.Schemas.PublishEventsRequest;
-            namespace Responses {
-                export type $200 = Components.Schemas.PublishEventsResult;
-                export type $400 = Components.Schemas.ErrorResponse;
-                export type $404 = Components.Schemas.ErrorResponse;
-                export type $500 = Components.Schemas.ErrorResponse;
-            }
-        }
-    }
     namespace GetMsgExecuteContractBroadcastStatus {
         namespace Parameters {
             export type BroadcastID = Components.Schemas.BroadcastID;
@@ -431,6 +499,19 @@ declare namespace Paths {
         }
         namespace Responses {
             export type $200 = Components.Schemas.BroadcastStatusResponse;
+            export type $404 = Components.Schemas.ErrorResponse;
+            export type $500 = Components.Schemas.ErrorResponse;
+        }
+    }
+    namespace GetPayload {
+        namespace Parameters {
+            export type Hash = Components.Schemas.Keccak256Hash /* ^0x[0-9a-f]{64}$ */;
+        }
+        export interface PathParameters {
+            hash: Parameters.Hash;
+        }
+        namespace Responses {
+            export type $200 = string; // binary
             export type $404 = Components.Schemas.ErrorResponse;
             export type $500 = Components.Schemas.ErrorResponse;
         }
@@ -458,6 +539,29 @@ declare namespace Paths {
         namespace Responses {
             export interface $200 {
             }
+        }
+    }
+    namespace PublishEvents {
+        namespace Parameters {
+            export type Chain = string;
+        }
+        export interface PathParameters {
+            chain: Parameters.Chain;
+        }
+        export type RequestBody = Components.Schemas.PublishEventsRequest;
+        namespace Responses {
+            export type $200 = Components.Schemas.PublishEventsResult;
+            export type $400 = Components.Schemas.ErrorResponse;
+            export type $404 = Components.Schemas.ErrorResponse;
+            export type $500 = Components.Schemas.ErrorResponse;
+        }
+    }
+    namespace StorePayload {
+        export type RequestBody = string; // binary
+        namespace Responses {
+            export type $200 = Components.Schemas.StorePayloadResult;
+            export type $400 = Components.Schemas.ErrorResponse;
+            export type $500 = Components.Schemas.ErrorResponse;
         }
     }
 }
@@ -488,6 +592,14 @@ export interface OperationMethods {
     config?: AxiosRequestConfig  
   ): OperationResponse<Paths.GetMsgExecuteContractBroadcastStatus.Responses.$200>
   /**
+   * publishEvents - Publish on-chain events
+   */
+  'publishEvents'(
+    parameters?: Parameters<Paths.PublishEvents.PathParameters> | null,
+    data?: Paths.PublishEvents.RequestBody,
+    config?: AxiosRequestConfig  
+  ): OperationResponse<Paths.PublishEvents.Responses.$200>
+  /**
    * getTasks - Poll transaction to be executed on chain
    */
   'getTasks'(
@@ -495,6 +607,22 @@ export interface OperationMethods {
     data?: any,
     config?: AxiosRequestConfig  
   ): OperationResponse<Paths.GetTasks.Responses.$200>
+  /**
+   * storePayload - Temporarily store a large payload against its hash to bypass size restrictions on some chains.
+   */
+  'storePayload'(
+    parameters?: Parameters<UnknownParamsObject> | null,
+    data?: Paths.StorePayload.RequestBody,
+    config?: AxiosRequestConfig  
+  ): OperationResponse<Paths.StorePayload.Responses.$200>
+  /**
+   * getPayload - Retrieve a stored payload by its hash
+   */
+  'getPayload'(
+    parameters?: Parameters<Paths.GetPayload.PathParameters> | null,
+    data?: any,
+    config?: AxiosRequestConfig  
+  ): OperationResponse<Paths.GetPayload.Responses.$200>
 }
 
 export interface PathsDictionary {
@@ -529,6 +657,14 @@ export interface PathsDictionary {
     ): OperationResponse<Paths.GetMsgExecuteContractBroadcastStatus.Responses.$200>
   }
   ['/chains/{chain}/events']: {
+    /**
+     * publishEvents - Publish on-chain events
+     */
+    'post'(
+      parameters?: Parameters<Paths.PublishEvents.PathParameters> | null,
+      data?: Paths.PublishEvents.RequestBody,
+      config?: AxiosRequestConfig  
+    ): OperationResponse<Paths.PublishEvents.Responses.$200>
   }
   ['/chains/{chain}/tasks']: {
     /**
@@ -539,6 +675,26 @@ export interface PathsDictionary {
       data?: any,
       config?: AxiosRequestConfig  
     ): OperationResponse<Paths.GetTasks.Responses.$200>
+  }
+  ['/payloads']: {
+    /**
+     * storePayload - Temporarily store a large payload against its hash to bypass size restrictions on some chains.
+     */
+    'post'(
+      parameters?: Parameters<UnknownParamsObject> | null,
+      data?: Paths.StorePayload.RequestBody,
+      config?: AxiosRequestConfig  
+    ): OperationResponse<Paths.StorePayload.Responses.$200>
+  }
+  ['/payloads/{hash}']: {
+    /**
+     * getPayload - Retrieve a stored payload by its hash
+     */
+    'get'(
+      parameters?: Parameters<Paths.GetPayload.PathParameters> | null,
+      data?: any,
+      config?: AxiosRequestConfig  
+    ): OperationResponse<Paths.GetPayload.Responses.$200>
   }
 }
 
@@ -572,6 +728,14 @@ export type GasRefundedEvent = Components.Schemas.GasRefundedEvent;
 export type GatewayTransactionTask = Components.Schemas.GatewayTransactionTask;
 export type GatewayV2Message = Components.Schemas.GatewayV2Message;
 export type GetTasksResult = Components.Schemas.GetTasksResult;
+export type ITSAppEventMetadata = Components.Schemas.ITSAppEventMetadata;
+export type ITSAppInterchainTransferReceivedEvent = Components.Schemas.ITSAppInterchainTransferReceivedEvent;
+export type ITSAppInterchainTransferSentEvent = Components.Schemas.ITSAppInterchainTransferSentEvent;
+export type ITSInterchainTokenDeploymentStartedEvent = Components.Schemas.ITSInterchainTokenDeploymentStartedEvent;
+export type ITSInterchainTransferEvent = Components.Schemas.ITSInterchainTransferEvent;
+export type InterchainTokenDefinition = Components.Schemas.InterchainTokenDefinition;
+export type InterchainTransferToken = Components.Schemas.InterchainTransferToken;
+export type Keccak256Hash = Components.Schemas.Keccak256Hash;
 export type MessageApprovedEvent = Components.Schemas.MessageApprovedEvent;
 export type MessageApprovedEventMetadata = Components.Schemas.MessageApprovedEventMetadata;
 export type MessageExecutedEvent = Components.Schemas.MessageExecutedEvent;
@@ -587,6 +751,7 @@ export type PublishEventsResult = Components.Schemas.PublishEventsResult;
 export type RefundTask = Components.Schemas.RefundTask;
 export type SignersRotatedEvent = Components.Schemas.SignersRotatedEvent;
 export type SignersRotatedEventMetadata = Components.Schemas.SignersRotatedEventMetadata;
+export type StorePayloadResult = Components.Schemas.StorePayloadResult;
 export type Task = Components.Schemas.Task;
 export type TaskItem = Components.Schemas.TaskItem;
 export type TaskItemID = Components.Schemas.TaskItemID;
