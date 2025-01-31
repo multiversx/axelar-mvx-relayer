@@ -78,8 +78,9 @@ import { FeeHelper } from '@mvx-monorepo/common/contracts/fee.helper';
         const contractLoader = new ContractLoader(join(__dirname, '../assets/interchain-token-service.abi.json'));
 
         const smartContract = await contractLoader.getContract(apiConfigService.getContractIts());
+        const abi = await contractLoader.getAbiRegistry();
 
-        return new ItsContract(smartContract);
+        return new ItsContract(smartContract, abi);
       },
       inject: [ApiConfigService],
     },

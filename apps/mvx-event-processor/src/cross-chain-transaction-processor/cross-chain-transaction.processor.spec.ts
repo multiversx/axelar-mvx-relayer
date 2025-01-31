@@ -8,6 +8,7 @@ import { CrossChainTransactionProcessorService } from './cross-chain-transaction
 import { EventIdentifiers, Events } from '@mvx-monorepo/common/utils/event.enum';
 import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
 import { GasServiceProcessor, GatewayProcessor } from './processors';
+import { ItsProcessor } from './processors/its.processor';
 
 const mockTransactionResponse = {
   txHash: '5cc3bf9866b77b6d05b3756a0faff67d7685058579550989f39cb4319bec0fc1',
@@ -60,10 +61,12 @@ const mockTransactionResponse = {
 
 const mockGatewayContract = 'erd1qqqqqqqqqqqqqpgqvc7gdl0p4s97guh498wgz75k8sav6sjfjlwqh679jy';
 const mockGasServiceContract = 'erd1qqqqqqqqqqqqqqqpqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqplllst77y4l';
+const mockItsContract = 'erd1qqqqqqqqqqqqqpgqc5ypvy2d6z52fwscsfnrwcdkdh2fnthfkkls7kcn9j';
 
 describe('CrossChainTransactionProcessor', () => {
   let gatewayProcessor: DeepMocked<GatewayProcessor>;
   let gasServiceProcessor: DeepMocked<GasServiceProcessor>;
+  let itsProcessor: DeepMocked<ItsProcessor>;
   let axelarGmpApi: DeepMocked<AxelarGmpApi>;
   let redisHelper: DeepMocked<RedisHelper>;
   let api: DeepMocked<ApiNetworkProvider>;
@@ -74,6 +77,7 @@ describe('CrossChainTransactionProcessor', () => {
   beforeEach(async () => {
     gatewayProcessor = createMock();
     gasServiceProcessor = createMock();
+    itsProcessor = createMock();
     axelarGmpApi = createMock();
     redisHelper = createMock();
     api = createMock();
@@ -81,6 +85,7 @@ describe('CrossChainTransactionProcessor', () => {
 
     apiConfigService.getContractGateway.mockReturnValue(mockGatewayContract);
     apiConfigService.getContractGasService.mockReturnValue(mockGasServiceContract);
+    apiConfigService.getContractIts.mockReturnValue(mockItsContract);
 
     const moduleRef = await Test.createTestingModule({
       providers: [CrossChainTransactionProcessorService],
@@ -92,6 +97,10 @@ describe('CrossChainTransactionProcessor', () => {
 
         if (token === GasServiceProcessor) {
           return gasServiceProcessor;
+        }
+
+        if (token === ItsProcessor) {
+          return itsProcessor;
         }
 
         if (token === AxelarGmpApi) {
@@ -160,6 +169,12 @@ describe('CrossChainTransactionProcessor', () => {
       data: '',
       topics: [BinaryUtils.base64Encode(Events.CONTRACT_CALL_EVENT)],
     };
+    const rawItsEvent = {
+      address: mockItsContract,
+      identifier: 'any',
+      data: '',
+      topics: [BinaryUtils.base64Encode(Events.INTERCHAIN_TRANSFER_EVENT)],
+    };
     const rawApprovedEvent = {
       address: mockGatewayContract,
       identifier: EventIdentifiers.APPROVE_MESSAGES,
@@ -175,7 +190,7 @@ describe('CrossChainTransactionProcessor', () => {
 
     it('Should handle multiple events', async () => {
       // @ts-ignore
-      transaction.logs.events = [rawGasEvent, rawGatewayEvent];
+      transaction.logs.events = [rawGasEvent, rawGatewayEvent, rawItsEvent];
 
       redisHelper.smembers.mockReturnValueOnce(Promise.resolve(['txHash']));
       api.doGetGeneric.mockReturnValueOnce(Promise.resolve(transaction));
@@ -199,9 +214,16 @@ describe('CrossChainTransactionProcessor', () => {
         '0',
       );
 
+      expect(itsProcessor.handleItsEvent).toHaveBeenCalledTimes(1);
+      expect(itsProcessor.handleItsEvent).toHaveBeenCalledWith(
+        TransactionEvent.fromHttpResponse(rawItsEvent),
+        expect.any(TransactionOnNetwork),
+        2,
+      );
+
       expect(axelarGmpApi.postEvents).toHaveBeenCalledTimes(1);
       expect(axelarGmpApi.postEvents).toHaveBeenCalledWith(expect.anything(), 'txHash');
-      expect(axelarGmpApi.postEvents.mock.lastCall?.[0]).toHaveLength(2);
+      expect(axelarGmpApi.postEvents.mock.lastCall?.[0]).toHaveLength(3);
 
       expect(redisHelper.srem).toHaveBeenCalledTimes(1);
       expect(redisHelper.srem).toHaveBeenCalledWith('crossChainTransactions', 'txHash');

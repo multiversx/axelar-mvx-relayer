@@ -18,6 +18,7 @@ describe('EventProcessorService', () => {
 
     apiConfigService.getContractGateway.mockReturnValue('mockGatewayAddress');
     apiConfigService.getContractGasService.mockReturnValue('mockGasServiceAddress');
+    apiConfigService.getContractIts.mockReturnValue('mockItsAddress');
 
     const moduleRef = await Test.createTestingModule({
       providers: [EventProcessorService],
@@ -64,6 +65,15 @@ describe('EventProcessorService', () => {
           {
             txHash: 'test',
             address: 'mockGasServiceAddress',
+            identifier: 'any',
+            data: '',
+            topics: [
+              BinaryUtils.base64Encode('any'),
+            ],
+          },
+          {
+            txHash: 'test',
+            address: 'mockItsAddress',
             identifier: 'any',
             data: '',
             topics: [
@@ -126,6 +136,30 @@ describe('EventProcessorService', () => {
             data: '',
             topics: [
               BinaryUtils.base64Encode('gas_paid_for_contract_call_event'),
+            ],
+          },
+        ],
+      };
+
+      await service.consumeEvents(blockEvent);
+
+      expect(redisHelper.sadd).toHaveBeenCalledTimes(1);
+      expect(redisHelper.sadd).toHaveBeenCalledWith('crossChainTransactions', 'test');
+    });
+
+    it('Should consume ITS event', async () => {
+      const blockEvent: NotifierBlockEvent = {
+        hash: 'test',
+        shardId: 1,
+        timestamp: 123456,
+        events: [
+          {
+            txHash: 'test',
+            address: 'mockItsAddress',
+            identifier: 'any',
+            data: '',
+            topics: [
+              BinaryUtils.base64Encode('interchain_transfer_event'),
             ],
           },
         ],

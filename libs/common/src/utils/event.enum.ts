@@ -16,4 +16,7 @@ export enum Events {
   GAS_ADDED_EVENT = 'gas_added_event',
   NATIVE_GAS_ADDED_EVENT = 'native_gas_added_event',
   REFUNDED_EVENT = 'refunded_event',
+
+  INTERCHAIN_TOKEN_DEPLOYMENT_STARTED_EVENT = 'interchain_token_deployment_started_event',
+  INTERCHAIN_TRANSFER_EVENT = 'interchain_transfer_event',
 }
