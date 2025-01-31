@@ -239,7 +239,7 @@ export class MessageApprovedProcessorService {
       messageID: messageApproved.messageId,
       sourceChain: CONSTANTS.SOURCE_CHAIN_NAME,
       reason,
-      details: '',
+      details: `retried ${messageApproved.retry} times`,
       meta: {
         txID: messageApproved.executeTxHash,
         taskItemID: messageApproved.taskItemId || '',
