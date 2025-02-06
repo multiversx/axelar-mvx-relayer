@@ -270,7 +270,7 @@ describe('MessageApprovedProcessorService', () => {
       messageID: originalSecondEntry?.messageId,
       sourceChain: 'multiversx',
       reason: 'ERROR',
-      details: '',
+      details: 'retried 3 times',
       meta: {
         txID: null,
         taskItemID: originalSecondEntry.taskItemId,
@@ -423,7 +423,7 @@ describe('MessageApprovedProcessorService', () => {
       messageID: firstEntry?.messageId,
       sourceChain: 'multiversx',
       reason: 'INSUFFICIENT_GAS',
-      details: '',
+      details: 'retried 3 times',
       meta: {
         txID: null,
         taskItemID: "",
