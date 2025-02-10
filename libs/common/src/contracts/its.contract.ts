@@ -9,6 +9,7 @@ import {
 } from '@mvx-monorepo/common/contracts/entities/its-events';
 
 const MESSAGE_TYPE_DEPLOY_INTERCHAIN_TOKEN = 1;
+const MESSAGE_TYPE_RECEIVE_FROM_HUB = 4;
 
 const DEFAULT_ESDT_ISSUE_COST = '50000000000000000'; // 0.05 EGLD
 
@@ -39,9 +40,20 @@ export class ItsContract {
   }
 
   private decodeExecutePayloadMessageType(payload: Buffer): number {
-    const result = AbiCoder.defaultAbiCoder().decode(['uint256'], payload);
+    let result = AbiCoder.defaultAbiCoder().decode(['uint256'], payload);
 
-    return Number(result[0]);
+    const originalMessageType = Number(result[0]);
+
+    if (originalMessageType !== MESSAGE_TYPE_RECEIVE_FROM_HUB) {
+      return originalMessageType;
+    }
+
+    result = AbiCoder.defaultAbiCoder().decode(['uint256', 'string', 'bytes'], payload);
+
+    const originalPayload = result[2];
+    const newResult = AbiCoder.defaultAbiCoder().decode(['uint256'], originalPayload);
+
+    return Number(newResult[0]);
   }
 
   decodeInterchainTokenDeploymentStartedEvent(event: ITransactionEvent): InterchainTokenDeploymentStartedEvent {

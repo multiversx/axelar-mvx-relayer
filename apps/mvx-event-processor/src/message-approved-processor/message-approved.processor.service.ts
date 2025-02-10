@@ -172,11 +172,17 @@ export class MessageApprovedProcessorService {
       // In case the gas estimation fails, the transaction will fail on chain, but we will still send it
       // for transparency with the full gas available, but don't try to retry it
       if (e instanceof GasError) {
-        this.logger.warn('Could not estimate gas for execute transaction...');
-
-        transaction.setGasLimit(
-          this.feeHelper.getGasLimitFromEgldFee(BigInt(messageApproved.availableGasBalance), transaction.getData()),
+        const gasLimit = this.feeHelper.getGasLimitFromEgldFee(
+          BigInt(messageApproved.availableGasBalance),
+          transaction.getData(),
         );
+
+        this.logger.warn(
+          `Could not estimate gas for execute transaction... Sending transaction with max gas limit ${gasLimit}`,
+          e,
+        );
+
+        transaction.setGasLimit(gasLimit);
 
         messageApproved.retry = MAX_NUMBER_OF_RETRIES - 1;
       } else {

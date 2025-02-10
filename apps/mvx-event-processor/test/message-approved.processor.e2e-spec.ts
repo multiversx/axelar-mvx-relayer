@@ -261,7 +261,6 @@ describe('MessageApprovedProcessorService', () => {
       updatedAt: expect.any(Date),
     });
 
-
     expect(axelarGmpApi.postEvents).toHaveBeenCalledTimes(1);
     // @ts-ignore
     expect(axelarGmpApi.postEvents.mock.lastCall[0][0]).toEqual({
@@ -426,7 +425,7 @@ describe('MessageApprovedProcessorService', () => {
       details: 'retried 3 times',
       meta: {
         txID: null,
-        taskItemID: "",
+        taskItemID: '',
       },
     });
   });
@@ -678,6 +677,54 @@ describe('MessageApprovedProcessorService', () => {
         ...originalItsExecute,
         retry: 3,
         executeTxHash: 'ef05047f045cc3769eaa31130ce1efa4c558367df7920327b57d9350ed123dfd',
+        updatedAt: expect.any(Date),
+        successTimes: 1,
+      });
+    });
+
+    it('Should send execute transaction deploy interchain token ITS Hub payload', async () => {
+      const originalItsExecute = await createMessageApproved({
+        contractAddress,
+        sourceChain: 'polygon',
+        sourceAddress: 'otherSourceAddress',
+        payload: Buffer.from(
+          AbiCoder.defaultAbiCoder()
+            .encode(
+              ['uint256', 'string', 'bytes'],
+              [4, 'ethereum', AbiCoder.defaultAbiCoder().encode(['uint256'], [1])],
+            )
+            .substring(2),
+          'hex',
+        ),
+        availableGasBalance: '51200000000000000', // also contains 0.05 EGLD for ESDT issue
+        executeTxHash: '67b2b814e2ec9bdd08f57073f575ec95d160c76ec9ccd4d14395e7824b6b77cc',
+        successTimes: 1,
+      });
+
+      // Mock 1st transaction executed successfully
+      transactionWatcher.awaitCompleted.mockReturnValueOnce(
+        // @ts-ignore
+        Promise.resolve({
+          status: new TransactionStatus('success'),
+        }),
+      );
+
+      mockProxySendTransactionsSuccess();
+
+      await service.processPendingMessageApproved();
+
+      const transactions = proxy.sendTransactions.mock.lastCall?.[0] as Transaction[];
+      expect(transactions).toHaveLength(1);
+      expect(transactions[0].getValue()).toBe(50000000000000000n); // assert sent with value
+
+      const itsExecute = (await messageApprovedRepository.findBySourceChainAndMessageId(
+        originalItsExecute.sourceChain,
+        originalItsExecute.messageId,
+      )) as MessageApproved;
+      expect(itsExecute).toEqual({
+        ...originalItsExecute,
+        retry: 1,
+        executeTxHash: '73887b17192ededfda3318bc824e0ea0594dd3b7b7e7251dadde36ca8dbaea17',
         updatedAt: expect.any(Date),
         successTimes: 1,
       });

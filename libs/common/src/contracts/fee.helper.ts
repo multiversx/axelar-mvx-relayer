@@ -5,6 +5,8 @@ import { ITransactionPayload, ITransactionValue } from '@multiversx/sdk-core/out
 import { MessageApproved } from '@prisma/client';
 import { NotEnoughGasError } from '@mvx-monorepo/common/contracts/entities/gas.error';
 
+const MAX_GAS_LIMIT = 600_000_000n;
+
 @Injectable()
 export class FeeHelper implements OnModuleInit {
   private readonly logger: Logger;
@@ -71,7 +73,14 @@ export class FeeHelper implements OnModuleInit {
       return gasLimit1;
     }
 
-    return ((availableGasBalance - gasLimit1 * this.minGasPrice) * this.gasPriceModifierInverted) / this.minGasPrice;
+    const gasLimit =
+      ((availableGasBalance - gasLimit1 * this.minGasPrice) * this.gasPriceModifierInverted) / this.minGasPrice;
+
+    if (gasLimit > MAX_GAS_LIMIT) {
+      return MAX_GAS_LIMIT;
+    }
+
+    return gasLimit;
   }
 
   public getEgldFeeFromGasLimit(gasLimit2: bigint, dataLength: bigint): bigint {
