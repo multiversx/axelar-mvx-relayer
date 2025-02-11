@@ -68,6 +68,9 @@ export class MessageApprovedProcessorService {
         const transactionsToSend: Transaction[] = [];
         const entriesToUpdate: MessageApproved[] = [];
         const entriesWithTransactions: MessageApproved[] = [];
+
+        const firstTransactionAccountNonce = accountNonce;
+
         for (const messageApproved of entries) {
           if (messageApproved.retry >= MAX_NUMBER_OF_RETRIES) {
             await this.handleMessageApprovedFailed(messageApproved);
@@ -94,7 +97,11 @@ export class MessageApprovedProcessorService {
           }
 
           try {
-            const transaction = await this.buildAndSignExecuteTransaction(messageApproved, accountNonce);
+            const transaction = await this.buildAndSignExecuteTransaction(
+              messageApproved,
+              accountNonce,
+              firstTransactionAccountNonce,
+            );
 
             accountNonce++;
 
@@ -135,6 +142,9 @@ export class MessageApprovedProcessorService {
             if (!sent) {
               entry.executeTxHash = null;
               entry.retry = entry.retry === 1 ? 1 : entry.retry - 1; // retry should be 1 or more to not be processed immediately
+
+              // re-retrieve account nonce in case not all transactions were succesfully sent
+              accountNonce = null;
             }
 
             entriesToUpdate.push(entry);
@@ -154,17 +164,19 @@ export class MessageApprovedProcessorService {
   private async buildAndSignExecuteTransaction(
     messageApproved: MessageApproved,
     accountNonce: number,
+    firstTransactionAccountNonce: number,
   ): Promise<Transaction> {
     const interaction = await this.buildExecuteInteraction(messageApproved);
 
     const transaction = interaction
       .withSender(this.walletSigner.getAddress())
-      .withNonce(accountNonce)
+      .withNonce(firstTransactionAccountNonce) // Always estimate gas with first transaction account nonce
       .withChainID(this.chainId)
       .buildTransaction();
 
     try {
       const gas = await this.transactionsHelper.getTransactionGas(transaction, messageApproved.retry);
+
       transaction.setGasLimit(gas);
 
       this.feeHelper.checkGasCost(gas, transaction.getValue(), transaction.getData(), messageApproved);
@@ -184,11 +196,14 @@ export class MessageApprovedProcessorService {
 
         transaction.setGasLimit(gasLimit);
 
+        // Set retry to last retry (will be incremented by +1 in processPendingMessageApproved)
         messageApproved.retry = MAX_NUMBER_OF_RETRIES - 1;
       } else {
         throw e;
       }
     }
+
+    transaction.setNonce(accountNonce); // Set correct nonce after gas estimation
 
     const signature = await this.walletSigner.sign(transaction.serializeForSigning());
     transaction.applySignature(signature);
