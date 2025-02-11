@@ -2,7 +2,6 @@ import { BinaryUtils, Locker } from '@multiversx/sdk-nestjs-common';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { AxelarGmpApi } from '@mvx-monorepo/common/api/axelar.gmp.api';
-import { RedisCacheService } from '@multiversx/sdk-nestjs-cache';
 import { CacheInfo, GasServiceContract } from '@mvx-monorepo/common';
 import { ProviderKeys } from '@mvx-monorepo/common/utils/provider.enum';
 import { UserSigner } from '@multiversx/sdk-wallet/out';
@@ -21,6 +20,7 @@ import ExecuteTask = Components.Schemas.ExecuteTask;
 import RefundTask = Components.Schemas.RefundTask;
 import { GasError } from '@mvx-monorepo/common/contracts/entities/gas.error';
 import { GasInfo } from '@mvx-monorepo/common/utils/gas.info';
+import { RedisHelper } from '@mvx-monorepo/common/helpers/redis.helper';
 
 const MAX_NUMBER_OF_RETRIES = 3;
 
@@ -30,7 +30,7 @@ export class ApprovalsProcessorService {
 
   constructor(
     private readonly axelarGmpApi: AxelarGmpApi,
-    private readonly redisCacheService: RedisCacheService,
+    private readonly redisHelper: RedisHelper,
     @Inject(ProviderKeys.WALLET_SIGNER) private readonly walletSigner: UserSigner,
     private readonly transactionsHelper: TransactionsHelper,
     private readonly gatewayContract: GatewayContract,
@@ -52,7 +52,7 @@ export class ApprovalsProcessorService {
   }
 
   async handleNewTasksRaw() {
-    let lastTaskUUID = (await this.redisCacheService.get<string>(CacheInfo.LastTaskUUID().key)) || undefined;
+    let lastTaskUUID = (await this.redisHelper.get<string>(CacheInfo.LastTaskUUID().key)) || undefined;
 
     this.logger.debug(`Trying to process tasks for multiversx starting from id: ${lastTaskUUID}`);
 
@@ -76,7 +76,7 @@ export class ApprovalsProcessorService {
 
             lastTaskUUID = task.id;
 
-            await this.redisCacheService.set(CacheInfo.LastTaskUUID().key, lastTaskUUID, CacheInfo.LastTaskUUID().ttl);
+            await this.redisHelper.set(CacheInfo.LastTaskUUID().key, lastTaskUUID, CacheInfo.LastTaskUUID().ttl);
           } catch (e) {
             this.logger.error(`Could not process task ${task.id}`, task, e);
 
@@ -95,11 +95,9 @@ export class ApprovalsProcessorService {
   }
 
   async handlePendingTransactionsRaw() {
-    const keys = await this.redisCacheService.scan(CacheInfo.PendingTransaction('*').key);
+    const keys = await this.redisHelper.scan(CacheInfo.PendingTransaction('*').key);
     for (const key of keys) {
-      const cachedValue = await this.redisCacheService.get<PendingTransaction>(key);
-
-      await this.redisCacheService.delete(key);
+      const cachedValue = await this.redisHelper.getDel<PendingTransaction>(key);
 
       if (cachedValue === undefined) {
         continue;
@@ -129,7 +127,7 @@ export class ApprovalsProcessorService {
         this.logger.error(e);
 
         // Set value back in cache to be retried again (with same retry number if it failed to even be sent to the chain)
-        await this.redisCacheService.set<PendingTransaction>(
+        await this.redisHelper.set<PendingTransaction>(
           CacheInfo.PendingTransaction(txHash).key,
           {
             txHash,
@@ -203,7 +201,7 @@ export class ApprovalsProcessorService {
 
     const txHash = await this.transactionsHelper.signAndSendTransaction(transaction, this.walletSigner);
 
-    await this.redisCacheService.set<PendingTransaction>(
+    await this.redisHelper.set<PendingTransaction>(
       CacheInfo.PendingTransaction(txHash).key,
       {
         txHash,

@@ -143,7 +143,7 @@ export class MessageApprovedProcessorService {
               entry.executeTxHash = null;
               entry.retry = entry.retry === 1 ? 1 : entry.retry - 1; // retry should be 1 or more to not be processed immediately
 
-              // re-retrieve account nonce in case not all transactions were succesfully sent
+              // re-retrieve account nonce in case not all transactions were successfully sent
               accountNonce = null;
             }
 

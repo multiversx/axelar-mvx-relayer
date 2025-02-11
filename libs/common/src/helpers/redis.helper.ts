@@ -16,12 +16,24 @@ export class RedisHelper {
     this.logger = new Logger(RedisHelper.name);
   }
 
+  get<T>(key: string): Promise<T | undefined> {
+    return this.redisCache.get<T>(key);
+  }
+
+  set<T>(key: string, value: T, ttl?: number | null) {
+    return this.redisCache.set<T>(key, value, ttl);
+  }
+
   sadd(key: string, ...values: string[]) {
     return this.redisCache.sadd(key, ...values);
   }
 
   smembers(key: string) {
     return this.redisCache.smembers(key);
+  }
+
+  scan(key: string) {
+    return this.redisCache.scan(key);
   }
 
   async srem(key: string, ...values: string[]) {
@@ -45,5 +57,22 @@ export class RedisHelper {
       performanceProfiler.stop();
       this.metricsService.setRedisDuration('SREM', performanceProfiler.duration);
     }
+  }
+
+  async getDel<T>(key: string): Promise<T | undefined> {
+    try {
+      const data = await this.redis.getdel(key);
+      if (data) {
+        return JSON.parse(data);
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        this.logger.error('RedisCache - An error occurred while trying to getdel from redis cache.', {
+          cacheKey: key,
+          error: error?.toString(),
+        });
+      }
+    }
+    return undefined;
   }
 }
