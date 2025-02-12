@@ -4,6 +4,7 @@ import { ApprovalsProcessorService } from './approvals.processor.service';
 import { ApiModule } from '@mvx-monorepo/common/api/api.module';
 import { ContractsModule } from '@mvx-monorepo/common/contracts/contracts.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { HelpersModule } from '@mvx-monorepo/common/helpers/helpers.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     ApiModule,
     ContractsModule,
     DatabaseModule,
+    HelpersModule,
   ],
   providers: [ApprovalsProcessorService],
 })

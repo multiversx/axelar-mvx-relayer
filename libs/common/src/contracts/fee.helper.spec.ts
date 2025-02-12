@@ -155,6 +155,16 @@ describe('FeeHelper', () => {
         ),
       ),
     ).toBe(BigInt(71000));
+
+    // Max gas limit reached
+    expect(
+      feeHelper.getGasLimitFromEgldFee(
+        BigInt(6086216100000000),
+        TransactionPayload.fromEncoded(
+          'c2V0UmVtb3RlVmFsdWU=',
+        ),
+      ),
+    ).toBe(BigInt(600_000_000n));
   });
 
   it('getEgldFeeFromGasLimit', () => {
