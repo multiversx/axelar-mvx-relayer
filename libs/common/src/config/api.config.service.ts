@@ -152,4 +152,10 @@ export class ApiConfigService {
   isEnabledGasCheck(): boolean {
     return this.configService.get<boolean>('ENABLE_GAS_CHECK') ?? false;
   }
+
+  getSlackWebhookUrl(): string {
+    const slackWebhookUrl = this.configService.get<string>('SLACK_WEBHOOK_URL');
+
+    return slackWebhookUrl ?? '';
+  }
 }

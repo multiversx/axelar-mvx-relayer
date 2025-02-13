@@ -24,6 +24,7 @@ import { DecodingUtils } from '@mvx-monorepo/common/utils/decoding.utils';
 import { FeeHelper } from '@mvx-monorepo/common/contracts/fee.helper';
 import { CONSTANTS } from '@mvx-monorepo/common/utils/constants.enum';
 import CannotExecuteMessageEventV2 = Components.Schemas.CannotExecuteMessageEventV2;
+import { SlackApi } from '@mvx-monorepo/common/api/slack.api';
 
 // Support a max of 3 retries (mainly because some Interchain Token Service endpoints need to be called 2 times)
 const MAX_NUMBER_OF_RETRIES: number = 3;
@@ -42,6 +43,7 @@ export class MessageApprovedProcessorService {
     private readonly itsContract: ItsContract,
     private readonly axelarGmpApi: AxelarGmpApi,
     private readonly feeHelper: FeeHelper,
+    private readonly slackApi: SlackApi,
     apiConfigService: ApiConfigService,
   ) {
     this.logger = new Logger(MessageApprovedProcessorService.name);
@@ -89,6 +91,10 @@ export class MessageApprovedProcessorService {
             this.logger.error(
               `Can not send transaction without payload from ${messageApproved.sourceChain} with message id ${messageApproved.messageId}`,
             );
+            await this.slackApi.sendError(
+              'Message approved payload error',
+              `Can not send transaction without payload from ${messageApproved.sourceChain} with message id ${messageApproved.messageId}`,
+            );
 
             messageApproved.status = MessageApprovedStatus.FAILED;
 
@@ -125,6 +131,10 @@ export class MessageApprovedProcessorService {
               this.logger.error(
                 `Could not build and sign execute transaction for ${messageApproved.sourceChain} ${messageApproved.messageId}`,
                 e,
+              );
+              await this.slackApi.sendError(
+                'Message approved error',
+                `Could not build and sign execute transaction for ${messageApproved.sourceChain} ${messageApproved.messageId}`,
               );
 
               throw e;
@@ -191,8 +201,12 @@ export class MessageApprovedProcessorService {
         );
 
         this.logger.warn(
-          `Could not estimate gas for execute transaction... Sending transaction with max gas limit ${gasLimit}`,
+          `Could not estimate gas for execute transaction... Sending transaction for message id ${messageApproved.messageId} with max gas limit ${gasLimit}`,
           e,
+        );
+        await this.slackApi.sendWarn(
+          `Gas estimation error`,
+          `Could not estimate gas for execute transaction... Sending transaction for message id ${messageApproved.messageId} with max gas limit ${gasLimit}`,
         );
 
         transaction.setGasLimit(gasLimit);
@@ -248,7 +262,11 @@ export class MessageApprovedProcessorService {
     messageApproved: MessageApproved,
     reason: CannotExecuteMessageReason = 'ERROR',
   ) {
-    this.logger.error(
+    this.logger.warn(
+      `Could not execute MessageApproved from ${messageApproved.sourceChain} with message id ${messageApproved.messageId} after ${messageApproved.retry} retries`,
+    );
+    await this.slackApi.sendWarn(
+      `Message approved failed`,
       `Could not execute MessageApproved from ${messageApproved.sourceChain} with message id ${messageApproved.messageId} after ${messageApproved.retry} retries`,
     );
 
@@ -279,6 +297,10 @@ export class MessageApprovedProcessorService {
       await this.axelarGmpApi.postEvents(eventsToSend, messageApproved.executeTxHash || '');
     } catch (e) {
       this.logger.error('Could not send all events to GMP API...', e);
+      await this.slackApi.sendError(
+        'Axelar GMP API error',
+        'Could not send all events to GMP API from MessageApprovedProcessor...',
+      );
 
       if (e instanceof AxiosError) {
         this.logger.error(e.response);

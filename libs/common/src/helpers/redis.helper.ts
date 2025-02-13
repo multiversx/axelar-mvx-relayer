@@ -3,6 +3,7 @@ import Redis from 'ioredis';
 import { REDIS_CLIENT_TOKEN } from '@multiversx/sdk-nestjs-redis/lib/entities/common.constants';
 import { RedisCacheService } from '@multiversx/sdk-nestjs-cache';
 import { MetricsService, PerformanceProfiler } from '@multiversx/sdk-nestjs-monitoring';
+import { SlackApi } from '@mvx-monorepo/common/api/slack.api';
 
 @Injectable()
 export class RedisHelper {
@@ -12,6 +13,7 @@ export class RedisHelper {
     @Inject(REDIS_CLIENT_TOKEN) private readonly redis: Redis,
     private readonly redisCache: RedisCacheService,
     private readonly metricsService: MetricsService,
+    private readonly slackApi: SlackApi,
   ) {
     this.logger = new Logger(RedisHelper.name);
   }
@@ -44,13 +46,12 @@ export class RedisHelper {
       if (error instanceof Error) {
         this.logger.error(
           'An error occurred while trying to srem redis.',
-          Object.assign(
-            {
-              exception: error === null || error === void 0 ? void 0 : error.toString(),
-              key,
-            },
-          ),
+          Object.assign({
+            exception: error === null || error === void 0 ? void 0 : error.toString(),
+            key,
+          }),
         );
+        await this.slackApi.sendError('Redis error', 'An error occurred while trying to srem redis.');
       }
       throw error;
     } finally {
@@ -71,6 +72,7 @@ export class RedisHelper {
           cacheKey: key,
           error: error?.toString(),
         });
+        await this.slackApi.sendError('Redis error', 'An error occurred while trying to getdel from redis cache.');
       }
     }
     return undefined;

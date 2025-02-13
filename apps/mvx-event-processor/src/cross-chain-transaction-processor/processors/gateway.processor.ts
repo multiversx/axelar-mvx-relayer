@@ -15,6 +15,7 @@ import Event = Components.Schemas.Event;
 import MessageExecutedEvent = Components.Schemas.MessageExecutedEvent;
 import BigNumber from 'bignumber.js';
 import SignersRotatedEvent = Components.Schemas.SignersRotatedEvent;
+import { SlackApi } from '@mvx-monorepo/common/api/slack.api';
 
 @Injectable()
 export class GatewayProcessor {
@@ -23,6 +24,7 @@ export class GatewayProcessor {
   constructor(
     private readonly gatewayContract: GatewayContract,
     private readonly messageApprovedRepository: MessageApprovedRepository,
+    private readonly slackApi: SlackApi,
   ) {
     this.logger = new Logger(GatewayProcessor.name);
   }
@@ -156,6 +158,10 @@ export class GatewayProcessor {
       this.logger.warn(
         `Could not find corresponding message approved for message executed event in database from ${messageExecutedEvent.sourceChain} with message id ${messageExecutedEvent.messageId}`,
       );
+      await this.slackApi.sendWarn(
+        'Message approved error',
+        `Could not find corresponding message approved for message executed event in database from ${messageExecutedEvent.sourceChain} with message id ${messageExecutedEvent.messageId}`,
+      );
     }
 
     const messageExecuted: MessageExecutedEvent = {
@@ -174,7 +180,21 @@ export class GatewayProcessor {
     };
 
     this.logger.debug(
-      `Successfully executed message from ${messageExecutedEvent.sourceChain} with message id ${messageExecutedEvent.messageId}`,
+      `
+      Successfully;
+      executed;
+      message;
+      from;
+      $;
+      {
+        messageExecutedEvent.sourceChain;
+      }
+      with message id;
+      $;
+      {
+        messageExecutedEvent.messageId;
+      }
+      `,
     );
 
     return {
@@ -199,7 +219,26 @@ export class GatewayProcessor {
     };
 
     this.logger.debug(
-      `Successfully handled signers rotated event from transaction ${txHash}, log index ${index}`,
+      `;
+      Successfully;
+      handled;
+      signers;
+      rotated;
+      event;
+      from;
+      transaction;
+      $;
+      {
+        txHash;
+      }
+    ,
+      log;
+      index;
+      $;
+      {
+        index;
+      }
+      `,
       signersRotated,
       signersRotatedEvent,
     );
