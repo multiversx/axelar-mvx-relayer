@@ -5,6 +5,7 @@ import { UserAddress } from '@multiversx/sdk-wallet/out/userAddress';
 import { UserSigner } from '@multiversx/sdk-wallet/out';
 import { ApiConfigService } from '@mvx-monorepo/common/config';
 import { GasError } from '@mvx-monorepo/common/contracts/entities/gas.error';
+import { SlackApi } from '@mvx-monorepo/common/api/slack.api';
 
 @Injectable()
 export class TransactionsHelper {
@@ -15,6 +16,7 @@ export class TransactionsHelper {
   constructor(
     private readonly proxy: ProxyNetworkProvider,
     private readonly transactionWatcher: TransactionWatcher,
+    private readonly slackApi: SlackApi,
     apiConfigService: ApiConfigService,
   ) {
     this.logger = new Logger(TransactionsHelper.name);
@@ -43,8 +45,8 @@ export class TransactionsHelper {
     try {
       accountNonce = await this.getAccountNonce(signer.getAddress());
     } catch (e) {
-      this.logger.error(`Can get nonce for transaction...`);
-      this.logger.error(e);
+      this.logger.error(`Can not get nonce for transaction...`, e);
+      await this.slackApi.sendError('Wallet nonce error', `Can not get nonce for transaction...`);
 
       throw e;
     }
@@ -68,8 +70,8 @@ export class TransactionsHelper {
 
       return hash;
     } catch (e) {
-      this.logger.error(`Can not sign or send transaction to proxy...`);
-      this.logger.error(e);
+      this.logger.error(`Can not sign or send transaction to proxy...`, e);
+      await this.slackApi.sendError('Transaction error', 'Can not sign or send transaction to proxy');
 
       throw e;
     }
@@ -87,8 +89,8 @@ export class TransactionsHelper {
 
       return hashes;
     } catch (e) {
-      this.logger.error(`Can not send transactions to proxy...`);
-      this.logger.error(e);
+      this.logger.error(`Can not send transactions to proxy...`, e);
+      await this.slackApi.sendError('Transactions error', 'Can not send transactions to proxy...');
 
       return null;
     }
@@ -100,8 +102,8 @@ export class TransactionsHelper {
 
       return !result.status.isFailed() && !result.status.isInvalid();
     } catch (e) {
-      this.logger.error(`Can not await transaction success`);
-      this.logger.error(e);
+      this.logger.error(`Can not await transaction success`, e);
+      await this.slackApi.sendError('Transaction await success error', `Can not await transaction success ${txHash}`);
 
       return false;
     }

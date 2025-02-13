@@ -14,13 +14,18 @@ import { MessageApprovedRepository } from '@mvx-monorepo/common/database/reposit
 import { MessageApprovedStatus } from '@prisma/client';
 import { ApiNetworkProvider } from '@multiversx/sdk-network-providers/out';
 import BigNumber from 'bignumber.js';
+import { GasError } from '@mvx-monorepo/common/contracts/entities/gas.error';
+import { GasInfo } from '@mvx-monorepo/common/utils/gas.info';
+import { RedisHelper } from '@mvx-monorepo/common/helpers/redis.helper';
+import {
+  LAST_PROCESSED_DATA_TYPE,
+  LastProcessedDataRepository,
+} from '@mvx-monorepo/common/database/repository/last-processed-data.repository';
+import { SlackApi } from '@mvx-monorepo/common/api/slack.api';
 import TaskItem = Components.Schemas.TaskItem;
 import GatewayTransactionTask = Components.Schemas.GatewayTransactionTask;
 import ExecuteTask = Components.Schemas.ExecuteTask;
 import RefundTask = Components.Schemas.RefundTask;
-import { GasError } from '@mvx-monorepo/common/contracts/entities/gas.error';
-import { GasInfo } from '@mvx-monorepo/common/utils/gas.info';
-import { RedisHelper } from '@mvx-monorepo/common/helpers/redis.helper';
 
 const MAX_NUMBER_OF_RETRIES = 3;
 
@@ -35,13 +40,15 @@ export class ApprovalsProcessorService {
     private readonly transactionsHelper: TransactionsHelper,
     private readonly gatewayContract: GatewayContract,
     private readonly messageApprovedRepository: MessageApprovedRepository,
+    private readonly lastProcessedDataRepository: LastProcessedDataRepository,
     private readonly gasServiceContract: GasServiceContract,
     private readonly api: ApiNetworkProvider,
+    private readonly slackApi: SlackApi,
   ) {
     this.logger = new Logger(ApprovalsProcessorService.name);
   }
 
-  @Cron('0/20 * * * * *')
+  @Cron('1/15 * * * * *')
   async handleNewTasks() {
     await Locker.lock('handleNewTasks', this.handleNewTasksRaw.bind(this));
   }
@@ -52,7 +59,7 @@ export class ApprovalsProcessorService {
   }
 
   async handleNewTasksRaw() {
-    let lastTaskUUID = (await this.redisHelper.get<string>(CacheInfo.LastTaskUUID().key)) || undefined;
+    let lastTaskUUID = await this.lastProcessedDataRepository.get(LAST_PROCESSED_DATA_TYPE.LAST_TASK_ID);
 
     this.logger.debug(`Trying to process tasks for multiversx starting from id: ${lastTaskUUID}`);
 
@@ -76,9 +83,10 @@ export class ApprovalsProcessorService {
 
             lastTaskUUID = task.id;
 
-            await this.redisHelper.set(CacheInfo.LastTaskUUID().key, lastTaskUUID, CacheInfo.LastTaskUUID().ttl);
+            await this.lastProcessedDataRepository.update(LAST_PROCESSED_DATA_TYPE.LAST_TASK_ID, lastTaskUUID);
           } catch (e) {
             this.logger.error(`Could not process task ${task.id}`, task, e);
+            await this.slackApi.sendError('Task processing error', `Could not process task ${task.id}`);
 
             // Stop processing in case of an error and retry from the sam task
             return;
@@ -88,6 +96,10 @@ export class ApprovalsProcessorService {
         this.logger.debug(`Successfully processed ${tasks.length} tasks`);
       } catch (e) {
         this.logger.error('Error retrieving tasks...', e);
+        await this.slackApi.sendError(
+          'Task processing error',
+          `Error retrieving tasks... Last task UUID retrieved: ${lastTaskUUID}`,
+        );
 
         return;
       }
@@ -116,6 +128,10 @@ export class ApprovalsProcessorService {
 
       if (retry === MAX_NUMBER_OF_RETRIES) {
         this.logger.error(`Could not execute Gateway execute transaction with hash ${txHash} after ${retry} retries`);
+        await this.slackApi.sendError(
+          `Gateway transaction error`,
+          `Could not execute Gateway execute transaction with hash ${txHash} after ${retry} retries`,
+        );
 
         continue;
       }
@@ -123,8 +139,11 @@ export class ApprovalsProcessorService {
       try {
         await this.processGatewayTxTask(externalData, retry);
       } catch (e) {
-        this.logger.error('Error while trying to retry transaction...');
-        this.logger.error(e);
+        this.logger.error('Error while trying to retry transaction...', e);
+        await this.slackApi.sendError(
+          `Gateway transaction retry error`,
+          'Error while trying to retry transaction... Transaction could not be sent to chain. Will be retried',
+        );
 
         // Set value back in cache to be retried again (with same retry number if it failed to even be sent to the chain)
         await this.redisHelper.set<PendingTransaction>(
@@ -192,6 +211,10 @@ export class ApprovalsProcessorService {
       // for transparency
       if (e instanceof GasError) {
         this.logger.warn('Could not estimate gas for Gateway transaction...', e);
+        await this.slackApi.sendWarn(
+          'Gas estimation error',
+          `Could not estimate gas for Gateway transaction... ${transaction.getHash()}`,
+        );
 
         transaction.setGasLimit(GasInfo.GatewayDefault.value);
       } else {
@@ -257,6 +280,11 @@ export class ApprovalsProcessorService {
         `Could not process refund for ${response.message.messageID}, for account ${response.refundRecipientAddress},` +
           ` token ${response.remainingGasBalance.tokenID}, amount ${response.remainingGasBalance.amount}`,
         e,
+      );
+      await this.slackApi.sendError(
+        `Refund task error`,
+        `Could not process refund for ${response.message.messageID} for account ${response.refundRecipientAddress},` +
+          ` token ${response.remainingGasBalance.tokenID}, amount ${response.remainingGasBalance.amount}`,
       );
 
       return;

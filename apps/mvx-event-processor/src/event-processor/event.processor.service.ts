@@ -6,6 +6,7 @@ import { EVENTS_NOTIFIER_QUEUE } from '../../../../config/configuration';
 import { RedisHelper } from '@mvx-monorepo/common/helpers/redis.helper';
 import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
 import { EventIdentifiers, Events } from '@mvx-monorepo/common/utils/event.enum';
+import { SlackApi } from '@mvx-monorepo/common/api/slack.api';
 
 @Injectable()
 export class EventProcessorService {
@@ -16,6 +17,7 @@ export class EventProcessorService {
 
   constructor(
     private readonly redisHelper: RedisHelper,
+    private readonly slackApi: SlackApi,
     apiConfigService: ApiConfigService,
   ) {
     this.contractGateway = apiConfigService.getContractGateway();
@@ -43,15 +45,19 @@ export class EventProcessorService {
       if (crossChainTransactions.size > 0) {
         await this.redisHelper.sadd(CacheInfo.CrossChainTransactions().key, ...crossChainTransactions);
       }
-    } catch (error) {
+    } catch (e) {
       this.logger.error(
         `An unhandled error occurred when consuming events from block with hash ${blockEvent.hash}: ${JSON.stringify(
           blockEvent.events,
         )}`,
+        e,
       );
-      this.logger.error(error);
+      await this.slackApi.sendError(
+        'Event processing error',
+        `An unhandled error occurred when consuming events from block with hash ${blockEvent.hash}`,
+      );
 
-      throw error;
+      throw e;
     }
   }
 

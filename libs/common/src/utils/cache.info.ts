@@ -4,13 +4,6 @@ export class CacheInfo {
   key: string = "";
   ttl: number = Constants.oneSecond() * 6;
 
-  static LastTaskUUID(): CacheInfo {
-    return {
-      key: `lastTaskUUID`,
-      ttl: Constants.oneWeek(),
-    };
-  }
-
   static PendingTransaction(hash: string): CacheInfo {
     return {
       key: `pendingTransaction:${hash}`,

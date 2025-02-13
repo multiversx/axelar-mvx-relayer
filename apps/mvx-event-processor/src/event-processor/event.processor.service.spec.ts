@@ -5,16 +5,19 @@ import { Test } from '@nestjs/testing';
 import { NotifierBlockEvent } from './types';
 import { RedisHelper } from '@mvx-monorepo/common/helpers/redis.helper';
 import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
+import { SlackApi } from '@mvx-monorepo/common/api/slack.api';
 
 describe('EventProcessorService', () => {
   let redisHelper: DeepMocked<RedisHelper>;
   let apiConfigService: DeepMocked<ApiConfigService>;
+  let slackApi: DeepMocked<SlackApi>;
 
   let service: EventProcessorService;
 
   beforeEach(async () => {
     redisHelper = createMock();
     apiConfigService = createMock();
+    slackApi = createMock();
 
     apiConfigService.getContractGateway.mockReturnValue('mockGatewayAddress');
     apiConfigService.getContractGasService.mockReturnValue('mockGasServiceAddress');
@@ -30,6 +33,10 @@ describe('EventProcessorService', () => {
 
         if (token === ApiConfigService) {
           return apiConfigService;
+        }
+
+        if (token === SlackApi) {
+          return slackApi;
         }
 
         return null;
@@ -58,27 +65,21 @@ describe('EventProcessorService', () => {
             address: 'mockGatewayAddress',
             identifier: 'callContract',
             data: '',
-            topics: [
-              BinaryUtils.base64Encode('any'),
-            ],
+            topics: [BinaryUtils.base64Encode('any')],
           },
           {
             txHash: 'test',
             address: 'mockGasServiceAddress',
             identifier: 'any',
             data: '',
-            topics: [
-              BinaryUtils.base64Encode('any'),
-            ],
+            topics: [BinaryUtils.base64Encode('any')],
           },
           {
             txHash: 'test',
             address: 'mockItsAddress',
             identifier: 'any',
             data: '',
-            topics: [
-              BinaryUtils.base64Encode('any'),
-            ],
+            topics: [BinaryUtils.base64Encode('any')],
           },
         ],
       };
@@ -101,18 +102,14 @@ describe('EventProcessorService', () => {
             address: 'mockGatewayAddress',
             identifier: 'callContract',
             data: '',
-            topics: [
-              BinaryUtils.base64Encode('contract_call_event'),
-            ],
+            topics: [BinaryUtils.base64Encode('contract_call_event')],
           },
           {
             txHash: 'txHash',
             address: 'mockGatewayAddress',
             identifier: 'approveMessages',
             data: '',
-            topics: [
-              BinaryUtils.base64Encode('message_approved_event'),
-            ],
+            topics: [BinaryUtils.base64Encode('message_approved_event')],
           },
         ],
       };
@@ -134,9 +131,7 @@ describe('EventProcessorService', () => {
             address: 'mockGasServiceAddress',
             identifier: 'any',
             data: '',
-            topics: [
-              BinaryUtils.base64Encode('gas_paid_for_contract_call_event'),
-            ],
+            topics: [BinaryUtils.base64Encode('gas_paid_for_contract_call_event')],
           },
         ],
       };
@@ -158,9 +153,7 @@ describe('EventProcessorService', () => {
             address: 'mockItsAddress',
             identifier: 'any',
             data: '',
-            topics: [
-              BinaryUtils.base64Encode('interchain_transfer_event'),
-            ],
+            topics: [BinaryUtils.base64Encode('interchain_transfer_event')],
           },
         ],
       };

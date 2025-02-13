@@ -9,6 +9,7 @@ import { Address, Transaction } from '@multiversx/sdk-core/out';
 import { CacheService } from '@multiversx/sdk-nestjs-cache';
 import { UserAddress } from '@multiversx/sdk-wallet/out/userAddress';
 import BigNumber from 'bignumber.js';
+import { SlackApi } from '@mvx-monorepo/common/api/slack.api';
 
 describe('GasCheckerService', () => {
   const gasServiceAddress = Address.newFromBech32('erd1qqqqqqqqqqqqqpgqhe8t5jewej70zupmh44jurgn29psua5l2jps3ntjj3');
@@ -20,6 +21,7 @@ describe('GasCheckerService', () => {
   let wegldSwapContract: DeepMocked<WegldSwapContract>;
   let gasServiceContract: DeepMocked<GasServiceContract>;
   let cacheService: DeepMocked<CacheService>;
+  let slackApi: DeepMocked<SlackApi>;
 
   let service: GasCheckerService;
 
@@ -30,6 +32,7 @@ describe('GasCheckerService', () => {
     wegldSwapContract = createMock();
     gasServiceContract = createMock();
     cacheService = createMock();
+    slackApi = createMock();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -59,6 +62,10 @@ describe('GasCheckerService', () => {
 
         if (token === GasServiceContract) {
           return gasServiceContract;
+        }
+
+        if (token === SlackApi) {
+          return slackApi;
         }
 
         return null;
