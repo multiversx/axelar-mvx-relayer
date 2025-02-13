@@ -14,13 +14,17 @@ import { MessageApprovedRepository } from '@mvx-monorepo/common/database/reposit
 import { MessageApprovedStatus } from '@prisma/client';
 import { ApiNetworkProvider } from '@multiversx/sdk-network-providers/out';
 import BigNumber from 'bignumber.js';
+import { GasError } from '@mvx-monorepo/common/contracts/entities/gas.error';
+import { GasInfo } from '@mvx-monorepo/common/utils/gas.info';
+import { RedisHelper } from '@mvx-monorepo/common/helpers/redis.helper';
+import {
+  LAST_PROCESSED_DATA_TYPE,
+  LastProcessedDataRepository,
+} from '@mvx-monorepo/common/database/repository/last-processed-data.repository';
 import TaskItem = Components.Schemas.TaskItem;
 import GatewayTransactionTask = Components.Schemas.GatewayTransactionTask;
 import ExecuteTask = Components.Schemas.ExecuteTask;
 import RefundTask = Components.Schemas.RefundTask;
-import { GasError } from '@mvx-monorepo/common/contracts/entities/gas.error';
-import { GasInfo } from '@mvx-monorepo/common/utils/gas.info';
-import { RedisHelper } from '@mvx-monorepo/common/helpers/redis.helper';
 
 const MAX_NUMBER_OF_RETRIES = 3;
 
@@ -35,13 +39,14 @@ export class ApprovalsProcessorService {
     private readonly transactionsHelper: TransactionsHelper,
     private readonly gatewayContract: GatewayContract,
     private readonly messageApprovedRepository: MessageApprovedRepository,
+    private readonly lastProcessedDataRepository: LastProcessedDataRepository,
     private readonly gasServiceContract: GasServiceContract,
     private readonly api: ApiNetworkProvider,
   ) {
     this.logger = new Logger(ApprovalsProcessorService.name);
   }
 
-  @Cron('0/20 * * * * *')
+  @Cron('1/15 * * * * *')
   async handleNewTasks() {
     await Locker.lock('handleNewTasks', this.handleNewTasksRaw.bind(this));
   }
@@ -52,7 +57,7 @@ export class ApprovalsProcessorService {
   }
 
   async handleNewTasksRaw() {
-    let lastTaskUUID = (await this.redisHelper.get<string>(CacheInfo.LastTaskUUID().key)) || undefined;
+    let lastTaskUUID = await this.lastProcessedDataRepository.get(LAST_PROCESSED_DATA_TYPE.LAST_TASK_ID);
 
     this.logger.debug(`Trying to process tasks for multiversx starting from id: ${lastTaskUUID}`);
 
@@ -76,7 +81,7 @@ export class ApprovalsProcessorService {
 
             lastTaskUUID = task.id;
 
-            await this.redisHelper.set(CacheInfo.LastTaskUUID().key, lastTaskUUID, CacheInfo.LastTaskUUID().ttl);
+            await this.lastProcessedDataRepository.update(LAST_PROCESSED_DATA_TYPE.LAST_TASK_ID, lastTaskUUID);
           } catch (e) {
             this.logger.error(`Could not process task ${task.id}`, task, e);
 

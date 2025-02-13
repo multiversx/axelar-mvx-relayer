@@ -31,7 +31,7 @@ export class CrossChainTransactionProcessorService {
     this.logger = new Logger(CrossChainTransactionProcessorService.name);
   }
 
-  @Cron('5/15 * * * * *')
+  @Cron('7/10 * * * * *')
   async processCrossChainTransactions() {
     await Locker.lock('processCrossChainTransactions', this.processCrossChainTransactionsRaw.bind(this));
   }

@@ -49,7 +49,8 @@ export class MessageApprovedProcessorService {
     this.contractItsAddress = apiConfigService.getContractIts();
   }
 
-  @Cron('10/15 * * * * *')
+  // Runs after Axelar EventProcessor newTasks cron has run
+  @Cron('5/15 * * * * *')
   async processPendingMessageApproved() {
     await Locker.lock('processPendingMessageApproved', async () => {
       this.logger.debug('Running processPendingMessageApproved cron');
