@@ -9,6 +9,7 @@ import { EventIdentifiers, Events } from '@mvx-monorepo/common/utils/event.enum'
 import { BinaryUtils } from '@multiversx/sdk-nestjs-common';
 import { GasServiceProcessor, GatewayProcessor } from './processors';
 import { ItsProcessor } from './processors/its.processor';
+import { SlackApi } from '@mvx-monorepo/common/api/slack.api';
 
 const mockTransactionResponse = {
   txHash: '5cc3bf9866b77b6d05b3756a0faff67d7685058579550989f39cb4319bec0fc1',
@@ -71,6 +72,7 @@ describe('CrossChainTransactionProcessor', () => {
   let redisHelper: DeepMocked<RedisHelper>;
   let api: DeepMocked<ApiNetworkProvider>;
   let apiConfigService: DeepMocked<ApiConfigService>;
+  let slackApi: DeepMocked<SlackApi>;
 
   let service: CrossChainTransactionProcessorService;
 
@@ -82,6 +84,7 @@ describe('CrossChainTransactionProcessor', () => {
     redisHelper = createMock();
     api = createMock();
     apiConfigService = createMock();
+    slackApi = createMock();
 
     apiConfigService.getContractGateway.mockReturnValue(mockGatewayContract);
     apiConfigService.getContractGasService.mockReturnValue(mockGasServiceContract);
@@ -117,6 +120,10 @@ describe('CrossChainTransactionProcessor', () => {
 
         if (token === ApiConfigService) {
           return apiConfigService;
+        }
+
+        if (token === SlackApi) {
+          return slackApi;
         }
 
         return null;
