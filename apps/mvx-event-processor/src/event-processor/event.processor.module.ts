@@ -10,7 +10,7 @@ import { HelpersModule } from '@mvx-monorepo/common/helpers/helpers.module';
     RabbitModule.forRootAsync({
       useFactory: (apiConfigService: ApiConfigService) =>
         new RabbitModuleOptions(apiConfigService.getEventsNotifierUrl(), [], {
-          timeout: 30000,
+          wait: false, // don't wait for connection to be available, will try to re-connect if connection is lost
         }),
       inject: [ApiConfigService],
     }),
