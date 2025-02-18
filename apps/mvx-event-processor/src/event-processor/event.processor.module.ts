@@ -1,7 +1,7 @@
 import { RabbitModule, RabbitModuleOptions } from '@multiversx/sdk-nestjs-rabbitmq';
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { EventProcessorService } from './event.processor.service';
-import { ApiConfigModule, ApiConfigService } from '@mvx-monorepo/common';
+import { ApiConfigModule, ApiConfigService, ApiModule } from '@mvx-monorepo/common';
 import { HelpersModule } from '@mvx-monorepo/common/helpers/helpers.module';
 
 @Module({
@@ -10,11 +10,12 @@ import { HelpersModule } from '@mvx-monorepo/common/helpers/helpers.module';
     RabbitModule.forRootAsync({
       useFactory: (apiConfigService: ApiConfigService) =>
         new RabbitModuleOptions(apiConfigService.getEventsNotifierUrl(), [], {
-          timeout: 30000,
+          wait: false, // don't wait for connection to be available, will try to re-connect if connection is lost
         }),
       inject: [ApiConfigService],
     }),
     HelpersModule,
+    forwardRef(() => ApiModule),
   ],
   providers: [EventProcessorService],
 })

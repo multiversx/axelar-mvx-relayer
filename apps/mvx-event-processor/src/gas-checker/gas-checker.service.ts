@@ -13,6 +13,7 @@ import { GasServiceContract } from '@mvx-monorepo/common/contracts/gas-service.c
 import { IAddress } from '@multiversx/sdk-network-providers/out/interface';
 import { GetOrSetCache } from '@mvx-monorepo/common/decorators/get.or.set.cache';
 import { CacheInfo } from '@mvx-monorepo/common';
+import { SlackApi } from '@mvx-monorepo/common/api/slack.api';
 
 const EGLD_COLLECT_THRESHOLD = new BigNumber('300000000000000000'); // 0.3 EGLD
 const EGLD_REFUND_RESERVE = new BigNumber('100000000000000000'); // 0.1 EGLD
@@ -30,6 +31,7 @@ export class GasCheckerService {
     private readonly api: ApiNetworkProvider,
     private readonly wegldSwapContract: WegldSwapContract,
     private readonly gasServiceContract: GasServiceContract,
+    private readonly slackApi: SlackApi,
   ) {
     this.logger = new Logger(GasCheckerService.name);
   }
@@ -52,8 +54,8 @@ export class GasCheckerService {
 
       this.logger.log('Checked gas service fees successfully');
     } catch (e) {
-      this.logger.error('Error while trying to collect fees...');
-      this.logger.error(e);
+      this.logger.error('Error while trying to collect Gas Service fees...', e);
+      await this.slackApi.sendError('Gas service fees error', 'Error while trying to collect Gas Service fees...');
     }
 
     this.logger.log(`Checking wallet signer balance with address ${this.walletSigner.getAddress().bech32()}`);
@@ -63,8 +65,8 @@ export class GasCheckerService {
 
       this.logger.log('Checked wallet signer balance successfully');
     } catch (e) {
-      this.logger.error('Error while checking wallet signer balance...');
-      this.logger.error(e);
+      this.logger.error('Error while checking wallet signer balance...', e);
+      await this.slackApi.sendError('Gas wallet tokens error', 'Error while checking wallet signer balance...');
     }
   }
 
@@ -137,6 +139,10 @@ export class GasCheckerService {
 
     if (tokens.egldToken.balance.lt(EGLD_LOW_ERROR_THRESHOLD)) {
       this.logger.error('Low balance for signer wallet! Consider manually topping up EGLD!');
+      await this.slackApi.sendError(
+        'Wallet low balance error',
+        'Low balance for signer wallet! Consider manually topping up EGLD!',
+      );
     }
   }
 
@@ -156,6 +162,7 @@ export class GasCheckerService {
       wegldToken = await this.api.getFungibleTokenOfAccount(address, wegldTokenId);
     } catch (e) {
       this.logger.warn(`Could not get wegld balance for ${address.bech32()}`);
+      await this.slackApi.sendWarn('Gas checker error', `Could not get wegld balance for ${address.bech32()}`);
 
       wegldToken = {
         identifier: wegldTokenId,

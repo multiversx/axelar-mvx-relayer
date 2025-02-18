@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { GatewayContract } from './gateway.contract';
 import { ApiNetworkProvider, ProxyNetworkProvider } from '@multiversx/sdk-network-providers/out';
 import { ResultsParser, TransactionWatcher } from '@multiversx/sdk-core/out';
@@ -13,9 +13,10 @@ import { ApiConfigService } from '@mvx-monorepo/common/config';
 import { DynamicModuleUtils } from '@mvx-monorepo/common/utils';
 import { ItsContract } from '@mvx-monorepo/common/contracts/its.contract';
 import { FeeHelper } from '@mvx-monorepo/common/contracts/fee.helper';
+import { ApiModule } from '@mvx-monorepo/common/api';
 
 @Module({
-  imports: [DynamicModuleUtils.getCacheModule()],
+  imports: [DynamicModuleUtils.getCacheModule(), forwardRef(() => ApiModule)],
   providers: [
     {
       provide: ProxyNetworkProvider,
@@ -48,9 +49,7 @@ import { FeeHelper } from '@mvx-monorepo/common/contracts/fee.helper';
     },
     {
       provide: GatewayContract,
-      useFactory: async (
-        apiConfigService: ApiConfigService,
-      ) => {
+      useFactory: async (apiConfigService: ApiConfigService) => {
         const contractLoader = new ContractLoader(join(__dirname, '../assets/gateway.abi.json'));
 
         const smartContract = await contractLoader.getContract(apiConfigService.getContractGateway());

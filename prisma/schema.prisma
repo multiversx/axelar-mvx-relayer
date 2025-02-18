@@ -34,3 +34,8 @@ enum MessageApprovedStatus {
   SUCCESS
   FAILED
 }
+
+model LastProcessedData {
+  type  String @id @db.VarChar(255)
+  value String @db.VarChar(255)
+}

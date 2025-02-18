@@ -20,12 +20,14 @@ import CallEvent = Components.Schemas.CallEvent;
 import MessageApprovedEventApi = Components.Schemas.MessageApprovedEvent;
 import MessageExecutedEventApi = Components.Schemas.MessageExecutedEvent;
 import SignersRotatedEventApi = Components.Schemas.SignersRotatedEvent;
+import { SlackApi } from '@mvx-monorepo/common/api/slack.api';
 
 const mockGatewayContract = 'erd1qqqqqqqqqqqqqpgqvc7gdl0p4s97guh498wgz75k8sav6sjfjlwqh679jy';
 
 describe('GatewayProcessor', () => {
   let gatewayContract: DeepMocked<GatewayContract>;
   let messageApprovedRepository: DeepMocked<MessageApprovedRepository>;
+  let slackApi: DeepMocked<SlackApi>;
 
   let service: GatewayProcessor;
 
@@ -63,6 +65,7 @@ describe('GatewayProcessor', () => {
   beforeEach(async () => {
     gatewayContract = createMock();
     messageApprovedRepository = createMock();
+    slackApi = createMock();
 
     const moduleRef = await Test.createTestingModule({
       providers: [GatewayProcessor],
@@ -74,6 +77,10 @@ describe('GatewayProcessor', () => {
 
         if (token === MessageApprovedRepository) {
           return messageApprovedRepository;
+        }
+
+        if (token === SlackApi) {
+          return slackApi;
         }
 
         return null;

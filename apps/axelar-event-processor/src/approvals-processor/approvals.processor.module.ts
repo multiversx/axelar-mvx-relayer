@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { ApiConfigModule, DatabaseModule, DynamicModuleUtils } from '@mvx-monorepo/common';
 import { ApprovalsProcessorService } from './approvals.processor.service';
 import { ApiModule } from '@mvx-monorepo/common/api/api.module';
@@ -11,7 +11,7 @@ import { HelpersModule } from '@mvx-monorepo/common/helpers/helpers.module';
     ScheduleModule.forRoot(),
     ApiConfigModule,
     DynamicModuleUtils.getRedisCacheModule(),
-    ApiModule,
+    forwardRef(() => ApiModule),
     ContractsModule,
     DatabaseModule,
     HelpersModule,
